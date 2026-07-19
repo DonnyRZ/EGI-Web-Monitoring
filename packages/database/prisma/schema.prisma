@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  end_user
+  business_owner
+  helpdesk
+  developer
+  it_ops
+}
+
+enum MonitoringStatus {
+  normal
+  warning
+  down
+  unknown
+}
+
+enum Severity {
+  critical
+  high
+  medium
+  low
+}
+
+enum IncidentStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum NotificationChannel {
+  dashboard
+  email
+  telegram
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+model User {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String    @db.VarChar(150)
+  email            String    @unique @db.VarChar(255)
+  passwordHash     String    @map("password_hash")
+  role             UserRole
+  telegramChatId   String?   @map("telegram_chat_id") @db.VarChar(100)
+  emailVerifiedAt  DateTime? @map("email_verified_at")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  sessions      UserSession[]
+  ownedWebsites Website[]      @relation("WebsiteOwner")
+  assignedTickets Ticket[]     @relation("TicketAssignee")
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model UserSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model Website {
+  id                         String   @id @default(uuid()) @db.Uuid
+  name                       String   @db.VarChar(150)
+  domain                     String   @db.VarChar(255)
+  url                        String
+  ownerId                    String?  @map("owner_id") @db.Uuid
+  monitoringIntervalMinutes  Int      @default(5) @map("monitoring_interval_minutes")
+  isActive                   Boolean  @default(true) @map("is_active")
+  createdAt                  DateTime @default(now()) @map("created_at")
+  updatedAt                  DateTime @updatedAt @map("updated_at")
+
+  owner              User?              @relation("WebsiteOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  monitoringResults  MonitoringResult[]
+  incidents          Incident[]
+
+  @@index([isActive])
+  @@map("websites")
+}
+
+model MonitoringResult {
+  id             String           @id @default(uuid()) @db.Uuid
+  websiteId      String           @map("website_id") @db.Uuid
+  scheduledAt    DateTime         @map("scheduled_at")
+  checkedAt      DateTime         @map("checked_at")
+  status         MonitoringStatus
+  httpStatus     Int?             @map("http_status")
+  responseTimeMs Int?             @map("response_time_ms")
+  renderTimeMs   Int?             @map("render_time_ms")
+  screenshotUrl  String?          @map("screenshot_url")
+  errorMessage   String?          @map("error_message")
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, scheduledAt])
+  @@index([websiteId])
+  @@index([scheduledAt])
+  @@index([websiteId, checkedAt])
+  @@map("monitoring_results")
+}
+
+model Incident {
+  id         String         @id @default(uuid()) @db.Uuid
+  websiteId  String         @map("website_id") @db.Uuid
+  title      String         @db.VarChar(255)
+  severity   Severity
+  status     IncidentStatus
+  startedAt  DateTime       @map("started_at")
+  resolvedAt DateTime?      @map("resolved_at")
+  closedAt   DateTime?      @map("closed_at")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  tickets       Ticket[]
+  notifications Notification[]
+
+  @@index([websiteId])
+  @@index([status])
+  @@index([websiteId, status])
+  @@index([startedAt])
+  @@map("incidents")
+}
+
+model Ticket {
+  id         String       @id @default(uuid()) @db.Uuid
+  incidentId String       @map("incident_id") @db.Uuid
+  title      String       @db.VarChar(255)
+  assignedTo String?      @map("assigned_to") @db.Uuid
+  priority   Severity
+  status     TicketStatus
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  resolvedAt DateTime?    @map("resolved_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  assignee User?    @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+
+  @@index([incidentId])
+  @@index([assignedTo])
+  @@index([status])
+  @@map("tickets")
+}
+
+model Notification {
+  id           String              @id @default(uuid()) @db.Uuid
+  userId       String?             @map("user_id") @db.Uuid
+  incidentId   String?             @map("incident_id") @db.Uuid
+  channel      NotificationChannel
+  title        String              @db.VarChar(255)
+  message      String
+  status       NotificationStatus
+  sentAt       DateTime?           @map("sent_at")
+  readAt       DateTime?           @map("read_at")
+  errorMessage String?             @map("error_message")
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([readAt])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notifications")
+}

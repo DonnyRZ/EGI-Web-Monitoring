@@ -1,0 +1,33 @@
+{
+  "name": "egi-web-monitoring",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EGI Website Monitoring Platform — monorepo workspace",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev -w @egi/frontend",
+    "dev:backend": "npm run dev -w @egi/backend",
+    "dev:scheduler": "npm run dev -w @egi/scheduler",
+    "dev:worker": "npm run dev -w @egi/worker",
+    "build": "npm run build -w @egi/database && npm run build -w @egi/shared-types && npm run build -w @egi/queue && npm run build -w @egi/monitoring-rules && npm run build --workspaces --if-present",
+    "build:database": "npm run build -w @egi/database",
+    "build:packages": "npm run build -w @egi/shared-types && npm run build -w @egi/queue && npm run build -w @egi/monitoring-rules",
+    "db:generate": "npm run prisma:generate -w @egi/database",
+    "db:migrate": "npm run prisma:migrate -w @egi/database",
+    "db:migrate:dev": "npm run prisma:migrate:dev -w @egi/database",
+    "db:push": "npm run prisma:push -w @egi/database",
+    "db:seed": "npm run prisma:seed -w @egi/database",
+    "db:studio": "npm run prisma:studio -w @egi/database",
+    "infra:up": "docker compose up -d postgres redis minio",
+    "infra:down": "docker compose down",
+    "playwright:install": "npm run playwright:install -w @egi/worker",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}

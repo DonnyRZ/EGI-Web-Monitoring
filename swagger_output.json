@@ -1,0 +1,1219 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "EGI Website Monitoring API",
+    "description": "OpenAPI contract for the EGI Website Monitoring Platform MVP.\n\nSource of truth:\n- Docs/database-schema-website-monitoring-mvp.md\n- Docs/data-pipeline-blueprint-website-monitoring.md\n\nInternal company app. No public signup. Users are created/invited by admin.",
+    "version": "1.0.0-mvp"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Login, session, and token management" },
+    { "name": "Users", "description": "User registry and profile management" },
+    { "name": "Websites", "description": "Website registry for monitoring" },
+    { "name": "Monitoring", "description": "Monitoring results and history" },
+    { "name": "Incidents", "description": "Incident lifecycle management" },
+    { "name": "Tickets", "description": "Incident handling tickets" },
+    { "name": "Notifications", "description": "Dashboard, email, and Telegram notifications" },
+    { "name": "Dashboard", "description": "Aggregated dashboard queries" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token from POST /auth/login"
+      }
+    },
+    "schemas": {
+      "Uuid": {
+        "type": "string",
+        "format": "uuid",
+        "example": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "Timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "example": "2026-07-19T10:00:00+07:00"
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": ["end_user", "business_owner", "helpdesk", "developer", "it_ops"]
+      },
+      "MonitoringStatus": {
+        "type": "string",
+        "enum": ["normal", "warning", "down", "unknown"]
+      },
+      "Severity": {
+        "type": "string",
+        "enum": ["critical", "high", "medium", "low"]
+      },
+      "IncidentStatus": {
+        "type": "string",
+        "enum": ["open", "in_progress", "resolved", "closed"]
+      },
+      "TicketStatus": {
+        "type": "string",
+        "enum": ["open", "in_progress", "resolved", "closed"]
+      },
+      "NotificationChannel": {
+        "type": "string",
+        "enum": ["dashboard", "email", "telegram"]
+      },
+      "NotificationStatus": {
+        "type": "string",
+        "enum": ["pending", "sent", "failed"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["statusCode", "message"],
+        "properties": {
+          "statusCode": { "type": "integer", "example": 400 },
+          "message": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          },
+          "error": { "type": "string", "example": "Bad Request" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "role", "is_active", "created_at", "updated_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "name": { "type": "string", "maxLength": 150, "example": "Budi Santoso" },
+          "email": { "type": "string", "format": "email", "maxLength": 255, "example": "budi@egi.co.id" },
+          "role": { "$ref": "#/components/schemas/UserRole" },
+          "telegram_chat_id": { "type": "string", "nullable": true, "maxLength": 100 },
+          "email_verified_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
+          "is_active": { "type": "boolean", "default": true },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" },
+          "updated_at": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": ["name", "email", "password", "role"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 255 },
+          "password": { "type": "string", "minLength": 8, "writeOnly": true },
+          "role": { "$ref": "#/components/schemas/UserRole" },
+          "telegram_chat_id": { "type": "string", "nullable": true, "maxLength": 100 }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "maxLength": 150 },
+          "role": { "$ref": "#/components/schemas/UserRole" },
+          "telegram_chat_id": { "type": "string", "nullable": true, "maxLength": 100 },
+          "is_active": { "type": "boolean" },
+          "password": { "type": "string", "minLength": 8, "writeOnly": true }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "writeOnly": true }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["access_token", "refresh_token", "user"],
+        "properties": {
+          "access_token": { "type": "string" },
+          "refresh_token": { "type": "string" },
+          "expires_in": { "type": "integer", "description": "Access token lifetime in seconds", "example": 900 },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "RefreshTokenRequest": {
+        "type": "object",
+        "required": ["refresh_token"],
+        "properties": {
+          "refresh_token": { "type": "string" }
+        }
+      },
+      "Website": {
+        "type": "object",
+        "required": ["id", "name", "domain", "url", "monitoring_interval_minutes", "is_active", "created_at", "updated_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "name": { "type": "string", "maxLength": 150, "example": "EGI Inovasi Nusantara" },
+          "domain": { "type": "string", "maxLength": 255, "example": "egi-inovasi.com" },
+          "url": { "type": "string", "format": "uri", "example": "https://egi-inovasi.com/" },
+          "owner_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "monitoring_interval_minutes": { "type": "integer", "minimum": 1, "default": 5, "example": 5 },
+          "is_active": { "type": "boolean", "default": true },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" },
+          "updated_at": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "CreateWebsiteRequest": {
+        "type": "object",
+        "required": ["name", "domain", "url"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 150 },
+          "domain": { "type": "string", "maxLength": 255 },
+          "url": { "type": "string", "format": "uri" },
+          "owner_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "monitoring_interval_minutes": { "type": "integer", "minimum": 1, "default": 5 },
+          "is_active": { "type": "boolean", "default": true }
+        }
+      },
+      "UpdateWebsiteRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "maxLength": 150 },
+          "domain": { "type": "string", "maxLength": 255 },
+          "url": { "type": "string", "format": "uri" },
+          "owner_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "monitoring_interval_minutes": { "type": "integer", "minimum": 1 },
+          "is_active": { "type": "boolean" }
+        }
+      },
+      "MonitoringResult": {
+        "type": "object",
+        "required": ["id", "website_id", "scheduled_at", "checked_at", "status", "created_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "website_id": { "$ref": "#/components/schemas/Uuid" },
+          "scheduled_at": { "$ref": "#/components/schemas/Timestamp" },
+          "checked_at": { "$ref": "#/components/schemas/Timestamp" },
+          "status": { "$ref": "#/components/schemas/MonitoringStatus" },
+          "http_status": { "type": "integer", "nullable": true, "example": 200 },
+          "response_time_ms": { "type": "integer", "nullable": true, "example": 820 },
+          "render_time_ms": { "type": "integer", "nullable": true, "example": 2400 },
+          "screenshot_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "Object storage path or signed URL. Screenshots are not stored in PostgreSQL.",
+            "example": "website/abc123/2026/07/19/10-00.webp"
+          },
+          "error_message": { "type": "string", "nullable": true },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "Incident": {
+        "type": "object",
+        "required": ["id", "website_id", "title", "severity", "status", "started_at", "created_at", "updated_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "website_id": { "$ref": "#/components/schemas/Uuid" },
+          "title": { "type": "string", "maxLength": 255, "example": "Website Hotel X tidak dapat diakses" },
+          "severity": { "$ref": "#/components/schemas/Severity" },
+          "status": { "$ref": "#/components/schemas/IncidentStatus" },
+          "started_at": { "$ref": "#/components/schemas/Timestamp" },
+          "resolved_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
+          "closed_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" },
+          "updated_at": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "UpdateIncidentRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "maxLength": 255 },
+          "severity": { "$ref": "#/components/schemas/Severity" },
+          "status": { "$ref": "#/components/schemas/IncidentStatus" }
+        }
+      },
+      "Ticket": {
+        "type": "object",
+        "required": ["id", "incident_id", "title", "priority", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "incident_id": { "$ref": "#/components/schemas/Uuid" },
+          "title": { "type": "string", "maxLength": 255, "example": "Periksa penyebab website tidak dapat diakses" },
+          "assigned_to": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "priority": { "$ref": "#/components/schemas/Severity" },
+          "status": { "$ref": "#/components/schemas/TicketStatus" },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" },
+          "updated_at": { "$ref": "#/components/schemas/Timestamp" },
+          "resolved_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true }
+        }
+      },
+      "CreateTicketRequest": {
+        "type": "object",
+        "required": ["incident_id", "title", "priority"],
+        "properties": {
+          "incident_id": { "$ref": "#/components/schemas/Uuid" },
+          "title": { "type": "string", "maxLength": 255 },
+          "assigned_to": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "priority": { "$ref": "#/components/schemas/Severity" }
+        }
+      },
+      "UpdateTicketRequest": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "maxLength": 255 },
+          "assigned_to": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "priority": { "$ref": "#/components/schemas/Severity" },
+          "status": { "$ref": "#/components/schemas/TicketStatus" }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "required": ["id", "channel", "title", "message", "status", "created_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "user_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "incident_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "channel": { "$ref": "#/components/schemas/NotificationChannel" },
+          "title": { "type": "string", "maxLength": 255 },
+          "message": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/NotificationStatus" },
+          "sent_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
+          "read_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
+          "error_message": { "type": "string", "nullable": true },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "DashboardWebsiteCard": {
+        "type": "object",
+        "description": "Card data for main dashboard. Technical metrics are not shown on the card itself.",
+        "required": ["website", "latest_result"],
+        "properties": {
+          "website": { "$ref": "#/components/schemas/Website" },
+          "latest_result": {
+            "allOf": [{ "$ref": "#/components/schemas/MonitoringResult" }],
+            "nullable": true
+          },
+          "active_incident": {
+            "allOf": [{ "$ref": "#/components/schemas/Incident" }],
+            "nullable": true,
+            "description": "Active incident status is open, in_progress, or resolved"
+          }
+        }
+      },
+      "WebsiteDetailResponse": {
+        "type": "object",
+        "required": ["website", "latest_result", "monitoring_history", "active_incident", "incident_history"],
+        "properties": {
+          "website": { "$ref": "#/components/schemas/Website" },
+          "latest_result": {
+            "allOf": [{ "$ref": "#/components/schemas/MonitoringResult" }],
+            "nullable": true
+          },
+          "monitoring_history": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MonitoringResult" }
+          },
+          "active_incident": {
+            "allOf": [{ "$ref": "#/components/schemas/Incident" }],
+            "nullable": true
+          },
+          "incident_history": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Incident" }
+          }
+        }
+      },
+      "PaginatedMeta": {
+        "type": "object",
+        "required": ["page", "limit", "total", "total_pages"],
+        "properties": {
+          "page": { "type": "integer", "minimum": 1, "example": 1 },
+          "limit": { "type": "integer", "minimum": 1, "example": 20 },
+          "total": { "type": "integer", "example": 100 },
+          "total_pages": { "type": "integer", "example": 5 }
+        }
+      }
+    },
+    "parameters": {
+      "PageParam": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "default": 1 }
+      },
+      "LimitParam": {
+        "name": "limit",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+      },
+      "IdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/Uuid" }
+      },
+      "WebsiteIdPath": {
+        "name": "websiteId",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/Uuid" }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid access token",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not allowed for this role/action",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Validation or bad request error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login with email and password",
+        "description": "Returns access token, refresh token, and user profile. Refresh token hash is stored in user_sessions.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Refresh access token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshTokenRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout current session",
+        "description": "Revokes the current refresh token session (sets revoked_at).",
+        "responses": {
+          "204": { "description": "Logged out" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get current authenticated user",
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/UserRole" }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/User" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Create or invite a user",
+        "description": "Admin/ops creates users. No public signup.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateUserRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user by ID",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update user",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateUserRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/websites": {
+      "get": {
+        "tags": ["Websites"],
+        "summary": "List websites in registry",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated websites",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Website" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Websites"],
+        "summary": "Register a website for monitoring",
+        "description": "Inactive websites (is_active=false) will not receive monitoring jobs.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWebsiteRequest" },
+              "examples": {
+                "egiInovasi": {
+                  "summary": "EGI Inovasi Nusantara",
+                  "value": {
+                    "name": "EGI Inovasi Nusantara",
+                    "domain": "egi-inovasi.com",
+                    "url": "https://egi-inovasi.com/",
+                    "monitoring_interval_minutes": 5,
+                    "is_active": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Website created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Website" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/websites/{id}": {
+      "get": {
+        "tags": ["Websites"],
+        "summary": "Get website by ID",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Website found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Website" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Websites"],
+        "summary": "Update website registry entry",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWebsiteRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Website updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Website" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Websites"],
+        "summary": "Deactivate website monitoring",
+        "description": "Soft-deactivates the website (is_active=false). Does not delete historical monitoring results.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "204": { "description": "Website deactivated" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/websites/{websiteId}/monitoring-results": {
+      "get": {
+        "tags": ["Monitoring"],
+        "summary": "Get monitoring history for a website",
+        "description": "Returns chronological monitoring_results rows. Data is append-only per scheduled slot.",
+        "parameters": [
+          { "$ref": "#/components/parameters/WebsiteIdPath" },
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/MonitoringStatus" }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Timestamp" }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Timestamp" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated monitoring results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/MonitoringResult" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/websites/{websiteId}/monitoring-results/latest": {
+      "get": {
+        "tags": ["Monitoring"],
+        "summary": "Get latest monitoring result for a website",
+        "parameters": [{ "$ref": "#/components/parameters/WebsiteIdPath" }],
+        "responses": {
+          "200": {
+            "description": "Latest result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MonitoringResult" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/monitoring-results/{id}": {
+      "get": {
+        "tags": ["Monitoring"],
+        "summary": "Get a single monitoring result",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Monitoring result found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MonitoringResult" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/monitoring-results/{id}/screenshot": {
+      "get": {
+        "tags": ["Monitoring"],
+        "summary": "Get temporary signed screenshot URL",
+        "description": "Screenshots live in private object storage. Backend returns a short-lived signed URL.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Signed URL issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["url", "expires_at"],
+                  "properties": {
+                    "url": { "type": "string", "format": "uri" },
+                    "expires_at": { "$ref": "#/components/schemas/Timestamp" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/incidents": {
+      "get": {
+        "tags": ["Incidents"],
+        "summary": "List incidents",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          {
+            "name": "website_id",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Uuid" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/IncidentStatus" }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Severity" }
+          },
+          {
+            "name": "active_only",
+            "in": "query",
+            "description": "If true, returns open, in_progress, and resolved (excludes closed)",
+            "schema": { "type": "boolean", "default": false }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated incidents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Incident" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/incidents/{id}": {
+      "get": {
+        "tags": ["Incidents"],
+        "summary": "Get incident by ID",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Incident found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Incident" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Incidents"],
+        "summary": "Update incident",
+        "description": "Helpdesk/ops can update severity/status. Recovery detection may set status to resolved automatically. Closed is manual after confirmation.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateIncidentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Incident updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Incident" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/incidents/{id}/close": {
+      "post": {
+        "tags": ["Incidents"],
+        "summary": "Close a resolved incident",
+        "description": "Helpdesk closes incident after confirmation. Sets status=closed and closed_at.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Incident closed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Incident" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/tickets": {
+      "get": {
+        "tags": ["Tickets"],
+        "summary": "List tickets",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          {
+            "name": "incident_id",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Uuid" }
+          },
+          {
+            "name": "assigned_to",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Uuid" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/TicketStatus" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated tickets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Ticket" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Tickets"],
+        "summary": "Create ticket for an incident",
+        "description": "MVP typically creates one primary ticket per incident (can also be auto-created by pipeline).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateTicketRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ticket created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Ticket" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/tickets/{id}": {
+      "get": {
+        "tags": ["Tickets"],
+        "summary": "Get ticket by ID",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Ticket found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Ticket" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Tickets"],
+        "summary": "Update ticket status, assignee, or priority",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTicketRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ticket updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Ticket" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "List notifications for current user (notification bell)",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          {
+            "name": "unread_only",
+            "in": "query",
+            "description": "If true, only notifications where read_at is null",
+            "schema": { "type": "boolean", "default": false }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/NotificationChannel" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated notifications",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta", "unread_count"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Notification" }
+                    },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" },
+                    "unread_count": { "type": "integer", "example": 3 }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Mark a dashboard notification as read",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": {
+            "description": "Notification marked read",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Notification" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Mark all dashboard notifications as read for current user",
+        "responses": {
+          "200": {
+            "description": "All marked read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["updated"],
+                  "properties": {
+                    "updated": { "type": "integer", "example": 5 }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Main dashboard cards",
+        "description": "For each website: website data + latest monitoring result (including screenshot) + active incident.",
+        "responses": {
+          "200": {
+            "description": "Dashboard cards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/DashboardWebsiteCard" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/dashboard/websites/{websiteId}": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Website detail view",
+        "description": "Website data, latest result, monitoring history, active incident, and incident history.",
+        "parameters": [
+          { "$ref": "#/components/parameters/WebsiteIdPath" },
+          {
+            "name": "history_limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 288, "default": 48 },
+            "description": "Number of recent monitoring results to include"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Website detail payload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WebsiteDetailResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}

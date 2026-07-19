@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+package-lock.json.bak
+
+# Local package-manager caches
+.npm/
+.yarn/
+.yarn/cache/
+.yarn/install-state.gz
+
+# Builds
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+*.tsbuildinfo.*
+
+# Env & secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.pid
+*.pid.lock
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Testing / tooling
+playwright-report/
+test-results/
+.turbo/
+.eslintcache
+.stylelintcache
+
+# Object storage / local data (MinIO, uploads)
+data/
+.tmp/
+temp/
+
+# Docker volumes (if bind-mounted locally)
+docker-data/
+
+# Generated local QA output
+apps/frontend/scripts/qa-screenshots/
+apps/backend/scripts/api-deep-test-last-run.txt
+
+# Deployment/tooling state
+.vercel/
+.netlify/
