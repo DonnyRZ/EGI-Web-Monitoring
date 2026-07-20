@@ -56,7 +56,7 @@ export function deriveCheckStatus(probe: CheckProbeResult): MonitoringStatus {
 /** Only evidence of a website problem contributes to an incident. Unknown means
  * the monitoring pipeline itself was unable to measure the website. */
 export function isFailureStatus(status: MonitoringStatus): boolean {
-  return status === "warning" || status === "down";
+  return status === "down";
 }
 
 export function isSuccessStatus(status: MonitoringStatus): boolean {
@@ -88,8 +88,9 @@ export interface IncidentRuleInput {
 
 /**
  * MVP incident rules (blueprint §8, §10, §12):
- * - 1 failure → warning card, no new incident
- * - 2 consecutive failures → create incident + down
+ * - 1 hard failure → warning card, no new incident
+ * - 2 consecutive hard failures → create incident + down
+ * - Performance warnings never create a critical outage incident
  * - 2 consecutive normals → resolve active incident (not close)
  * - Never create a second active incident (open/in_progress/resolved)
  */
@@ -113,7 +114,7 @@ export function evaluateIncidentRules(input: IncidentRuleInput): IncidentRuleAct
     if (consecutiveFailures >= 2) {
       return { type: "keep_incident", cardStatus: "down" };
     }
-    if (isFailureStatus(current)) {
+    if (current === "down" || current === "warning") {
       return { type: "keep_incident", cardStatus: "warning" };
     }
     // First normal while incident still open — show normal; resolve needs 2

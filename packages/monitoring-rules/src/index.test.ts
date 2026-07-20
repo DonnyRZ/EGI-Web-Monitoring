@@ -33,15 +33,29 @@ test("browser infrastructure failure is unknown and cannot create an incident", 
   );
 });
 
-test("real consecutive website failures still create an incident", () => {
+test("slow warnings do not create an outage incident", () => {
   assert.deepEqual(
-    evaluateIncidentRules({ recentStatuses: ["down", "warning"], hasActiveIncident: false }),
+    evaluateIncidentRules({ recentStatuses: ["warning", "warning"], hasActiveIncident: false }),
+    { type: "none" },
+  );
+});
+
+test("real consecutive hard failures still create an incident", () => {
+  assert.deepEqual(
+    evaluateIncidentRules({ recentStatuses: ["down", "down"], hasActiveIncident: false }),
     {
       type: "create_incident",
       severity: "critical",
       titleHint: "Website tidak dapat diakses",
       cardStatus: "down",
     },
+  );
+});
+
+test("an active incident remains warning during a performance degradation", () => {
+  assert.deepEqual(
+    evaluateIncidentRules({ recentStatuses: ["warning", "down"], hasActiveIncident: true }),
+    { type: "keep_incident", cardStatus: "warning" },
   );
 });
 

@@ -44,13 +44,13 @@ export async function persistCheckAndEvaluate(
     where: { websiteId },
     orderBy: { scheduledAt: "desc" },
     take: 5,
-    select: { status: true },
+    select: { status: true, rawStatus: true },
   });
 
   // recentStatuses newest-first including current checkStatus (pre-override)
   const recentForRules: MonitoringStatus[] = [
     checkStatus,
-    ...previous.map((p) => p.status as MonitoringStatus),
+    ...previous.map((p) => (p.rawStatus ?? p.status) as MonitoringStatus),
   ];
 
   const activeIncident = await prisma.incident.findFirst({
@@ -72,7 +72,14 @@ export async function persistCheckAndEvaluate(
         websiteId,
         scheduledAt,
         checkedAt,
+        rawStatus: checkStatus,
         status: finalStatus,
+        httpOk: probe.httpOk,
+        browserOk: probe.browserOk,
+        screenshotOk: probe.screenshotOk,
+        probeAborted: probe.probeAborted ?? false,
+        infrastructureFailure: probe.infrastructureFailure ?? false,
+        statusReason: getStatusReason(probe, checkStatus),
         httpStatus: probe.httpStatus,
         responseTimeMs: probe.responseTimeMs,
         renderTimeMs: probe.renderTimeMs,
@@ -116,6 +123,24 @@ export async function persistCheckAndEvaluate(
   }
 
   return { resultId: result.id, status: finalStatus };
+}
+
+function getStatusReason(
+  probe: CheckProbeResult,
+  status: MonitoringStatus,
+): string {
+  if (status === "unknown") {
+    return probe.infrastructureFailure
+      ? "monitoring_infrastructure_failure"
+      : "probe_aborted";
+  }
+  if (status === "down") return "http_and_browser_failed";
+  if (!probe.httpOk) return "http_failed";
+  if (!probe.browserOk) return "browser_failed";
+  if (!probe.screenshotOk) return "screenshot_failed";
+  if ((probe.responseTimeMs ?? 0) >= 5_000) return "slow_http";
+  if ((probe.renderTimeMs ?? 0) >= 10_000) return "slow_render";
+  return "healthy";
 }
 
 async function createIncidentFlow(
