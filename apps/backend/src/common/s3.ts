@@ -5,7 +5,12 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 function createS3Client(): S3Client {
-  const endpoint = process.env.S3_ENDPOINT || "http://localhost:9000";
+  // Workers use the private Docker endpoint for uploads. Signed URLs must use
+  // an endpoint reachable by the browser through the public Nginx vhost.
+  const endpoint =
+    process.env.S3_PUBLIC_ENDPOINT ||
+    process.env.S3_ENDPOINT ||
+    "http://localhost:9000";
   const forcePathStyle =
     (process.env.S3_FORCE_PATH_STYLE ?? "true").toLowerCase() !== "false";
 
