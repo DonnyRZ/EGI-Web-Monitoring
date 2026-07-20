@@ -150,7 +150,7 @@ services:
     build:
       <<: *app-build
       args:
-        BASE_IMAGE: mcr.microsoft.com/playwright:v1.54.1-noble
+        BASE_IMAGE: mcr.microsoft.com/playwright:v1.61.1-noble
         SERVICE: "@egi/worker"
     restart: unless-stopped
     logging: *egi-logging
