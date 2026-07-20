@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usersApi } from "@/lib/api-services";
@@ -213,37 +214,29 @@ export default function AdminUsersPage() {
                 </div>
                 <div className="form-field">
                   <label htmlFor="role">Role</label>
-                  <select
+                  <Select
                     id="role"
-                    className="filter-select"
-                    style={{ width: "100%" }}
+                    className="block"
                     value={form.role}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, role: e.target.value as UserRole }))
-                    }
-                  >
-                    {roles.map((r) => (
-                      <option key={r} value={r}>
-                        {roleLabel(r)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((f) => ({ ...f, role: v as UserRole }))}
+                    options={roles.map((r) => ({ value: r, label: roleLabel(r) }))}
+                  />
                 </div>
                 {editing ? (
                   <div className="form-field">
                     <label htmlFor="active">Status</label>
-                    <select
+                    <Select
                       id="active"
-                      className="filter-select"
-                      style={{ width: "100%" }}
+                      className="block"
                       value={form.is_active ? "true" : "false"}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, is_active: e.target.value === "true" }))
+                      onChange={(v) =>
+                        setForm((f) => ({ ...f, is_active: v === "true" }))
                       }
-                    >
-                      <option value="true">Aktif</option>
-                      <option value="false">Nonaktif</option>
-                    </select>
+                      options={[
+                        { value: "true", label: "Aktif" },
+                        { value: "false", label: "Nonaktif" },
+                      ]}
+                    />
                   </div>
                 ) : null}
                 <div className="form-field full">

@@ -1,15 +1,16 @@
-# Local infrastructure for MVP development
+# Local/private infrastructure. Application services can use localhost; do not
+# expose database, Redis, or MinIO directly on a VPS.
 services:
   postgres:
     image: postgres:16-alpine
     container_name: egi-postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_DB: egi_monitoring
       POSTGRES_USER: egi
-      POSTGRES_PASSWORD: change_me_postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,8 +23,16 @@ services:
     image: redis:7-alpine
     container_name: egi-redis
     restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - >-
+        if [ -n "$$REDIS_PASSWORD" ]; then exec redis-server --requirepass
+        "$$REDIS_PASSWORD"; else exec redis-server; fi
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
       - redis_data:/data
 
@@ -33,11 +42,11 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: change_me_minio
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?Set S3_ACCESS_KEY in .env}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?Set S3_SECRET_KEY in .env}
     volumes:
       - minio_data:/data
 

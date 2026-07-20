@@ -13,9 +13,10 @@ export class LoginDto {
 }
 
 export class RefreshTokenDto {
-  @ApiProperty()
+  @ApiPropertyOptional({ description: "Legacy fallback; browser clients use the HttpOnly refresh cookie." })
+  @IsOptional()
   @IsString()
-  refresh_token!: string;
+  refresh_token?: string;
 }
 
 export class LogoutDto {

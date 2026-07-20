@@ -1,23 +1,61 @@
 /**
  * Exhaustive deep API test suite for EGI Website Monitoring NestJS backend.
  *
- * Usage (from repo root, with backend + Postgres running):
+ * Usage (from repo root, with an isolated test backend + Postgres running):
+ *   ALLOW_DESTRUCTIVE_DEEP_TEST=yes \
+ *   TEST_DATABASE_URL=postgresql://.../egi_monitoring_test \
+ *   API_BASE=http://127.0.0.1:3101/api \
+ *   DOCS_URL=http://127.0.0.1:3101/docs \
  *   node apps/backend/scripts/api-deep-test.mjs
  *
  * Env:
- *   API_BASE   default http://localhost:3001/api
- *   DOCS_URL   default http://localhost:3001/docs
- *   DATABASE_URL  required for seeding incidents/notifications/monitoring rows
+ *   ALLOW_DESTRUCTIVE_DEEP_TEST  must be exactly "yes"
+ *   API_BASE                     required; must point to the isolated API
+ *   DOCS_URL                     required; must point to the isolated API docs
+ *   TEST_DATABASE_URL            required; database name must contain "test"
  */
 
 import { randomUUID } from "node:crypto";
 import { hashSync } from "bcryptjs";
 import { PrismaClient, UserRole, IncidentStatus, Severity, TicketStatus, NotificationChannel, NotificationStatus, MonitoringStatus } from "@egi/database";
 
-const API = process.env.API_BASE ?? "http://127.0.0.1:3001/api";
-const DOCS = process.env.DOCS_URL ?? "http://127.0.0.1:3001/docs";
+function requiredEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+function assertSafeTestEnvironment() {
+  if (process.env.ALLOW_DESTRUCTIVE_DEEP_TEST !== "yes") {
+    throw new Error(
+      "Refusing to run destructive API tests. Set ALLOW_DESTRUCTIVE_DEEP_TEST=yes only for an isolated test environment.",
+    );
+  }
+
+  const databaseUrl = requiredEnv("TEST_DATABASE_URL");
+  let databaseName;
+  try {
+    databaseName = new URL(databaseUrl).pathname.replace(/^\//, "").toLowerCase();
+  } catch {
+    throw new Error("TEST_DATABASE_URL must be a valid PostgreSQL connection URL");
+  }
+
+  if (!databaseName.includes("test")) {
+    throw new Error(
+      `Refusing TEST_DATABASE_URL for database "${databaseName}". The database name must contain "test".`,
+    );
+  }
+
+  return databaseUrl;
+}
+
+const TEST_DATABASE_URL = assertSafeTestEnvironment();
+const API = requiredEnv("API_BASE").replace(/\/$/, "");
+const DOCS = requiredEnv("DOCS_URL");
 const PASSWORD = "Admin123!";
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: { db: { url: TEST_DATABASE_URL } },
+});
 
 const results = [];
 let passed = 0;
@@ -39,11 +77,12 @@ function fail(name, detail) {
   console.error(`  ✗ ${name} — ${detail}`);
 }
 
-async function req(method, path, { token, body, expectStatus, headers } = {}) {
+async function req(method, path, { token, cookie, body, expectStatus, headers } = {}) {
   const url = path.startsWith("http") ? path : `${API}${path}`;
   const h = { ...(headers ?? {}) };
   if (body !== undefined) h["Content-Type"] = "application/json";
   if (token) h.Authorization = `Bearer ${token}`;
+  if (cookie) h.Cookie = cookie;
 
   const res = await fetch(url, {
     method,
@@ -76,6 +115,14 @@ async function req(method, path, { token, body, expectStatus, headers } = {}) {
   return { status: res.status, data, headers: res.headers };
 }
 
+function refreshCookie(headers) {
+  const setCookies = typeof headers.getSetCookie === "function"
+    ? headers.getSetCookie()
+    : [headers.get("set-cookie")].filter(Boolean);
+  const line = setCookies.find((value) => value.startsWith("egi_refresh_token="));
+  return line?.split(";", 1)[0] ?? null;
+}
+
 async function assert(name, fn) {
   try {
     await fn();
@@ -86,11 +133,14 @@ async function assert(name, fn) {
 }
 
 async function login(email, password = PASSWORD) {
-  const { data } = await req("POST", "/auth/login", {
+  const { data, headers } = await req("POST", "/auth/login", {
     body: { email, password },
     expectStatus: 200,
   });
-  return data;
+  const cookie = refreshCookie(headers);
+  if (!cookie) throw new Error("login did not set refresh cookie");
+  if ("refresh_token" in data) throw new Error("login leaked refresh token in JSON");
+  return { ...data, refresh_cookie: cookie };
 }
 
 function assertSnakeUser(u) {
@@ -163,7 +213,7 @@ async function main() {
   await section("Auth", async () => {
     await assert("login success", async () => {
       admin = await login("admin@egi.co.id");
-      if (!admin.access_token || !admin.refresh_token) throw new Error("missing tokens");
+      if (!admin.access_token || !admin.refresh_cookie) throw new Error("missing access token or refresh cookie");
       if (admin.user.role !== "it_ops") throw new Error(`role=${admin.user.role}`);
       assertSnakeUser(admin.user);
     });
@@ -209,12 +259,16 @@ async function main() {
     });
 
     await assert("refresh valid", async () => {
-      const { data } = await req("POST", "/auth/refresh", {
-        body: { refresh_token: admin.refresh_token },
+      const { data, headers } = await req("POST", "/auth/refresh", {
+        cookie: admin.refresh_cookie,
         expectStatus: 200,
       });
       if (!data.access_token) throw new Error("no access_token");
+      if ("refresh_token" in data) throw new Error("refresh leaked token in JSON");
+      const cookie = refreshCookie(headers);
+      if (!cookie || cookie === admin.refresh_cookie) throw new Error("refresh cookie was not rotated");
       admin.access_token = data.access_token;
+      admin.refresh_cookie = cookie;
     });
 
     await assert("refresh invalid → 401", async () => {
@@ -252,7 +306,7 @@ async function main() {
       const session = await login("admin@egi.co.id");
       const logout = await req("POST", "/auth/logout", {
         token: session.access_token,
-        body: { refresh_token: session.refresh_token },
+        cookie: session.refresh_cookie,
         expectStatus: [200, 204],
       });
       if (logout.status === 200 && logout.data && Object.keys(logout.data).length) {
@@ -262,7 +316,7 @@ async function main() {
         throw new Error(`logout should be 204, got ${logout.status}`);
       }
       await req("POST", "/auth/refresh", {
-        body: { refresh_token: session.refresh_token },
+        cookie: session.refresh_cookie,
         expectStatus: 401,
       });
       // re-login admin for rest of suite
@@ -432,14 +486,42 @@ async function main() {
         token: admin.access_token,
         body: {
           name: `Deep Test Site ${Date.now()}`,
-          domain: "deep-test.example",
-          url: "https://deep-test.example/",
+          // Use a resolvable public target: website creation now correctly
+          // rejects hosts that cannot be resolved, as part of SSRF protection.
+          domain: "example.com",
+          url: "https://example.com/",
+          owner_id: roleSessions.business_owner.user.id,
           monitoring_interval_minutes: 5,
           is_active: true,
         },
         expectStatus: 201,
       });
       inactiveWebsiteId = data.id;
+    });
+
+    await assert("owner can list/detail own website while another owner cannot", async () => {
+      const ownerList = await req("GET", "/websites", {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      if (!ownerList.data.data.some((website) => website.id === inactiveWebsiteId)) {
+        throw new Error("owner cannot see assigned website");
+      }
+      await req("GET", `/websites/${inactiveWebsiteId}`, {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      const otherList = await req("GET", "/websites", {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 200,
+      });
+      if (otherList.data.data.some((website) => website.id === inactiveWebsiteId)) {
+        throw new Error("other owner can list assigned website");
+      }
+      await req("GET", `/websites/${inactiveWebsiteId}`, {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 404,
+      });
     });
 
     await assert("end_user cannot create website → 403", async () => {
@@ -463,6 +545,24 @@ async function main() {
           url: "not-a-url",
         },
         expectStatus: 400,
+      });
+    });
+
+    await assert("unknown website owner → 404", async () => {
+      await req("POST", "/websites", {
+        token: admin.access_token,
+        body: {
+          name: "Unknown Owner",
+          domain: "example.com",
+          url: "https://example.com/",
+          owner_id: randomUUID(),
+        },
+        expectStatus: 404,
+      });
+      await req("PATCH", `/websites/${inactiveWebsiteId}`, {
+        token: admin.access_token,
+        body: { owner_id: randomUUID() },
+        expectStatus: 404,
       });
     });
 
@@ -529,6 +629,7 @@ async function main() {
   // --- Monitoring fixture ---
   let monitoringId;
   let monitoringNoShotId;
+  let ownerMonitoringId;
   await section("Monitoring", async () => {
     await assert("seed monitoring results via prisma", async () => {
       const site = await prisma.website.findFirst({ where: { isActive: true } });
@@ -563,6 +664,18 @@ async function main() {
       });
       monitoringId = withShot.id;
       monitoringNoShotId = noShot.id;
+      const ownerResult = await prisma.monitoringResult.create({
+        data: {
+          websiteId: inactiveWebsiteId,
+          scheduledAt: new Date("2099-01-02T00:00:00.000Z"),
+          checkedAt: new Date("2099-01-02T00:00:05.000Z"),
+          status: MonitoringStatus.normal,
+          httpStatus: 200,
+          responseTimeMs: 100,
+          screenshotUrl: null,
+        },
+      });
+      ownerMonitoringId = ownerResult.id;
     });
 
     await assert("latest returns result", async () => {
@@ -574,6 +687,25 @@ async function main() {
       for (const k of ["website_id", "scheduled_at", "checked_at", "http_status", "screenshot_url"]) {
         if (!(k in data)) throw new Error(`missing ${k}`);
       }
+    });
+
+    await assert("monitoring results are scoped to the website owner", async () => {
+      await req("GET", `/websites/${inactiveWebsiteId}/monitoring-results/latest`, {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      await req("GET", `/monitoring-results/${ownerMonitoringId}`, {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      await req("GET", `/websites/${inactiveWebsiteId}/monitoring-results/latest`, {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 404,
+      });
+      await req("GET", `/monitoring-results/${ownerMonitoringId}`, {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 404,
+      });
     });
 
     await assert("latest when no results → 404", async () => {
@@ -642,6 +774,7 @@ async function main() {
   let openIncidentId;
   let resolvedIncidentId;
   let closedIncidentId;
+  let ownerIncidentId;
   await section("Incidents", async () => {
     await assert("seed incidents", async () => {
       const open = await prisma.incident.create({
@@ -677,6 +810,16 @@ async function main() {
       openIncidentId = open.id;
       resolvedIncidentId = resolved.id;
       closedIncidentId = closed.id;
+      const ownerIncident = await prisma.incident.create({
+        data: {
+          websiteId: inactiveWebsiteId,
+          title: "Deep owner incident",
+          severity: Severity.low,
+          status: IncidentStatus.open,
+          startedAt: new Date(),
+        },
+      });
+      ownerIncidentId = ownerIncident.id;
     });
 
     await assert("list filters status", async () => {
@@ -685,6 +828,31 @@ async function main() {
         expectStatus: 200,
       });
       if (!data.data.every((i) => i.status === "open")) throw new Error("status filter failed");
+    });
+
+    await assert("incidents are scoped to the website owner", async () => {
+      const ownerList = await req("GET", "/incidents", {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      if (!ownerList.data.data.some((incident) => incident.id === ownerIncidentId)) {
+        throw new Error("owner cannot see assigned incident");
+      }
+      await req("GET", `/incidents/${ownerIncidentId}`, {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      const otherList = await req("GET", "/incidents", {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 200,
+      });
+      if (otherList.data.data.some((incident) => incident.id === ownerIncidentId)) {
+        throw new Error("other owner can list assigned incident");
+      }
+      await req("GET", `/incidents/${ownerIncidentId}`, {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 404,
+      });
     });
 
     await assert("list active_only excludes closed", async () => {
@@ -756,6 +924,7 @@ async function main() {
 
   // --- Tickets ---
   let ticketId;
+  let ownerTicketId;
   await section("Tickets", async () => {
     await assert("create ticket for existing incident → 201", async () => {
       const { data } = await req("POST", "/tickets", {
@@ -770,6 +939,40 @@ async function main() {
       });
       ticketId = data.id;
       if (data.status !== "open") throw new Error("status not open");
+    });
+
+    await assert("tickets are scoped through the incident website owner", async () => {
+      const ownerTicket = await prisma.ticket.create({
+        data: {
+          incidentId: ownerIncidentId,
+          title: "Deep owner ticket",
+          priority: "low",
+          status: "open",
+        },
+      });
+      ownerTicketId = ownerTicket.id;
+      const ownerList = await req("GET", "/tickets", {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      if (!ownerList.data.data.some((ticket) => ticket.id === ownerTicketId)) {
+        throw new Error("owner cannot see assigned ticket");
+      }
+      await req("GET", `/tickets/${ownerTicketId}`, {
+        token: roleSessions.business_owner.access_token,
+        expectStatus: 200,
+      });
+      const otherList = await req("GET", "/tickets", {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 200,
+      });
+      if (otherList.data.data.some((ticket) => ticket.id === ownerTicketId)) {
+        throw new Error("other owner can list assigned ticket");
+      }
+      await req("GET", `/tickets/${ownerTicketId}`, {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 404,
+      });
     });
 
     await assert("create for missing incident → 404", async () => {
@@ -967,10 +1170,14 @@ async function main() {
       });
     });
 
-    await assert("business_owner can view dashboard", async () => {
-      await req("GET", "/dashboard", {
+    await assert("dashboard detail is scoped to the website owner", async () => {
+      await req("GET", `/dashboard/websites/${inactiveWebsiteId}`, {
         token: roleSessions.business_owner.access_token,
         expectStatus: 200,
+      });
+      await req("GET", `/dashboard/websites/${inactiveWebsiteId}`, {
+        token: roleSessions.end_user.access_token,
+        expectStatus: 404,
       });
     });
   });

@@ -8,23 +8,20 @@ config(); // fallback cwd .env
 import { createPrismaClient } from "@egi/database";
 import {
   createMonitoringQueue,
+  createRedisConnection,
+  assertRedisProductionConfig,
   enqueueMonitoringJob,
   getRedisConnectionOptions,
   logQueueMetrics,
 } from "@egi/queue";
+import { floorToMinute, isWebsiteDue } from "./scheduling";
+import { acquireSchedulerLock, releaseSchedulerLock } from "./scheduler-lock";
 
+assertRedisProductionConfig();
 const prisma = createPrismaClient();
 const queue = createMonitoringQueue(getRedisConnectionOptions());
-
-const INTERVAL_MINUTES = Math.max(
-  1,
-  Number(process.env.MONITORING_INTERVAL_MINUTES || 5),
-);
-
-function floorToSlot(date: Date, intervalMinutes: number): Date {
-  const ms = intervalMinutes * 60_000;
-  return new Date(Math.floor(date.getTime() / ms) * ms);
-}
+const redis = createRedisConnection();
+const TICK_SECONDS = Math.max(5, Number(process.env.SCHEDULER_TICK_SECONDS || 15));
 
 function log(message: string, meta?: Record<string, unknown>) {
   const line = meta
@@ -43,9 +40,11 @@ async function enqueueSlot(scheduledAt: Date): Promise<void> {
   let skipped = 0;
 
   for (const site of websites) {
-    // MVP: enqueue every active site on the global slot.
-    // Per-site interval can gate later; avoid skipping the whole fleet when
-    // MONITORING_INTERVAL_MINUTES is shortened for smoke tests.
+    if (!isWebsiteDue(scheduledAt, site.monitoringIntervalMinutes)) {
+      skipped += 1;
+      continue;
+    }
+
     const result = await enqueueMonitoringJob(queue, {
       website_id: site.id,
       url: site.url,
@@ -69,7 +68,7 @@ async function enqueueSlot(scheduledAt: Date): Promise<void> {
     scheduled_at: scheduledAt.toISOString(),
     websites: websites.length,
     enqueued,
-    skipped_duplicate: skipped,
+    skipped_not_due_or_duplicate: skipped,
   });
 
   await logQueueMetrics(queue, log);
@@ -82,13 +81,25 @@ async function tick(): Promise<void> {
   if (ticking) return;
   ticking = true;
   try {
-    const slot = floorToSlot(new Date(), INTERVAL_MINUTES);
+    const slot = floorToMinute(new Date());
     const slotIso = slot.toISOString();
     if (slotIso === lastSlotIso) {
       return;
     }
-    lastSlotIso = slotIso;
-    await enqueueSlot(slot);
+    const lockToken = await acquireSchedulerLock(redis);
+    if (!lockToken) {
+      log("scheduler_tick_skipped_lock_held", { scheduled_at: slotIso });
+      return;
+    }
+
+    try {
+      // Store only after leadership is acquired: another instance may have
+      // processed the prior tick while this instance was waiting for Redis.
+      lastSlotIso = slotIso;
+      await enqueueSlot(slot);
+    } finally {
+      await releaseSchedulerLock(redis, lockToken);
+    }
   } catch (error) {
     log("scheduler_error", {
       error: error instanceof Error ? error.message : String(error),
@@ -100,7 +111,7 @@ async function tick(): Promise<void> {
 
 async function main() {
   log("scheduler_started", {
-    interval_minutes: INTERVAL_MINUTES,
+    tick_seconds: TICK_SECONDS,
     redis_host: process.env.REDIS_HOST || "localhost",
     redis_port: Number(process.env.REDIS_PORT || 6379),
   });
@@ -110,12 +121,13 @@ async function main() {
 
   const timer = setInterval(() => {
     void tick();
-  }, 15_000);
+  }, TICK_SECONDS * 1_000);
 
   const shutdown = async (signal: string) => {
     log("scheduler_shutdown", { signal });
     clearInterval(timer);
     await queue.close();
+    redis.disconnect();
     await prisma.$disconnect();
     process.exit(0);
   };

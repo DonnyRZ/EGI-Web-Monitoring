@@ -6,7 +6,7 @@ const OUT = path.join(__dirname, "qa-screenshots");
 fs.mkdirSync(OUT, { recursive: true });
 
 const API = "http://localhost:3001/api";
-const BASE = "http://localhost:3000";
+const BASE = "http://localhost:3010";
 
 async function loginApi() {
   const res = await fetch(`${API}/auth/login`, {

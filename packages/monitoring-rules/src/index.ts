@@ -10,6 +10,8 @@ export interface CheckProbeResult {
   errorMessage: string | null;
   /** True when the worker could not even start probes (bad URL, internal error). */
   probeAborted?: boolean;
+  /** True when monitoring infrastructure, not the website, failed. */
+  infrastructureFailure?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface CheckProbeResult {
  * Consecutive-failure → incident/down is handled separately by evaluateIncidentRules.
  */
 export function deriveCheckStatus(probe: CheckProbeResult): MonitoringStatus {
-  if (probe.probeAborted) {
+  if (probe.probeAborted || probe.infrastructureFailure) {
     return "unknown";
   }
 
@@ -51,9 +53,10 @@ export function deriveCheckStatus(probe: CheckProbeResult): MonitoringStatus {
   return "normal";
 }
 
-/** Treat warning/down as a failure for consecutive-failure counting. */
+/** Only evidence of a website problem contributes to an incident. Unknown means
+ * the monitoring pipeline itself was unable to measure the website. */
 export function isFailureStatus(status: MonitoringStatus): boolean {
-  return status === "warning" || status === "down" || status === "unknown";
+  return status === "warning" || status === "down";
 }
 
 export function isSuccessStatus(status: MonitoringStatus): boolean {
@@ -70,7 +73,7 @@ export type IncidentRuleAction =
     }
   | {
       type: "keep_incident";
-      cardStatus: "normal" | "warning" | "down";
+      cardStatus: "normal" | "warning" | "down" | "unknown";
     }
   | {
       type: "resolve_incident";
@@ -101,6 +104,9 @@ export function evaluateIncidentRules(input: IncidentRuleInput): IncidentRuleAct
   const consecutiveNormals = countLeading(recent, isSuccessStatus);
 
   if (input.hasActiveIncident) {
+    if (current === "unknown") {
+      return { type: "keep_incident", cardStatus: "unknown" };
+    }
     if (consecutiveNormals >= 2) {
       return { type: "resolve_incident", cardStatus: "normal" };
     }

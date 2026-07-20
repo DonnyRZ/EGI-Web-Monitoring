@@ -7,9 +7,9 @@ import {
 import { log } from "./log";
 
 export async function runRetentionCleanup(prisma: PrismaClient): Promise<void> {
-  const resultsDays = Number(process.env.RETENTION_MONITORING_RESULTS_DAYS || 90);
-  const screenshotsDays = Number(process.env.RETENTION_SCREENSHOTS_DAYS || 30);
-  const notificationsDays = Number(process.env.RETENTION_NOTIFICATIONS_DAYS || 90);
+  const resultsDays = readRetentionDays("RETENTION_MONITORING_RESULTS_DAYS", 90);
+  const screenshotsDays = readRetentionDays("RETENTION_SCREENSHOTS_DAYS", 30);
+  const notificationsDays = readRetentionDays("RETENTION_NOTIFICATIONS_DAYS", 90);
 
   const resultsCutoff = daysAgo(resultsDays);
   const screenshotsCutoff = daysAgo(screenshotsDays);
@@ -45,6 +45,19 @@ export async function runRetentionCleanup(prisma: PrismaClient): Promise<void> {
     screenshots_cutoff: screenshotsCutoff.toISOString(),
     notifications_cutoff: notificationsCutoff.toISOString(),
   });
+}
+
+export function readRetentionDays(name: string, fallback: number, env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env[name]?.trim();
+  if (!raw) return fallback;
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(`${name} must be a positive whole number of days`);
+  }
+  const days = Number(raw);
+  if (!Number.isSafeInteger(days) || days < 1 || days > 3650) {
+    throw new Error(`${name} must be between 1 and 3650 days`);
+  }
+  return days;
 }
 
 function daysAgo(days: number): Date {

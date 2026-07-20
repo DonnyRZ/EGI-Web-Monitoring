@@ -8,6 +8,14 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
+    "test:api:deep": "node scripts/api-deep-test.mjs",
+    "test:lifecycle": "tsx --test src/modules/lifecycle.test.ts",
+    "test:url-safety": "tsx --test src/common/monitoring-url.test.ts",
+    "test:runtime-config": "tsx --test src/common/runtime-config.test.ts",
+    "test:auth": "tsx --test src/modules/auth/auth.service.test.ts",
+    "test:auth-cookie": "tsx --test src/modules/auth/auth-cookie.test.ts",
+    "test:resource-access": "tsx --test src/common/resource-access.test.ts src/modules/websites/websites.service.test.ts",
+    "remediate:test-data": "node scripts/remediate-test-data.mjs",
     "lint": "echo \"@egi/backend: no lint configured yet\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -37,6 +45,7 @@
     "@types/express": "^5.0.3",
     "@types/node": "^24.0.15",
     "@types/passport-jwt": "^4.0.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsx": "^4.20.3"
   }
 }

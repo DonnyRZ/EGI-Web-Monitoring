@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@egi/database";
 import {
   QUEUE_NAMES,
+  assertRedisProductionConfig,
   createNotificationQueue,
   createRedisConnection,
   enqueueNotificationJob,
@@ -24,11 +25,13 @@ import {
   dispatchNotification,
   markNotificationFailed,
 } from "./notifications/dispatch";
+import { reconcilePendingNotifications } from "./notifications/reconcile";
 import { runProbes, closeBrowser } from "./probes";
 import { persistCheckAndEvaluate } from "./rules-apply";
 import { runRetentionCleanup } from "./retention";
 import {
   createS3Client,
+  assertS3ProductionConfig,
   ensureBucket,
   getBucket,
   screenshotObjectKey,
@@ -36,6 +39,8 @@ import {
 } from "./storage/s3";
 import { acquireWebsiteLock, releaseWebsiteLock } from "./website-lock";
 
+assertRedisProductionConfig();
+assertS3ProductionConfig();
 const prisma = createPrismaClient();
 const connection = getRedisConnectionOptions();
 const redis = createRedisConnection();
@@ -105,6 +110,21 @@ async function processMonitoringJob(
       browserTimeoutMs: BROWSER_TIMEOUT_MS,
     });
 
+    const maxAttempts = job.opts.attempts ?? 1;
+    const attemptNumber = job.attemptsMade + 1;
+    let pipelineError = probe.infrastructureError ?? null;
+
+    if (pipelineError) {
+      log("browser_infrastructure_failed", meta({
+        error: pipelineError,
+        attempt: attemptNumber,
+        max_attempts: maxAttempts,
+      }));
+      if (attemptNumber < maxAttempts) {
+        throw new Error(`Monitoring browser infrastructure failure: ${pipelineError}`);
+      }
+    }
+
     log(
       "http_check_completed",
       meta({
@@ -123,7 +143,7 @@ async function processMonitoringJob(
     );
 
     let screenshotUrl: string | null = null;
-    if (probe.screenshotBuffer) {
+    if (!pipelineError && probe.screenshotBuffer) {
       const key = screenshotObjectKey(websiteId, scheduledAt);
       try {
         await uploadScreenshot(
@@ -135,12 +155,26 @@ async function processMonitoringJob(
         screenshotUrl = key;
         log("screenshot_uploaded", meta({ screenshot_key: key }));
       } catch (error) {
-        log("screenshot_upload_failed", meta({
-          error: error instanceof Error ? error.message : String(error),
-        }));
+        pipelineError = error instanceof Error ? error.message : String(error);
+        log("screenshot_upload_failed", meta({ error: pipelineError }));
         screenshotUrl = null;
       }
     }
+
+    if (pipelineError && attemptNumber < maxAttempts) {
+      throw new Error(`Monitoring pipeline failure: ${pipelineError}`);
+    }
+
+    // After all retries, preserve an explicit unknown result for observability
+    // without turning a broken browser/storage dependency into a site outage.
+    const resultProbe = pipelineError
+      ? {
+          ...probe,
+          infrastructureFailure: true,
+          errorMessage: [probe.errorMessage, pipelineError].filter(Boolean).join("; "),
+          screenshotBuffer: null,
+        }
+      : probe;
 
     await persistCheckAndEvaluate({
       prisma,
@@ -148,7 +182,7 @@ async function processMonitoringJob(
       websiteId,
       websiteName: website.name,
       scheduledAt,
-      probe,
+      probe: resultProbe,
       screenshotUrl,
       enqueueNotification: async (notificationId) => {
         try {
@@ -203,6 +237,22 @@ async function ensureRetentionSchedule(): Promise<void> {
   );
 }
 
+async function reconcileNotifications(): Promise<void> {
+  try {
+    const recovered = await reconcilePendingNotifications(
+      prisma,
+      (notificationId) => enqueueNotificationJob(notificationQueue, notificationId),
+    );
+    if (recovered > 0) {
+      log("notification_pending_reconciled", { count: recovered });
+    }
+  } catch (error) {
+    log("notification_reconcile_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function main() {
   log("worker_started", {
     concurrency: CONCURRENCY,
@@ -221,6 +271,7 @@ async function main() {
   }
 
   await ensureRetentionSchedule();
+  await reconcileNotifications();
 
   const monitoringWorker = new Worker<MonitoringJobPayload>(
     QUEUE_NAMES.monitoring,
@@ -264,6 +315,7 @@ async function main() {
   const metricsTimer = setInterval(() => {
     void logQueueMetrics(monitoringQueue, log);
     void logQueueMetrics(notificationQueue, log);
+    void reconcileNotifications();
   }, 60_000);
 
   const shutdown = async (signal: string) => {

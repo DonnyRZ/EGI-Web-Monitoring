@@ -4,21 +4,24 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toIncidentDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { IncidentsQueryDto, UpdateIncidentDto } from "./incidents.dto";
+import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import type { AuthUser } from "../../common/current-user.decorator";
 
 @Injectable()
 export class IncidentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(pagination: PaginationQueryDto, filters: IncidentsQueryDto) {
+  async list(pagination: PaginationQueryDto, filters: IncidentsQueryDto, user: AuthUser) {
     const where: Prisma.IncidentWhereInput = {};
     if (filters.website_id) where.websiteId = filters.website_id;
     if (filters.status) where.status = filters.status;
     if (filters.severity) where.severity = filters.severity;
     if (filters.active_only) {
       where.status = {
-        in: [IncidentStatus.open, IncidentStatus.in_progress, IncidentStatus.resolved],
+        in: [IncidentStatus.open, IncidentStatus.in_progress],
       };
     }
+    if (!canAccessAllMonitoredResources(user)) where.website = { ownerId: user.id };
 
     const [total, incidents] = await this.prisma.$transaction([
       this.prisma.incident.count({ where }),
@@ -36,16 +39,25 @@ export class IncidentsService {
     };
   }
 
-  async get(id: string) {
-    const incident = await this.prisma.incident.findUnique({ where: { id } });
+  async get(id: string, user: AuthUser) {
+    const incident = await this.prisma.incident.findFirst({
+      where: { id, ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }) },
+    });
     if (!incident) throw new NotFoundException("Incident not found");
     return toIncidentDto(incident);
   }
 
   async update(id: string, dto: UpdateIncidentDto) {
-    await this.get(id);
+    const existing = await this.prisma.incident.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("Incident not found");
     if (dto.status === IncidentStatus.closed) {
       throw new BadRequestException("Use POST /incidents/:id/close to close an incident");
+    }
+    if (existing.status === IncidentStatus.closed) {
+      throw new BadRequestException("Closed incidents cannot be updated");
+    }
+    if (dto.status === IncidentStatus.open && existing.status !== IncidentStatus.open) {
+      throw new BadRequestException("Resolved incidents must create a new lifecycle, not reopen");
     }
     const incident = await this.prisma.incident.update({
       where: { id },
@@ -53,7 +65,10 @@ export class IncidentsService {
         title: dto.title,
         severity: dto.severity,
         status: dto.status,
-        resolvedAt: dto.status === IncidentStatus.resolved ? new Date() : undefined,
+        resolvedAt:
+          dto.status === IncidentStatus.resolved && !existing.resolvedAt
+            ? new Date()
+            : undefined,
       },
     });
     return toIncidentDto(incident);

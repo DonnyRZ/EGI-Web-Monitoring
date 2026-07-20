@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Select } from "@/components/Select";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState, StatusPill } from "@/components/ui";
 import { dashboardApi } from "@/lib/api-services";
@@ -45,18 +46,18 @@ export default function DashboardPage() {
   return (
     <AppShell title="Dashboard">
       <div className="toolbar">
-        <select
-          className="filter-select"
+        <Select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as MonitoringStatus | "all")}
+          onChange={(v) => setStatusFilter(v as MonitoringStatus | "all")}
           aria-label="Filter status"
-        >
-          <option value="all">Semua status</option>
-          <option value="normal">Normal</option>
-          <option value="warning">Warning</option>
-          <option value="down">Down</option>
-          <option value="unknown">Unknown</option>
-        </select>
+          options={[
+            { value: "all", label: "Semua status" },
+            { value: "normal", label: "Normal" },
+            { value: "warning", label: "Warning" },
+            { value: "down", label: "Down" },
+            { value: "unknown", label: "Unknown" },
+          ]}
+        />
         <span className="muted" style={{ fontSize: "0.9rem" }}>
           {filtered.length} website
         </span>

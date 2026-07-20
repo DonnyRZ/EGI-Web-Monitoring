@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Select } from "@/components/Select";
 import {
   EmptyState,
   ErrorBanner,
@@ -156,18 +157,18 @@ export default function IncidentDetailPage() {
                     Close Incident
                   </button>
                 ) : null}
-                <select
-                  className="filter-select"
+                <Select
                   value={incident.severity}
                   disabled={busy}
-                  onChange={(e) => void updateSeverity(e.target.value as Severity)}
+                  onChange={(v) => void updateSeverity(v as Severity)}
                   aria-label="Ubah severity"
-                >
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
+                  options={[
+                    { value: "critical", label: "Critical" },
+                    { value: "high", label: "High" },
+                    { value: "medium", label: "Medium" },
+                    { value: "low", label: "Low" },
+                  ]}
+                />
               </div>
             ) : null}
           </div>

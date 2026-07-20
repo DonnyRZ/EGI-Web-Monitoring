@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { MonitoringHistoryQueryDto } from "./monitoring.dto";
 import { MonitoringService } from "./monitoring.service";
+import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 
 @ApiTags("Monitoring")
 @ApiBearerAuth()
@@ -15,22 +16,23 @@ export class MonitoringController {
   listByWebsite(
     @Param("websiteId", ParseUUIDPipe) websiteId: string,
     @Query() query: MonitoringHistoryQueryDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.monitoringService.listByWebsite(websiteId, query, query);
+    return this.monitoringService.listByWebsite(websiteId, query, query, user);
   }
 
   @Get("websites/:websiteId/monitoring-results/latest")
-  latest(@Param("websiteId", ParseUUIDPipe) websiteId: string) {
-    return this.monitoringService.latest(websiteId);
+  latest(@Param("websiteId", ParseUUIDPipe) websiteId: string, @CurrentUser() user: AuthUser) {
+    return this.monitoringService.latest(websiteId, user);
   }
 
   @Get("monitoring-results/:id")
-  get(@Param("id", ParseUUIDPipe) id: string) {
-    return this.monitoringService.get(id);
+  get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.monitoringService.get(id, user);
   }
 
   @Get("monitoring-results/:id/screenshot")
-  screenshot(@Param("id", ParseUUIDPipe) id: string) {
-    return this.monitoringService.getScreenshotSignedUrl(id);
+  screenshot(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.monitoringService.getScreenshotSignedUrl(id, user);
   }
 }

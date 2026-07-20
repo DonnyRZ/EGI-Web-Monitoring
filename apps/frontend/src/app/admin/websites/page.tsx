@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { websitesApi } from "@/lib/api-services";
@@ -212,18 +213,18 @@ export default function AdminWebsitesPage() {
                 </div>
                 <div className="form-field">
                   <label htmlFor="active">Aktif</label>
-                  <select
+                  <Select
                     id="active"
-                    className="filter-select"
-                    style={{ width: "100%" }}
+                    className="block"
                     value={form.is_active ? "true" : "false"}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, is_active: e.target.value === "true" }))
+                    onChange={(v) =>
+                      setForm((f) => ({ ...f, is_active: v === "true" }))
                     }
-                  >
-                    <option value="true">Ya</option>
-                    <option value="false">Tidak</option>
-                  </select>
+                    options={[
+                      { value: "true", label: "Ya" },
+                      { value: "false", label: "Tidak" },
+                    ]}
+                  />
                 </div>
                 <div className="form-field full">
                   <label htmlFor="url">URL</label>
