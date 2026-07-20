@@ -11,22 +11,6 @@ x-app-build: &app-build
   dockerfile: deploy/Dockerfile.service
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    logging: *egi-logging
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-egi_monitoring}
-      POSTGRES_USER: ${POSTGRES_USER:-egi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-    volumes:
-      - egi_vps_postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -67,7 +51,7 @@ services:
       NODE_ENV: production
       BACKEND_PORT: 3001
       API_PREFIX: api
-      DATABASE_URL: postgresql://${POSTGRES_USER:-egi}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-egi_monitoring}?schema=public
+      DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -88,9 +72,9 @@ services:
       ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
     ports:
       - "127.0.0.1:31011:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_started
       minio:
@@ -134,17 +118,17 @@ services:
     logging: *egi-logging
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-egi}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-egi_monitoring}?schema=public
+      DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DB: ${REDIS_DB:-0}
       SCHEDULER_TICK_SECONDS: ${SCHEDULER_TICK_SECONDS:-15}
       MONITORING_INTERVAL_MINUTES: ${MONITORING_INTERVAL_MINUTES:-5}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       backend:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
       redis:
         condition: service_started
@@ -159,7 +143,7 @@ services:
     logging: *egi-logging
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-egi}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-egi_monitoring}?schema=public
+      DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
@@ -180,10 +164,10 @@ services:
       RETENTION_MONITORING_RESULTS_DAYS: ${RETENTION_MONITORING_RESULTS_DAYS:-90}
       RETENTION_SCREENSHOTS_DAYS: ${RETENTION_SCREENSHOTS_DAYS:-30}
       RETENTION_NOTIFICATIONS_DAYS: ${RETENTION_NOTIFICATIONS_DAYS:-90}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       backend:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
       redis:
         condition: service_started
@@ -191,6 +175,5 @@ services:
         condition: service_started
 
 volumes:
-  egi_vps_postgres:
   egi_vps_redis:
   egi_vps_minio:
