@@ -110,17 +110,15 @@ export default function AdminWebsitesPage() {
   }
 
   return (
-    <AppShell
-      title="Kelola Website"
-      actions={
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
+    <AppShell title="Kelola Website">
+      <div className="page-toolbar">
+        <p className="page-toolbar-desc muted">
+          Registry website yang dipantau. Ini bukan halaman detail monitoring.
+        </p>
+        <button type="button" className="btn btn-sm btn-neutral" onClick={openCreate}>
           Tambah Website
         </button>
-      }
-    >
-      <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
-        Registry website yang dipantau. Ini bukan halaman detail monitoring.
-      </p>
+      </div>
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading ? <LoadingState /> : null}
@@ -160,11 +158,15 @@ export default function AdminWebsitesPage() {
                   <td>{formatDateTime(w.updated_at)}</td>
                   <td>
                     <div className="row-actions">
-                      <button type="button" className="btn" onClick={() => openEdit(w)}>
+                      <button type="button" className="btn btn-sm btn-neutral" onClick={() => openEdit(w)}>
                         Edit
                       </button>
                       {w.is_active ? (
-                        <button type="button" className="btn" onClick={() => void deactivate(w)}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-neutral"
+                          onClick={() => void deactivate(w)}
+                        >
                           Nonaktifkan
                         </button>
                       ) : null}

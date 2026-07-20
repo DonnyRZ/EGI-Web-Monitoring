@@ -57,13 +57,13 @@ export function statusLabel(status: MonitoringStatus) {
 export function severityLabel(severity: Severity) {
   switch (severity) {
     case "critical":
-      return "Prioritas Kritis";
+      return "Kritis";
     case "high":
-      return "Prioritas Tinggi";
+      return "Tinggi";
     case "medium":
-      return "Prioritas Sedang";
+      return "Sedang";
     case "low":
-      return "Prioritas Rendah";
+      return "Rendah";
   }
 }
 

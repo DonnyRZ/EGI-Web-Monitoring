@@ -174,25 +174,32 @@ export function Select({
               width: pos.width,
             }}
           >
-            {options.map((opt, i) => {
-              const isSelected = opt.value === value;
-              const isActive = i === highlight;
-              return (
-                <li key={opt.value} role="presentation">
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`select-option ${isSelected ? "selected" : ""} ${isActive ? "active" : ""}`}
-                    onMouseEnter={() => setHighlight(i)}
-                    onClick={() => commit(opt.value)}
-                  >
-                    <span>{opt.label}</span>
-                    {isSelected ? <IconCheck className="select-check" aria-hidden /> : null}
-                  </button>
-                </li>
-              );
-            })}
+            {options.length === 0 ? (
+              <li className="select-empty" role="presentation">
+                Tidak ada pilihan
+              </li>
+            ) : (
+              options.map((opt, i) => {
+                const isSelected = opt.value === value;
+                const isActive = i === highlight;
+                const optionKey = `${i}:${opt.value || "empty"}`;
+                return (
+                  <li key={optionKey} role="presentation">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`select-option ${isSelected ? "selected" : ""} ${isActive ? "active" : ""}`}
+                      onMouseEnter={() => setHighlight(i)}
+                      onClick={() => commit(opt.value)}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected ? <IconCheck className="select-check" aria-hidden /> : null}
+                    </button>
+                  </li>
+                );
+              })
+            )}
           </ul>,
           document.body,
         )

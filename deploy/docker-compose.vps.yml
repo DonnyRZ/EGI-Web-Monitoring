@@ -46,6 +46,7 @@ services:
     logging: *egi-logging
     command: >-
       sh -c 'npm run prisma:migrate -w @egi/database
+      && npm run prisma:seed -w @egi/database
       && npm run start:prod -w @egi/backend'
     environment:
       NODE_ENV: production
