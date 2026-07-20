@@ -66,27 +66,21 @@ export default function IncidentsPage() {
 
   return (
     <AppShell title="Incidents">
-      <div style={{ display: "flex", gap: 18, borderBottom: "1px solid var(--border)", marginBottom: 18 }}>
+      <div className="page-tabs" role="tablist" aria-label="Tampilan incident">
         <button
           type="button"
-          className="btn btn-ghost"
-          style={{
-            borderRadius: 0,
-            borderBottom: tab === "active" ? "2px solid var(--egi-blue)" : "2px solid transparent",
-            color: tab === "active" ? "var(--egi-blue-dark)" : undefined,
-          }}
+          className={`page-tab ${tab === "active" ? "active" : ""}`}
+          role="tab"
+          aria-selected={tab === "active"}
           onClick={() => setTab("active")}
         >
           Aktif
         </button>
         <button
           type="button"
-          className="btn btn-ghost"
-          style={{
-            borderRadius: 0,
-            borderBottom: tab === "all" ? "2px solid var(--egi-blue)" : "2px solid transparent",
-            color: tab === "all" ? "var(--egi-blue-dark)" : undefined,
-          }}
+          className={`page-tab ${tab === "all" ? "active" : ""}`}
+          role="tab"
+          aria-selected={tab === "all"}
           onClick={() => setTab("all")}
         >
           Semua
