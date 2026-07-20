@@ -124,7 +124,7 @@ Scheduler → Redis/BullMQ → Worker (HTTP + Playwright)
 - Retry: 10s, then 30s, max 3 attempts; jobs older than 4 minutes may skip
 - Screenshots: object key `website/{id}/{yyyy}/{mm}/{dd}/{HH-mm}.webp` (UTC); upload failure still saves result with `screenshot_url=null`
 - API `GET /monitoring-results/:id/screenshot` returns a short-lived **signed URL** for private MinIO objects
-- Retention (daily): monitoring_results 90d, screenshots 30d, notifications 90d; incidents/tickets forever
+- Retention (daily): monitoring_results 90d, screenshots 1d, notifications 90d; incidents/tickets forever
 
 ## Telegram
 
