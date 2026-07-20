@@ -1,0 +1,26 @@
+ARG BASE_IMAGE=node:20-bookworm-slim
+FROM ${BASE_IMAGE} AS build
+
+WORKDIR /app
+COPY . .
+
+RUN npm ci --ignore-scripts
+RUN npm run build -w @egi/database \
+ && npm run build -w @egi/shared-types \
+ && npm run build -w @egi/queue \
+ && npm run build -w @egi/monitoring-rules \
+ && npm run build -w @egi/logging
+
+ARG SERVICE
+ARG NEXT_PUBLIC_API_URL=/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+RUN npm run build -w ${SERVICE}
+
+FROM ${BASE_IMAGE} AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app /app
+
+ARG SERVICE
+ENV EGI_SERVICE=${SERVICE}
+CMD ["sh", "-c", "npm run start:prod -w ${EGI_SERVICE}"]

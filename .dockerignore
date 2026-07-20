@@ -1,0 +1,15 @@
+.git
+.github
+.codex-runtime-logs
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+.env
+.env.*
+!.env.example
+apps/frontend/.env.local
+packages/database/node_modules
+packages/database/prisma/dev.db*
+*.log
