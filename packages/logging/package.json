@@ -1,0 +1,25 @@
+{
+  "name": "@egi/logging",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared structured logging and secret redaction for EGI services",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/index.test.ts",
+    "lint": "echo \"@egi/logging: no lint configured yet\""
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.15",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

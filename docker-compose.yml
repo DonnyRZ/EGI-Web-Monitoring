@@ -1,10 +1,17 @@
 # Local/private infrastructure. Application services can use localhost; do not
 # expose database, Redis, or MinIO directly on a VPS.
+x-logging: &default-logging
+  driver: local
+  options:
+    max-size: "50m"
+    max-file: "10"
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: egi-postgres
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "127.0.0.1:5433:5432"
     environment:
@@ -23,6 +30,7 @@ services:
     image: redis:7-alpine
     container_name: egi-redis
     restart: unless-stopped
+    logging: *default-logging
     command:
       - sh
       - -c
@@ -40,6 +48,7 @@ services:
     image: minio/minio:latest
     container_name: egi-minio
     restart: unless-stopped
+    logging: *default-logging
     command: server /data --console-address ":9001"
     ports:
       - "127.0.0.1:9000:9000"

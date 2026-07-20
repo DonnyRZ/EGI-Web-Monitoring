@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@egi/database": "*",
+    "@egi/logging": "*",
     "@egi/queue": "*",
     "@egi/shared-types": "*",
     "dotenv": "^16.6.1"

@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@egi/database": "*",
+    "@egi/logging": "*",
     "@nestjs/common": "^11.1.5",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.5",

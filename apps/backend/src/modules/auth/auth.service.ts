@@ -3,9 +3,11 @@ import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma/prisma.service";
 import { createRefreshToken, hashToken, verifyPassword } from "../../common/crypto";
 import { toUserDto } from "../../common/mappers";
+import { createLogger } from "@egi/logging";
 
 @Injectable()
 export class AuthService {
+  private readonly logger = createLogger("backend");
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -14,6 +16,9 @@ export class AuthService {
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive || !verifyPassword(password, user.passwordHash)) {
+      this.logger.warn("auth_login_failed", undefined, {
+        email_domain: email.split("@")[1] ?? "unknown",
+      });
       throw new UnauthorizedException("Invalid email or password");
     }
 
@@ -33,6 +38,11 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+    });
+
+    this.logger.log("auth_login_success", undefined, {
+      user_id: user.id,
+      user_role: user.role,
     });
 
     return {
@@ -55,6 +65,7 @@ export class AuthService {
     });
 
     if (!session || !session.user.isActive) {
+      this.logger.warn("auth_refresh_failed");
       throw new UnauthorizedException("Invalid refresh token");
     }
 
@@ -71,6 +82,9 @@ export class AuthService {
       data: { refreshTokenHash: hashToken(nextRefreshToken) },
     });
     if (rotated.count !== 1) {
+      this.logger.warn("auth_refresh_replay_rejected", undefined, {
+        user_id: session.user.id,
+      });
       throw new UnauthorizedException("Invalid refresh token");
     }
 
@@ -100,6 +114,7 @@ export class AuthService {
       },
       data: { revokedAt: new Date() },
     });
+    this.logger.log("auth_logout", undefined, { refresh_token_present: Boolean(refreshToken) });
   }
 
   async me(userId: string) {

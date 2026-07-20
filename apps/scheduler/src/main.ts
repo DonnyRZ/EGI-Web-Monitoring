@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { resolve } from "node:path";
+import { createLogger } from "@egi/logging";
 
 // Load monorepo root .env whether started from root or apps/scheduler
 config({ path: resolve(__dirname, "../../../.env") });
@@ -23,11 +24,9 @@ const queue = createMonitoringQueue(getRedisConnectionOptions());
 const redis = createRedisConnection();
 const TICK_SECONDS = Math.max(5, Number(process.env.SCHEDULER_TICK_SECONDS || 15));
 
+const logger = createLogger("scheduler");
 function log(message: string, meta?: Record<string, unknown>) {
-  const line = meta
-    ? JSON.stringify({ ts: new Date().toISOString(), message, ...meta })
-    : JSON.stringify({ ts: new Date().toISOString(), message });
-  console.log(line);
+  logger.log(message, undefined, meta);
 }
 
 async function enqueueSlot(scheduledAt: Date): Promise<void> {
@@ -137,7 +136,7 @@ async function main() {
 }
 
 main().catch(async (error) => {
-  console.error(error);
+  logger.error(error, error instanceof Error ? error.stack : undefined, "bootstrap");
   await queue.close();
   await prisma.$disconnect();
   process.exit(1);
