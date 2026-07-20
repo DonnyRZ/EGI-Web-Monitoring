@@ -1,11 +1,15 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import { createLogger } from "@egi/logging";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { assertProductionRuntimeConfig, shouldEnableSwagger } from "./common/runtime-config";
+import { requestLoggingMiddleware } from "./common/request-logging.middleware";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = createLogger("backend");
+  const app = await NestFactory.create(AppModule, { logger });
+  app.use(requestLoggingMiddleware(logger));
   assertProductionRuntimeConfig();
 
   const apiPrefix = process.env.API_PREFIX ?? "api";
@@ -47,8 +51,14 @@ async function bootstrap() {
   const port = Number(process.env.BACKEND_PORT ?? 3001);
   await app.listen(port);
 
-  console.log(`API listening on http://localhost:${port}/${apiPrefix}`);
-  console.log(`Swagger UI on http://localhost:${port}/docs`);
+  logger.log("service_ready", undefined, {
+    port,
+    api_prefix: apiPrefix,
+    swagger_enabled: shouldEnableSwagger(),
+  });
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  createLogger("backend").error(error, error instanceof Error ? error.stack : undefined, "bootstrap");
+  process.exitCode = 1;
+});

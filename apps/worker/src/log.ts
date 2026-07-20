@@ -1,14 +1,12 @@
+import { createLogger, type LogMeta } from "@egi/logging";
+
+const logger = createLogger("worker");
+
 export function log(
   message: string,
-  meta?: Record<string, unknown>,
+  meta?: LogMeta,
 ): void {
-  console.log(
-    JSON.stringify({
-      ts: new Date().toISOString(),
-      message,
-      ...meta,
-    }),
-  );
+  logger.log(message, undefined, meta);
 }
 
 export function jobMeta(

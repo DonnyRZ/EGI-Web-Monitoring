@@ -340,7 +340,10 @@ async function main() {
 }
 
 main().catch(async (error) => {
-  console.error(error);
+  log("worker_fatal_error", {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
   await closeBrowser();
   await prisma.$disconnect();
   process.exit(1);
