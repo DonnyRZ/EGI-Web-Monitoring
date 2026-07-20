@@ -17,6 +17,7 @@ import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { CreateTicketDto, TicketsQueryDto, UpdateTicketDto } from "./tickets.dto";
 import { TicketsService } from "./tickets.service";
+import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 
 @ApiTags("Tickets")
 @ApiBearerAuth()
@@ -26,8 +27,8 @@ export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
   @Get()
-  list(@Query() query: TicketsQueryDto) {
-    return this.ticketsService.list(query, query);
+  list(@Query() query: TicketsQueryDto, @CurrentUser() user: AuthUser) {
+    return this.ticketsService.list(query, query, user);
   }
 
   @Post()
@@ -38,8 +39,8 @@ export class TicketsController {
   }
 
   @Get(":id")
-  get(@Param("id", ParseUUIDPipe) id: string) {
-    return this.ticketsService.get(id);
+  get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.ticketsService.get(id, user);
   }
 
   @Patch(":id")

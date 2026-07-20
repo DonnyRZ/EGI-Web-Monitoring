@@ -19,7 +19,6 @@ import { log, jobMeta } from "./log";
 const ACTIVE_INCIDENT: IncidentStatus[] = [
   IncidentStatus.open,
   IncidentStatus.in_progress,
-  IncidentStatus.resolved,
 ];
 
 export interface PersistCheckInput {
@@ -126,73 +125,83 @@ async function createIncidentFlow(
 ): Promise<void> {
   const { prisma, websiteId, websiteName } = input;
 
-  // Double-check no active incident (race)
-  const existing = await prisma.incident.findFirst({
-    where: { websiteId, status: { in: ACTIVE_INCIDENT } },
+  const created = await prisma.$transaction(async (tx) => {
+    // PostgreSQL advisory locks serialize incident creation for one website
+    // even when multiple workers receive overlapping jobs.
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(hashtext(${websiteId}))
+    `;
+
+    const existing = await tx.incident.findFirst({
+      where: { websiteId, status: { in: ACTIVE_INCIDENT } },
+    });
+    if (existing) return null;
+
+    const title = `Website ${websiteName} ${titleHint}`;
+    const incident = await tx.incident.create({
+      data: {
+        websiteId,
+        title,
+        severity,
+        status: IncidentStatus.open,
+        startedAt: input.scheduledAt,
+      },
+    });
+
+    const assignees = await tx.user.findMany({
+      where: {
+        isActive: true,
+        role: { in: [UserRole.it_ops, UserRole.helpdesk] },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 1,
+    });
+    const assignee = assignees[0] ?? null;
+
+    const ticket = await tx.ticket.create({
+      data: {
+        incidentId: incident.id,
+        title: `Periksa penyebab: ${websiteName}`,
+        assignedTo: assignee?.id ?? null,
+        priority: severity,
+        status: TicketStatus.open,
+      },
+    });
+
+    return { incident, ticket, assignee, title };
   });
-  if (existing) {
+
+  if (!created) {
     log(
       "incident_skipped_duplicate",
       jobMeta(input.jobId, websiteId, input.scheduledAt.toISOString(), {
-        incident_id: existing.id,
       }),
     );
     return;
   }
 
-  const title = `Website ${websiteName} ${titleHint}`;
-  const incident = await prisma.incident.create({
-    data: {
-      websiteId,
-      title,
-      severity,
-      status: IncidentStatus.open,
-      startedAt: input.scheduledAt,
-    },
-  });
-
   log(
     "incident_created",
     jobMeta(input.jobId, websiteId, input.scheduledAt.toISOString(), {
-      incident_id: incident.id,
+      incident_id: created.incident.id,
       severity,
     }),
   );
 
-  const assignees = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      role: { in: [UserRole.it_ops, UserRole.helpdesk] },
-    },
-    orderBy: { createdAt: "asc" },
-    take: 1,
-  });
-  const assignee = assignees[0] ?? null;
-
-  const ticket = await prisma.ticket.create({
-    data: {
-      incidentId: incident.id,
-      title: `Periksa penyebab: ${websiteName}`,
-      assignedTo: assignee?.id ?? null,
-      priority: severity,
-      status: TicketStatus.open,
-    },
-  });
-
   await createLifecycleNotifications(input, {
-    incidentId: incident.id,
+    incidentId: created.incident.id,
     event: "incident_created",
-    title: `Incident: ${title}`,
-    message: `${title}. Severity: ${severity}. Ticket ${ticket.id} dibuat.`,
+    title: `Incident: ${created.title}`,
+    message: `${created.title}. Severity: ${severity}. Ticket ${created.ticket.id} dibuat.`,
   });
 
-  if (assignee) {
+  if (created.assignee) {
     await createLifecycleNotifications(input, {
-      incidentId: incident.id,
+      incidentId: created.incident.id,
       event: "ticket_assigned",
       title: `Ticket assigned: ${websiteName}`,
-      message: `Ticket untuk incident ${incident.id} ditugaskan ke ${assignee.name}.`,
-      preferUserId: assignee.id,
+      message: `Ticket untuk incident ${created.incident.id} ditugaskan ke ${created.assignee.name}.`,
+      preferUserId: created.assignee.id,
     });
   }
 }

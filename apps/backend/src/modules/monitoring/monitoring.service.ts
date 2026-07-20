@@ -5,13 +5,17 @@ import { paginatedMeta, toMonitoringResultDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { createScreenshotSignedUrl } from "../../common/s3";
 import { MonitoringHistoryQueryDto } from "./monitoring.dto";
+import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import type { AuthUser } from "../../common/current-user.decorator";
 
 @Injectable()
 export class MonitoringService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async assertWebsite(websiteId: string) {
-    const website = await this.prisma.website.findUnique({ where: { id: websiteId } });
+  private async assertWebsite(websiteId: string, user: AuthUser) {
+    const website = await this.prisma.website.findFirst({
+      where: { id: websiteId, ...(canAccessAllMonitoredResources(user) ? {} : { ownerId: user.id }) },
+    });
     if (!website) throw new NotFoundException("Website not found");
   }
 
@@ -19,8 +23,9 @@ export class MonitoringService {
     websiteId: string,
     pagination: PaginationQueryDto,
     filters: MonitoringHistoryQueryDto,
+    user: AuthUser,
   ) {
-    await this.assertWebsite(websiteId);
+    await this.assertWebsite(websiteId, user);
 
     const where: Prisma.MonitoringResultWhereInput = { websiteId };
     if (filters.status) where.status = filters.status;
@@ -46,24 +51,28 @@ export class MonitoringService {
     };
   }
 
-  async latest(websiteId: string) {
-    await this.assertWebsite(websiteId);
+  async latest(websiteId: string, user: AuthUser) {
+    await this.assertWebsite(websiteId, user);
     const result = await this.prisma.monitoringResult.findFirst({
       where: { websiteId },
-      orderBy: { scheduledAt: "desc" },
+      orderBy: { checkedAt: "desc" },
     });
     if (!result) throw new NotFoundException("No monitoring result yet");
     return toMonitoringResultDto(result);
   }
 
-  async get(id: string) {
-    const result = await this.prisma.monitoringResult.findUnique({ where: { id } });
+  async get(id: string, user: AuthUser) {
+    const result = await this.prisma.monitoringResult.findFirst({
+      where: { id, ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }) },
+    });
     if (!result) throw new NotFoundException("Monitoring result not found");
     return toMonitoringResultDto(result);
   }
 
-  async getScreenshotSignedUrl(id: string) {
-    const result = await this.prisma.monitoringResult.findUnique({ where: { id } });
+  async getScreenshotSignedUrl(id: string, user: AuthUser) {
+    const result = await this.prisma.monitoringResult.findFirst({
+      where: { id, ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }) },
+    });
     if (!result) throw new NotFoundException("Monitoring result not found");
     if (!result.screenshotUrl) {
       throw new NotFoundException("Screenshot not available");

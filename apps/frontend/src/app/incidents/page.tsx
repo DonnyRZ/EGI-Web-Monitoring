@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Select } from "@/components/Select";
 import {
   EmptyState,
   ErrorBanner,
@@ -97,43 +98,39 @@ export default function IncidentsPage() {
       </p>
 
       <div className="toolbar">
-        <select
-          className="filter-select"
+        <Select
           value={websiteId}
-          onChange={(e) => setWebsiteId(e.target.value)}
+          onChange={setWebsiteId}
           aria-label="Filter website"
-        >
-          <option value="">Semua website</option>
-          {websites.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="filter-select"
+          options={[
+            { value: "", label: "Semua website" },
+            ...websites.map((w) => ({ value: w.id, label: w.name })),
+          ]}
+        />
+        <Select
           value={status}
-          onChange={(e) => setStatus(e.target.value as IncidentStatus | "")}
+          onChange={(v) => setStatus(v as IncidentStatus | "")}
           aria-label="Filter status"
-        >
-          <option value="">Semua status</option>
-          <option value="open">Open</option>
-          <option value="in_progress">In Progress</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
-        </select>
-        <select
-          className="filter-select"
+          options={[
+            { value: "", label: "Semua status" },
+            { value: "open", label: "Open" },
+            { value: "in_progress", label: "In Progress" },
+            { value: "resolved", label: "Resolved" },
+            { value: "closed", label: "Closed" },
+          ]}
+        />
+        <Select
           value={severity}
-          onChange={(e) => setSeverity(e.target.value as Severity | "")}
+          onChange={(v) => setSeverity(v as Severity | "")}
           aria-label="Filter severity"
-        >
-          <option value="">Semua severity</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
+          options={[
+            { value: "", label: "Semua severity" },
+            { value: "critical", label: "Critical" },
+            { value: "high", label: "High" },
+            { value: "medium", label: "Medium" },
+            { value: "low", label: "Low" },
+          ]}
+        />
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}

@@ -1,6 +1,5 @@
 import {
   GetObjectCommand,
-  HeadObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -48,12 +47,6 @@ export async function createScreenshotSignedUrl(
   const key = screenshotRef.replace(/^\//, "");
 
   // Optional existence check — if MinIO is down, still attempt signing
-  try {
-    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-  } catch {
-    // Object may be missing; signed URL can still be generated
-  }
-
   const url = await getSignedUrl(
     client,
     new GetObjectCommand({ Bucket: bucket, Key: key }),

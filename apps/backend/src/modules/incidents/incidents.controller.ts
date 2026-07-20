@@ -17,6 +17,7 @@ import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { IncidentsQueryDto, UpdateIncidentDto } from "./incidents.dto";
 import { IncidentsService } from "./incidents.service";
+import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 
 @ApiTags("Incidents")
 @ApiBearerAuth()
@@ -26,13 +27,13 @@ export class IncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
 
   @Get()
-  list(@Query() query: IncidentsQueryDto) {
-    return this.incidentsService.list(query, query);
+  list(@Query() query: IncidentsQueryDto, @CurrentUser() user: AuthUser) {
+    return this.incidentsService.list(query, query, user);
   }
 
   @Get(":id")
-  get(@Param("id", ParseUUIDPipe) id: string) {
-    return this.incidentsService.get(id);
+  get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.incidentsService.get(id, user);
   }
 
   @Patch(":id")

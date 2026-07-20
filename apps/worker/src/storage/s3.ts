@@ -7,6 +7,17 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
+export function assertS3ProductionConfig(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") return;
+  const unsafe = new Set(["minioadmin", "change_me_minio"]);
+  for (const key of ["S3_ACCESS_KEY", "S3_SECRET_KEY"] as const) {
+    const value = env[key]?.trim();
+    if (!value || unsafe.has(value)) {
+      throw new Error(`${key} must be configured with a non-default secret in production`);
+    }
+  }
+}
+
 export function createS3Client(env: NodeJS.ProcessEnv = process.env): S3Client {
   const endpoint = env.S3_ENDPOINT || "http://localhost:9000";
   const forcePathStyle =
@@ -33,7 +44,11 @@ export async function ensureBucket(
 ): Promise<void> {
   try {
     await client.send(new HeadBucketCommand({ Bucket: bucket }));
-  } catch {
+  } catch (error) {
+    const statusCode = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    // Only a known-missing bucket can be created. Permission, networking, and
+    // authentication errors must remain visible to the worker/operator.
+    if (statusCode !== 404) throw error;
     await client.send(new CreateBucketCommand({ Bucket: bucket }));
   }
 }

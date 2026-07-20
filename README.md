@@ -59,7 +59,7 @@ npm run dev:scheduler
 npm run dev:worker
 ```
 
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:3010` (Makka Hotel uses port 3000)
 - API: `http://localhost:3001/api`
 - Swagger UI: `http://localhost:3001/docs`
 - MinIO console: `http://localhost:9001` (minioadmin / change_me_minio)
@@ -74,6 +74,28 @@ npm run playwright:install -w @egi/worker
 
 If browser launch fails, install [Playwright system deps](https://playwright.dev/docs/browsers) for your OS.
 
+## Deploy to a VPS (Windows or Linux)
+
+The application runs on both Windows and Linux VPSes. Keep Postgres, Redis,
+and MinIO bound to loopback as in `docker-compose.yml`; expose only the
+frontend/API through a reverse proxy with HTTPS. On the VPS, set
+`NODE_ENV=production`, a public `CORS_ORIGINS` value, and unique values for
+`DATABASE_URL`, `REDIS_PASSWORD`, both JWT secrets, and both S3 credentials.
+The backend, worker, and scheduler intentionally refuse unsafe default
+credentials in production. Set `ENABLE_SWAGGER=false` unless docs need
+controlled access.
+
+For Linux, install Playwright's system dependencies before starting the worker.
+For Windows, run `npm run playwright:install -w @egi/worker`; if endpoint
+security blocks the default Headless Shell, set `PLAYWRIGHT_EXECUTABLE_PATH`
+to the installed Chromium executable. The worker validates every monitoring
+target and HTTP redirect to prevent private-network monitoring requests.
+
+`infra/nginx/nginx.conf` is a working reverse-proxy template for containerized
+frontend/backend services. Validate it with `nginx -t`, replace the upstream
+hosts with `127.0.0.1` when the apps run directly on the VPS, and add the TLS
+certificate configuration before public exposure.
+
 ## Scripts
 
 | Command | Description |
@@ -85,7 +107,7 @@ If browser launch fails, install [Playwright system deps](https://playwright.dev
 | `npm run build:database` | Generate Prisma client + build `@egi/database` |
 | `npm run build` | Build database then all packages/apps |
 | `npm run dev:backend` | NestJS API + Swagger |
-| `npm run dev:frontend` | Next.js dashboard (port 3000) |
+| `npm run dev:frontend` | Next.js dashboard (port 3010) |
 | `npm run dev:scheduler` | BullMQ job scheduler |
 | `npm run dev:worker` | Monitoring + notification + retention worker |
 | `npm run typecheck` | Typecheck all packages/apps |
@@ -114,3 +136,10 @@ See `apps/worker/TELEGRAM.md`. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (
 - `Docs/data-pipeline-blueprint-website-monitoring.md`
 - `Docs/EGI Website List.txt`
 - `swagger_output.json`
+
+## Deep API tests
+
+`apps/backend/scripts/api-deep-test.mjs` writes users, websites, monitoring
+results, incidents, tickets, and notifications. It is deliberately blocked from
+running with defaults. Run it only against a dedicated database whose name
+contains `test` and a backend process configured to use that same database.

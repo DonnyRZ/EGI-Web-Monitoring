@@ -13,7 +13,6 @@ import { authApi } from "./api-services";
 import {
   clearAuthStorage,
   getAccessToken,
-  getRefreshToken,
   getStoredUser,
   setStoredUser,
   setTokens,
@@ -36,12 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     const token = getAccessToken();
-    if (!token) {
-      setUser(null);
-      return;
-    }
     try {
-      const me = await authApi.me();
+      const refreshed = token ? null : await authApi.refresh();
+      if (refreshed) setTokens(refreshed.access_token);
+      const me = refreshed?.user ?? await authApi.me();
       setUser(me);
       setStoredUser(me);
     } catch {
@@ -52,23 +49,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const cached = getStoredUser<User>();
-    if (cached && getAccessToken()) {
+    const hasCachedSession = Boolean(cached && getAccessToken());
+    if (hasCachedSession) {
       setUser(cached);
+      setLoading(false);
     }
-    refreshUser().finally(() => setLoading(false));
+    refreshUser().finally(() => {
+      if (!hasCachedSession) setLoading(false);
+    });
   }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
-    setTokens(res.access_token, res.refresh_token);
+    setTokens(res.access_token);
     setStoredUser(res.user);
     setUser(res.user);
   }, []);
 
   const logout = useCallback(async () => {
-    const refresh = getRefreshToken();
     try {
-      await authApi.logout(refresh || undefined);
+      await authApi.logout();
     } catch {
       // ignore logout API errors
     }

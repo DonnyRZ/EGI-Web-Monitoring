@@ -23,6 +23,19 @@ export interface RedisEnvConfig {
   db?: number;
 }
 
+/** Redis is private by default in development, but a production scheduler or
+ * worker must never connect to an unauthenticated queue. */
+export function assertRedisProductionConfig(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") return;
+  if (!env.REDIS_PASSWORD?.trim()) {
+    throw new Error("REDIS_PASSWORD must be configured in production");
+  }
+  const databaseUrl = env.DATABASE_URL?.trim();
+  if (!databaseUrl || databaseUrl.includes("change_me_postgres")) {
+    throw new Error("DATABASE_URL must use non-default credentials in production");
+  }
+}
+
 export function getRedisConnectionOptions(
   env: NodeJS.ProcessEnv = process.env,
 ): ConnectionOptions {

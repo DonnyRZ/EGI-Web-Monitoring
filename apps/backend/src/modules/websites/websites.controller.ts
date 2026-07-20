@@ -18,6 +18,7 @@ import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { CreateWebsiteDto, UpdateWebsiteDto, WebsitesQueryDto } from "./websites.dto";
 import { WebsitesService } from "./websites.service";
+import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 
 @ApiTags("Websites")
 @ApiBearerAuth()
@@ -27,8 +28,8 @@ export class WebsitesController {
   constructor(private readonly websitesService: WebsitesService) {}
 
   @Get()
-  list(@Query() query: WebsitesQueryDto) {
-    return this.websitesService.list(query, query);
+  list(@Query() query: WebsitesQueryDto, @CurrentUser() user: AuthUser) {
+    return this.websitesService.list(query, query, user);
   }
 
   @Post()
@@ -39,8 +40,8 @@ export class WebsitesController {
   }
 
   @Get(":id")
-  get(@Param("id", ParseUUIDPipe) id: string) {
-    return this.websitesService.get(id);
+  get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.websitesService.get(id, user);
   }
 
   @Patch(":id")

@@ -10,6 +10,9 @@
     "start:prod": "node dist/main.js",
     "postinstall": "playwright install chromium",
     "playwright:install": "playwright install chromium",
+    "test": "tsx --test src/probes.test.ts src/target-safety.test.ts src/storage/s3.test.ts src/retention.test.ts",
+    "test:integration:rules": "tsx --test src/rules-apply.integration.test.ts",
+    "test:integration:notifications": "tsx --test src/notifications/reconcile.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"@egi/worker: no lint configured yet\""
   },
@@ -23,7 +26,7 @@
     "bullmq": "^5.56.1",
     "dotenv": "^16.6.1",
     "ioredis": "^5.6.1",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^9.0.3",
     "playwright": "^1.54.1"
   },
   "devDependencies": {

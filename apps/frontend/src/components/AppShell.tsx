@@ -23,6 +23,30 @@ interface AppShellProps {
   actions?: ReactNode;
 }
 
+let activeIncidentsCache = 0;
+let activeIncidentsCachedAt = 0;
+let activeIncidentsRequest: Promise<number> | null = null;
+
+function loadActiveIncidents() {
+  const now = Date.now();
+  if (now - activeIncidentsCachedAt < 30_000) {
+    return Promise.resolve(activeIncidentsCache);
+  }
+  if (!activeIncidentsRequest) {
+    activeIncidentsRequest = incidentsApi
+      .list({ active_only: true, limit: 1 })
+      .then((res) => {
+        activeIncidentsCache = res.meta.total;
+        activeIncidentsCachedAt = Date.now();
+        return activeIncidentsCache;
+      })
+      .finally(() => {
+        activeIncidentsRequest = null;
+      });
+  }
+  return activeIncidentsRequest;
+}
+
 export function AppShell({ title, children, actions }: AppShellProps) {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
@@ -41,16 +65,15 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    incidentsApi
-      .list({ active_only: true, limit: 1 })
-      .then((res) => {
-        if (!cancelled) setActiveIncidents(res.meta.total);
+    loadActiveIncidents()
+      .then((count) => {
+        if (!cancelled) setActiveIncidents(count);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [user, pathname]);
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -114,7 +137,9 @@ export function AppShell({ title, children, actions }: AppShellProps) {
                 href={item.href}
                 className={`nav-item ${active ? "active" : ""}`}
               >
-                <Icon />
+                <span className="nav-icon" aria-hidden>
+                  <Icon />
+                </span>
                 <span>{item.label}</span>
                 {"badge" in item && item.badge ? (
                   <span className="nav-badge">{item.badge > 99 ? "99+" : item.badge}</span>
@@ -126,7 +151,9 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
         <div className="sidebar-footer">
           <button type="button" className="nav-item" onClick={() => void onLogout()}>
-            <IconLogout />
+            <span className="nav-icon" aria-hidden>
+              <IconLogout />
+            </span>
             <span>Logout</span>
           </button>
         </div>
@@ -151,9 +178,6 @@ export function AppShell({ title, children, actions }: AppShellProps) {
             <div className="user-menu" title={user.email}>
               <span className="avatar">{initials(user.name)}</span>
             </div>
-            <button type="button" className="btn header-logout" onClick={() => void onLogout()}>
-              Logout
-            </button>
           </div>
         </header>
         <main className="content">{children}</main>

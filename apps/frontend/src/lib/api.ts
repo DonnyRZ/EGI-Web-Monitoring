@@ -1,7 +1,6 @@
 import {
   clearAuthStorage,
   getAccessToken,
-  getRefreshToken,
   setTokens,
   setStoredUser,
 } from "./auth-storage";
@@ -9,7 +8,9 @@ import type { ApiErrorBody, LoginResponse } from "./types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:3001/api";
+  "http://127.0.0.1:3001/api";
+
+const REQUEST_TIMEOUT_MS = 10_000;
 
 export class ApiError extends Error {
   status: number;
@@ -32,18 +33,17 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
-  const refresh = getRefreshToken();
-  if (!refresh) return false;
-
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refresh }),
+      body: JSON.stringify({}),
+      credentials: "include",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) return false;
     const data = (await res.json()) as LoginResponse;
-    setTokens(data.access_token, data.refresh_token);
+    setTokens(data.access_token);
     setStoredUser(data.user);
     return true;
   } catch {
@@ -84,12 +84,14 @@ export async function apiFetch<T>(
   const res = await fetch(`${API_URL}${path.startsWith("/") ? path : `/${path}`}`, {
     ...rest,
     headers: reqHeaders,
+    credentials: "include",
     body:
       body === undefined
         ? undefined
         : body instanceof FormData
           ? body
           : JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (res.status === 401 && auth && !skipRefresh) {

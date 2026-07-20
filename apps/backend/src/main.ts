@@ -2,9 +2,11 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
+import { assertProductionRuntimeConfig, shouldEnableSwagger } from "./common/runtime-config";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  assertProductionRuntimeConfig();
 
   const apiPrefix = process.env.API_PREFIX ?? "api";
   app.setGlobalPrefix(apiPrefix);
@@ -15,7 +17,16 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.enableCors();
+  const corsOrigins = (process.env.CORS_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({
+    // Local development keeps its existing permissive behavior; production is
+    // validated above and only admits explicitly configured frontends.
+    origin: process.env.NODE_ENV === "production" ? corsOrigins : true,
+    credentials: true,
+  });
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("EGI Website Monitoring API")
@@ -26,10 +37,12 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("docs", app, document, {
-    jsonDocumentUrl: "docs/json",
-  });
+  if (shouldEnableSwagger()) {
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup("docs", app, document, {
+      jsonDocumentUrl: "docs/json",
+    });
+  }
 
   const port = Number(process.env.BACKEND_PORT ?? 3001);
   await app.listen(port);

@@ -28,12 +28,6 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    void load();
-    const id = window.setInterval(() => void load(), 60000);
-    return () => window.clearInterval(id);
-  }, [load]);
-
-  useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     }
@@ -62,7 +56,11 @@ export function NotificationBell() {
         aria-label="Notifikasi"
         onClick={() => {
           setOpen((v) => !v);
-          if (!open) void load();
+          if (!open) {
+            void load();
+            const id = window.setInterval(() => void load(), 60000);
+            window.setTimeout(() => window.clearInterval(id), 60_000);
+          }
         }}
       >
         <IconBell />

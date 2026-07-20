@@ -58,6 +58,22 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
 
+    const nextRefreshToken = createRefreshToken();
+    // Rotate atomically. A replay racing this request can no longer issue a
+    // second access token after the first request replaces the stored hash.
+    const rotated = await this.prisma.userSession.updateMany({
+      where: {
+        id: session.id,
+        refreshTokenHash: tokenHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: { refreshTokenHash: hashToken(nextRefreshToken) },
+    });
+    if (rotated.count !== 1) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
     const accessToken = await this.jwtService.signAsync({
       sub: session.user.id,
       email: session.user.email,
@@ -66,7 +82,7 @@ export class AuthService {
 
     return {
       access_token: accessToken,
-      refresh_token: refreshToken,
+      refresh_token: nextRefreshToken,
       expires_in: 900,
       user: toUserDto(session.user),
     };

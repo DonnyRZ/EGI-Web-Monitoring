@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "tsx --test src/index.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"@egi/monitoring-rules: no lint configured yet\""
   },
@@ -20,6 +21,7 @@
     "@egi/shared-types": "*"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsx": "^4.20.3"
   }
 }

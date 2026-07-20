@@ -33,10 +33,11 @@ export const authApi = {
       auth: false,
     }),
   me: () => apiFetch<User>("/auth/me"),
-  logout: (refresh_token?: string) =>
+  refresh: () => apiFetch<LoginResponse>("/auth/refresh", { method: "POST", body: {}, auth: false, skipRefresh: true }),
+  logout: () =>
     apiFetch<void>("/auth/logout", {
       method: "POST",
-      body: refresh_token ? { refresh_token } : {},
+      body: {},
     }),
 };
 
