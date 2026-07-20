@@ -21,6 +21,7 @@ import type { Incident, IncidentStatus, Severity, Website } from "@/lib/types";
 export default function IncidentsPage() {
   const [items, setItems] = useState<Incident[]>([]);
   const [websites, setWebsites] = useState<Website[]>([]);
+  const [websitesError, setWebsitesError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [status, setStatus] = useState<IncidentStatus | "">("");
@@ -29,10 +30,24 @@ export default function IncidentsPage() {
   const [tab, setTab] = useState<"active" | "all">("active");
 
   useEffect(() => {
+    let cancelled = false;
     websitesApi
       .list({ limit: 100 })
-      .then((res) => setWebsites(res.data))
-      .catch(() => undefined);
+      .then((res) => {
+        if (cancelled) return;
+        setWebsites(res.data ?? []);
+        setWebsitesError("");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setWebsites([]);
+        setWebsitesError(
+          err instanceof ApiError ? err.message : "Gagal memuat daftar website untuk filter",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -66,27 +81,21 @@ export default function IncidentsPage() {
 
   return (
     <AppShell title="Incidents">
-      <div style={{ display: "flex", gap: 18, borderBottom: "1px solid var(--border)", marginBottom: 18 }}>
+      <div className="page-tabs" role="tablist" aria-label="Tampilan incident">
         <button
           type="button"
-          className="btn btn-ghost"
-          style={{
-            borderRadius: 0,
-            borderBottom: tab === "active" ? "2px solid var(--egi-blue)" : "2px solid transparent",
-            color: tab === "active" ? "var(--egi-blue-dark)" : undefined,
-          }}
+          className={`page-tab ${tab === "active" ? "active" : ""}`}
+          role="tab"
+          aria-selected={tab === "active"}
           onClick={() => setTab("active")}
         >
           Aktif
         </button>
         <button
           type="button"
-          className="btn btn-ghost"
-          style={{
-            borderRadius: 0,
-            borderBottom: tab === "all" ? "2px solid var(--egi-blue)" : "2px solid transparent",
-            color: tab === "all" ? "var(--egi-blue-dark)" : undefined,
-          }}
+          className={`page-tab ${tab === "all" ? "active" : ""}`}
+          role="tab"
+          aria-selected={tab === "all"}
           onClick={() => setTab("all")}
         >
           Semua
@@ -134,10 +143,18 @@ export default function IncidentsPage() {
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}
+      {websitesError ? <ErrorBanner message={websitesError} /> : null}
       {loading ? <LoadingState /> : null}
 
       {!loading && !error && items.length === 0 ? (
         <EmptyState title="Tidak ada incident" description="Tidak ada data untuk filter ini." />
+      ) : null}
+
+      {!websitesError && websites.length === 0 ? (
+        <p className="muted" style={{ marginTop: 0, marginBottom: 12, fontSize: "0.88rem" }}>
+          Filter website masih kosong — belum ada website di database. Jalankan seed atau tambah
+          website di Kelola Website.
+        </p>
       ) : null}
 
       {!loading && items.length > 0 ? (

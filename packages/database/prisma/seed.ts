@@ -43,9 +43,8 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@egi.co.id" },
-    // Always refresh hash so bcrypt migration + re-seed keeps Admin123! working
+    // Do not overwrite password on re-seed (production may have changed it).
     update: {
-      passwordHash,
       isActive: true,
       role: UserRole.it_ops,
     },

@@ -8,7 +8,7 @@ import { log } from "./log";
 
 export async function runRetentionCleanup(prisma: PrismaClient): Promise<void> {
   const resultsDays = readRetentionDays("RETENTION_MONITORING_RESULTS_DAYS", 90);
-  const screenshotsDays = readRetentionDays("RETENTION_SCREENSHOTS_DAYS", 30);
+  const screenshotsDays = readRetentionDays("RETENTION_SCREENSHOTS_DAYS", 1);
   const notificationsDays = readRetentionDays("RETENTION_NOTIFICATIONS_DAYS", 90);
 
   const resultsCutoff = daysAgo(resultsDays);

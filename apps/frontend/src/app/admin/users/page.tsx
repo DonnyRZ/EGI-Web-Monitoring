@@ -120,17 +120,15 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <AppShell
-      title="Users"
-      actions={
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
+    <AppShell title="Users">
+      <div className="page-toolbar">
+        <p className="page-toolbar-desc muted">
+          Kelola akun internal. Hanya role IT Ops yang dapat mengakses halaman ini.
+        </p>
+        <button type="button" className="btn btn-sm btn-neutral" onClick={openCreate}>
           Tambah User
         </button>
-      }
-    >
-      <p className="muted" style={{ marginTop: 0, marginBottom: 16 }}>
-        Kelola akun internal. Hanya role IT Ops yang dapat mengakses halaman ini.
-      </p>
+      </div>
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading ? <LoadingState /> : null}
@@ -165,7 +163,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td>{formatDateTime(u.created_at)}</td>
                   <td>
-                    <button type="button" className="btn" onClick={() => openEdit(u)}>
+                    <button type="button" className="btn btn-sm btn-neutral" onClick={() => openEdit(u)}>
                       Edit
                     </button>
                   </td>

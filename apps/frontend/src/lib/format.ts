@@ -57,13 +57,13 @@ export function statusLabel(status: MonitoringStatus) {
 export function severityLabel(severity: Severity) {
   switch (severity) {
     case "critical":
-      return "Prioritas Kritis";
+      return "Kritis";
     case "high":
-      return "Prioritas Tinggi";
+      return "Tinggi";
     case "medium":
-      return "Prioritas Sedang";
+      return "Sedang";
     case "low":
-      return "Prioritas Rendah";
+      return "Rendah";
   }
 }
 
@@ -78,6 +78,37 @@ export function incidentStatusLabel(status: IncidentStatus) {
     case "closed":
       return "Closed";
   }
+}
+
+export function ticketStatusLabel(status: string) {
+  switch (status) {
+    case "open":
+      return "Open";
+    case "in_progress":
+      return "In Progress";
+    case "resolved":
+      return "Resolved";
+    case "closed":
+      return "Closed";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
+/** Clean redundant "Website {name} Website …" titles for display. */
+export function incidentDisplayTitle(title: string, websiteName?: string | null) {
+  let cleaned = title.replace(/\s+/g, " ").trim();
+  if (websiteName) {
+    const escaped = websiteName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    cleaned = cleaned
+      .replace(new RegExp(`^Website\\s+${escaped}\\s+Website\\s+`, "i"), "")
+      .replace(new RegExp(`^Website\\s+${escaped}\\s+`, "i"), "")
+      .replace(new RegExp(`^${escaped}\\s+Website\\s+`, "i"), "")
+      .replace(new RegExp(`^${escaped}\\s+`, "i"), "");
+  }
+  cleaned = cleaned.replace(/^Website\s+/i, "").trim();
+  if (!cleaned) return title.trim();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 export function roleLabel(role: UserRole) {
