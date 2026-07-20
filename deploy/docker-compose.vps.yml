@@ -139,6 +139,8 @@ services:
       SCHEDULER_TICK_SECONDS: ${SCHEDULER_TICK_SECONDS:-15}
       MONITORING_INTERVAL_MINUTES: ${MONITORING_INTERVAL_MINUTES:-5}
     depends_on:
+      backend:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
@@ -176,6 +178,8 @@ services:
       RETENTION_SCREENSHOTS_DAYS: ${RETENTION_SCREENSHOTS_DAYS:-30}
       RETENTION_NOTIFICATIONS_DAYS: ${RETENTION_NOTIFICATIONS_DAYS:-90}
     depends_on:
+      backend:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
