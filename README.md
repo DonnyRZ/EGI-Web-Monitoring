@@ -41,7 +41,7 @@ npm run build -w @egi/shared-types -w @egi/queue -w @egi/monitoring-rules
 npm run playwright:install -w @egi/worker
 ```
 
-Seed login: `admin@egi.co.id` / `Admin123!` (bcrypt; re-seed refreshes the hash).
+Seed login: `egi.egiholding@gmail.com` / `Admin123!` (bcrypt; re-seed keeps the existing password).
 
 ### Run processes
 

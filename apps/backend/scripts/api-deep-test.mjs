@@ -212,7 +212,7 @@ async function main() {
   let admin;
   await section("Auth", async () => {
     await assert("login success", async () => {
-      admin = await login("admin@egi.co.id");
+      admin = await login("egi.egiholding@gmail.com");
       if (!admin.access_token || !admin.refresh_cookie) throw new Error("missing access token or refresh cookie");
       if (admin.user.role !== "it_ops") throw new Error(`role=${admin.user.role}`);
       assertSnakeUser(admin.user);
@@ -220,7 +220,7 @@ async function main() {
 
     await assert("login wrong password → 401", async () => {
       await req("POST", "/auth/login", {
-        body: { email: "admin@egi.co.id", password: "WrongPass1!" },
+        body: { email: "egi.egiholding@gmail.com", password: "WrongPass1!" },
         expectStatus: 401,
       });
     });
@@ -284,7 +284,7 @@ async function main() {
         expectStatus: 200,
       });
       assertSnakeUser(data);
-      if (data.email !== "admin@egi.co.id") throw new Error("wrong user");
+      if (data.email !== "egi.egiholding@gmail.com") throw new Error("wrong user");
     });
 
     await assert("/auth/me without token → 401", async () => {
@@ -303,7 +303,7 @@ async function main() {
     });
 
     await assert("logout + refresh revoked → 401", async () => {
-      const session = await login("admin@egi.co.id");
+      const session = await login("egi.egiholding@gmail.com");
       const logout = await req("POST", "/auth/logout", {
         token: session.access_token,
         cookie: session.refresh_cookie,
@@ -320,7 +320,7 @@ async function main() {
         expectStatus: 401,
       });
       // re-login admin for rest of suite
-      admin = await login("admin@egi.co.id");
+      admin = await login("egi.egiholding@gmail.com");
     });
   });
 
@@ -386,7 +386,7 @@ async function main() {
         token: admin.access_token,
         body: {
           name: "Dup",
-          email: "admin@egi.co.id",
+          email: "egi.egiholding@gmail.com",
           password: PASSWORD,
           role: "end_user",
         },
