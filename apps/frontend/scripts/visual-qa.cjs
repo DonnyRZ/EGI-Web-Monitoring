@@ -12,7 +12,7 @@ async function loginApi() {
   const res = await fetch(`${API}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "admin@egi.co.id", password: "Admin123!" }),
+    body: JSON.stringify({ email: "egi.egiholding@gmail.com", password: "Admin123!" }),
   });
   if (!res.ok) throw new Error(`login failed ${res.status} ${await res.text()}`);
   return res.json();

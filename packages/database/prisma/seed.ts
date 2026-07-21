@@ -22,6 +22,9 @@ function domainFromUrl(url: string): string {
   return new URL(url).hostname.replace(/^www\./, "");
 }
 
+const ADMIN_EMAIL = "egi.egiholding@gmail.com";
+const LEGACY_ADMIN_EMAIL = "admin@egi.co.id";
+
 const websites = [
   { name: "EGI Inovasi Nusantara", url: "https://egi-inovasi.com/" },
   { name: "EGI Gallium", url: "https://egi-gallium.com/" },
@@ -39,18 +42,42 @@ const websites = [
 ] as const;
 
 async function main() {
-  const passwordHash = hashPassword("Admin123!");
+  // Real password comes from SEED_ADMIN_PASSWORD (kept out of git). When set,
+  // it is also enforced on re-seed; otherwise we fall back to a dev default and
+  // never overwrite an existing password.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+  const enforcePassword = Boolean(process.env.SEED_ADMIN_PASSWORD);
+  const passwordHash = hashPassword(adminPassword);
+
+  // Migrate the legacy dummy admin to the real address without creating a
+  // duplicate: rename it in place (keeping its existing password) when the
+  // target email is not already taken.
+  const legacyAdmin = await prisma.user.findUnique({
+    where: { email: LEGACY_ADMIN_EMAIL },
+  });
+  const targetAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
+  if (legacyAdmin && !targetAdmin && legacyAdmin.email !== adminEmail) {
+    await prisma.user.update({
+      where: { id: legacyAdmin.id },
+      data: { email: adminEmail },
+    });
+  }
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@egi.co.id" },
-    // Do not overwrite password on re-seed (production may have changed it).
+    where: { email: adminEmail },
+    // Only overwrite the password on re-seed when SEED_ADMIN_PASSWORD is set;
+    // otherwise leave whatever password the account currently has.
     update: {
       isActive: true,
       role: UserRole.it_ops,
+      ...(enforcePassword ? { passwordHash } : {}),
     },
     create: {
       name: "EGI Admin",
-      email: "admin@egi.co.id",
+      email: adminEmail,
       passwordHash,
       role: UserRole.it_ops,
       emailVerifiedAt: new Date(),

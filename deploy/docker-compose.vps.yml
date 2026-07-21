@@ -71,6 +71,8 @@ services:
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS}
       ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-egi.egiholding@gmail.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     ports:
       - "127.0.0.1:31011:3001"
     extra_hosts:

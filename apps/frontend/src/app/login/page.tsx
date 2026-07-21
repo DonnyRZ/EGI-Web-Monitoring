@@ -10,7 +10,7 @@ import { ErrorBanner } from "@/components/ui";
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState("admin@egi.co.id");
+  const [email, setEmail] = useState("egi.egiholding@gmail.com");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
