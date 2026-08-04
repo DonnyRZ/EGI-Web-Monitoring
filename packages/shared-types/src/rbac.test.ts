@@ -60,7 +60,7 @@ test("worker assignee and notification role sets", () => {
   assert.equal(receivesLifecycleNotifications("end_user"), false);
 });
 
-test("end_user dashboard is a public healthy-sites gallery", () => {
+test("end_user dashboard is a public active-sites gallery", () => {
   assert.equal(isEndUserPublicDashboard("end_user"), true);
   assert.equal(isEndUserPublicDashboard("developer"), false);
   assert.equal(opensWebsiteExternallyFromDashboard("end_user"), true);

@@ -50,8 +50,8 @@ export class DashboardService {
       })
       .filter((card) => {
         if (!endUserView) return true;
-        // Public gallery: only currently healthy (normal) sites.
-        return card.latest_result?.status === MonitoringStatus.normal;
+        // Public gallery: active sites only; hide currently down.
+        return card.latest_result?.status !== MonitoringStatus.down;
       });
 
     return { data };

@@ -19,7 +19,7 @@ export const PLATFORM_ADMIN_ROLES = ["superadmin"] as const satisfies readonly U
 
 /**
  * Read/inspect every monitored website, incident, ticket, and probe detail.
- * end_user gets a public "healthy sites" dashboard instead (all active + normal).
+ * end_user gets a public gallery of active sites (excludes down / inactive).
  */
 export const ALL_RESOURCE_ACCESS_ROLES = [
   "superadmin",
@@ -92,7 +92,7 @@ export function receivesLifecycleNotifications(role?: string | null): boolean {
   return roleIn(role, LIFECYCLE_NOTIFICATION_ROLES);
 }
 
-/** end_user dashboard: all active sites, but only latest status normal. */
+/** end_user dashboard: all active sites except currently down. */
 export function isEndUserPublicDashboard(role?: string | null): boolean {
   return role === "end_user";
 }

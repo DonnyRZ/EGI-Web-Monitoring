@@ -113,13 +113,13 @@ async function main() {
     const euCount = eu.data?.length ?? 0;
     if (saCount < 1) fail("dashboard superadmin", "no websites");
     else ok("dashboard superadmin", `${saCount} websites`);
-    if (euCount < 1) fail("dashboard end_user normal gallery", "expected >=1 normal site");
+    if (euCount < 1) fail("dashboard end_user active gallery", "expected >=1 active non-down site");
     else {
-      const nonNormal = (eu.data || []).filter(
-        (c) => (c.latest_result?.status || "unknown") !== "normal",
+      const downCards = (eu.data || []).filter(
+        (c) => c.latest_result?.status === "down",
       );
-      if (nonNormal.length) fail("dashboard end_user normal only", JSON.stringify(nonNormal[0]?.latest_result?.status));
-      else ok("dashboard end_user normal gallery", `${euCount} normal (<= ${saCount})`);
+      if (downCards.length) fail("dashboard end_user hides down", downCards[0]?.website?.name || "down present");
+      else ok("dashboard end_user active gallery", `${euCount} active non-down (<= ${saCount})`);
     }
   } catch (e) {
     fail("dashboard", e.message);
