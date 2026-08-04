@@ -50,8 +50,13 @@ export class DashboardService {
       })
       .filter((card) => {
         if (!endUserView) return true;
-        // Public gallery: active sites only; hide currently down.
-        return card.latest_result?.status !== MonitoringStatus.down;
+        // Public gallery: hide inactive (already), down, and unknown.
+        const status = card.latest_result?.status;
+        return (
+          status != null &&
+          status !== MonitoringStatus.down &&
+          status !== MonitoringStatus.unknown
+        );
       });
 
     return { data };
