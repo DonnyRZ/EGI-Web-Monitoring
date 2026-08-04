@@ -400,6 +400,17 @@ h3,
   font-size: 0.85rem;
 }
 
+.website-card-external {
+  display: inline-flex;
+  color: var(--egi-blue-mid);
+  opacity: 0.85;
+}
+
+.website-card-external svg {
+  width: 14px;
+  height: 14px;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;

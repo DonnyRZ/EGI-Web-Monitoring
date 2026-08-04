@@ -25,7 +25,15 @@ coverage/
 .env.production
 .env.test
 .env.*.local
+.env.bak
+.env.bak.*
+.env.*
 !.env.example
+
+# Local TLS / key material
+*.pem
+*.key
+!*.key.example
 
 # Logs
 logs/

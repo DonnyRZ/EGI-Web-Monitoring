@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { initials, isItOps } from "@/lib/format";
+import { canManagePlatform, canViewIncidents, initials } from "@/lib/format";
 import { incidentsApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
 import {
@@ -63,7 +63,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   }, [pathname]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !canViewIncidents(user.role)) return;
     let cancelled = false;
     loadActiveIncidents()
       .then((count) => {
@@ -87,13 +87,17 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-    {
-      href: "/incidents",
-      label: "Incidents",
-      icon: IconAlert,
-      badge: activeIncidents > 0 ? activeIncidents : undefined,
-    },
-    ...(isItOps(user.role)
+    ...(canViewIncidents(user.role)
+      ? [
+          {
+            href: "/incidents",
+            label: "Incidents",
+            icon: IconAlert,
+            badge: activeIncidents > 0 ? activeIncidents : undefined,
+          },
+        ]
+      : []),
+    ...(canManagePlatform(user.role)
       ? [
           { href: "/admin/websites", label: "Kelola Website", icon: IconGlobe },
           { href: "/admin/users", label: "Users", icon: IconUsers },

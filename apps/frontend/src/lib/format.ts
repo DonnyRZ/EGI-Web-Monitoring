@@ -1,9 +1,23 @@
+import {
+  canManageIncidents,
+  canManagePlatform,
+  canViewIncidents,
+  opensWebsiteExternallyFromDashboard,
+  roleLabel,
+} from "@egi/shared-types";
 import type {
   IncidentStatus,
   MonitoringStatus,
   Severity,
-  UserRole,
 } from "./types";
+
+export {
+  canManageIncidents,
+  canManagePlatform,
+  canViewIncidents,
+  opensWebsiteExternallyFromDashboard,
+  roleLabel,
+};
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -111,21 +125,6 @@ export function incidentDisplayTitle(title: string, websiteName?: string | null)
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
-export function roleLabel(role: UserRole) {
-  switch (role) {
-    case "it_ops":
-      return "IT Ops";
-    case "helpdesk":
-      return "Helpdesk";
-    case "business_owner":
-      return "Business Owner";
-    case "developer":
-      return "Developer";
-    case "end_user":
-      return "End User";
-  }
-}
-
 export function msLabel(ms?: number | null) {
   if (ms === null || ms === undefined) return "—";
   if (ms < 1000) return `${ms} ms`;
@@ -137,12 +136,4 @@ export function clipText(value?: string | null, max = 120) {
   const cleaned = value.replace(/\s+/g, " ").trim();
   if (cleaned.length <= max) return cleaned;
   return `${cleaned.slice(0, max - 1)}…`;
-}
-
-export function canManageIncidents(role?: UserRole | null) {
-  return role === "helpdesk" || role === "it_ops";
-}
-
-export function isItOps(role?: UserRole | null) {
-  return role === "it_ops";
 }

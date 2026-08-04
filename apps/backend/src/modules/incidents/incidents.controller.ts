@@ -11,10 +11,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { UserRole } from "@egi/database";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
+import { INCIDENT_MANAGER_ROLES_PRISMA } from "../../common/resource-access";
 import { IncidentsQueryDto, UpdateIncidentDto } from "./incidents.dto";
 import { IncidentsService } from "./incidents.service";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
@@ -37,14 +37,14 @@ export class IncidentsController {
   }
 
   @Patch(":id")
-  @Roles(UserRole.helpdesk, UserRole.it_ops)
+  @Roles(...INCIDENT_MANAGER_ROLES_PRISMA)
   update(@Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateIncidentDto) {
     return this.incidentsService.update(id, dto);
   }
 
   @Post(":id/close")
   @HttpCode(200)
-  @Roles(UserRole.helpdesk, UserRole.it_ops)
+  @Roles(...INCIDENT_MANAGER_ROLES_PRISMA)
   close(@Param("id", ParseUUIDPipe) id: string) {
     return this.incidentsService.close(id);
   }

@@ -72,14 +72,14 @@ async function main() {
     // otherwise leave whatever password the account currently has.
     update: {
       isActive: true,
-      role: UserRole.it_ops,
+      role: UserRole.superadmin,
       ...(enforcePassword ? { passwordHash } : {}),
     },
     create: {
       name: "EGI Admin",
       email: adminEmail,
       passwordHash,
-      role: UserRole.it_ops,
+      role: UserRole.superadmin,
       emailVerifiedAt: new Date(),
       isActive: true,
     },

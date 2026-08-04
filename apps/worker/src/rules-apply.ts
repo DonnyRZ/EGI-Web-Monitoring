@@ -13,7 +13,11 @@ import {
   evaluateIncidentRules,
   type CheckProbeResult,
 } from "@egi/monitoring-rules";
-import type { MonitoringStatus } from "@egi/shared-types";
+import {
+  LIFECYCLE_NOTIFICATION_ROLES,
+  TICKET_ASSIGNEE_ROLES,
+  type MonitoringStatus,
+} from "@egi/shared-types";
 import { log, jobMeta } from "./log";
 
 const ACTIVE_INCIDENT: IncidentStatus[] = [
@@ -176,7 +180,7 @@ async function createIncidentFlow(
     const assignees = await tx.user.findMany({
       where: {
         isActive: true,
-        role: { in: [UserRole.it_ops, UserRole.helpdesk] },
+        role: { in: [...TICKET_ASSIGNEE_ROLES] as UserRole[] },
       },
       orderBy: { createdAt: "asc" },
       take: 1,
@@ -283,25 +287,22 @@ async function createLifecycleNotifications(
 ): Promise<void> {
   const { prisma } = input;
 
-  const roleFilter = {
-    isActive: true as const,
-    role: {
-      in: [UserRole.it_ops, UserRole.helpdesk, UserRole.business_owner],
-    },
-  };
+  const website = await prisma.website.findUnique({
+    where: { id: input.websiteId },
+    select: { ownerId: true },
+  });
 
-  const recipients = opts.preferUserId
-    ? await prisma.user.findMany({
-        where: {
-          isActive: true,
-          OR: [{ id: opts.preferUserId }, roleFilter],
-        },
-        select: { id: true },
-      })
-    : await prisma.user.findMany({
-        where: roleFilter,
-        select: { id: true },
-      });
+  const recipients = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { role: { in: [...LIFECYCLE_NOTIFICATION_ROLES] as UserRole[] } },
+        ...(opts.preferUserId ? [{ id: opts.preferUserId }] : []),
+        ...(website?.ownerId ? [{ id: website.ownerId }] : []),
+      ],
+    },
+    select: { id: true },
+  });
 
   const uniqueIds = [...new Set(recipients.map((r) => r.id))];
   if (uniqueIds.length === 0) {

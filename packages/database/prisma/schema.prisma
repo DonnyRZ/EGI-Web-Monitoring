@@ -9,10 +9,8 @@ datasource db {
 
 enum UserRole {
   end_user
-  business_owner
-  helpdesk
   developer
-  it_ops
+  superadmin
 }
 
 enum MonitoringStatus {

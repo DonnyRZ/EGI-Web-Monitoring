@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notificationsApi } from "@/lib/api-services";
-import { formatRelative } from "@/lib/format";
+import { useAuth } from "@/lib/auth-context";
+import { canViewIncidents, formatRelative } from "@/lib/format";
 import type { Notification } from "@/lib/types";
 import { IconBell } from "./icons";
 
 export function NotificationBell() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const canOpenIncident = canViewIncidents(user?.role);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,7 +93,7 @@ export function NotificationBell() {
                     <span>{formatRelative(n.created_at)}</span>
                   </>
                 );
-                if (n.incident_id) {
+                if (n.incident_id && canOpenIncident) {
                   return (
                     <Link
                       key={n.id}

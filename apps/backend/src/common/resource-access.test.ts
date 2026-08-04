@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { canAccessAllMonitoredResources } from "./resource-access";
+import {
+  ALL_RESOURCE_ACCESS_ROLES,
+  canAccessAllMonitoredResources as sharedCanAccess,
+} from "@egi/shared-types";
 
-test("only operational roles have global monitored-resource access", () => {
-  for (const role of ["it_ops", "helpdesk", "developer"]) {
+test("backend resource access delegates to shared RBAC policy", () => {
+  for (const role of ALL_RESOURCE_ACCESS_ROLES) {
     assert.equal(canAccessAllMonitoredResources({ id: "u", email: "u@example.test", role }), true);
+    assert.equal(sharedCanAccess(role), true);
   }
-  for (const role of ["business_owner", "end_user"]) {
-    assert.equal(canAccessAllMonitoredResources({ id: "u", email: "u@example.test", role }), false);
-  }
+  assert.equal(canAccessAllMonitoredResources({ id: "u", email: "u@example.test", role: "end_user" }), false);
+  assert.equal(sharedCanAccess("end_user"), false);
 });

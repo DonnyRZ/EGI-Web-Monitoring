@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, TicketStatus } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
@@ -11,14 +11,19 @@ import type { AuthUser } from "../../common/current-user.decorator";
 export class TicketsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private assertOperational(user: AuthUser) {
+    if (!canAccessAllMonitoredResources(user)) {
+      throw new ForbiddenException("Tickets require an operational role");
+    }
+  }
+
   async list(pagination: PaginationQueryDto, filters: TicketsQueryDto, user: AuthUser) {
+    this.assertOperational(user);
+
     const where: Prisma.TicketWhereInput = {};
     if (filters.incident_id) where.incidentId = filters.incident_id;
     if (filters.assigned_to) where.assignedTo = filters.assigned_to;
     if (filters.status) where.status = filters.status;
-    if (!canAccessAllMonitoredResources(user)) {
-      where.incident = { website: { ownerId: user.id } };
-    }
 
     const [total, tickets] = await this.prisma.$transaction([
       this.prisma.ticket.count({ where }),
@@ -53,12 +58,8 @@ export class TicketsService {
   }
 
   async get(id: string, user: AuthUser) {
-    const ticket = await this.prisma.ticket.findFirst({
-      where: {
-        id,
-        ...(canAccessAllMonitoredResources(user) ? {} : { incident: { website: { ownerId: user.id } } }),
-      },
-    });
+    this.assertOperational(user);
+    const ticket = await this.prisma.ticket.findFirst({ where: { id } });
     if (!ticket) throw new NotFoundException("Ticket not found");
     return toTicketDto(ticket);
   }

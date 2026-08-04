@@ -12,12 +12,26 @@ export type NotificationChannel = "dashboard" | "email" | "telegram";
 
 export type NotificationStatus = "pending" | "sent" | "failed";
 
-export type UserRole =
-  | "end_user"
-  | "business_owner"
-  | "helpdesk"
-  | "developer"
-  | "it_ops";
+export type { UserRole } from "./rbac";
+export {
+  USER_ROLES,
+  PLATFORM_ADMIN_ROLES,
+  ALL_RESOURCE_ACCESS_ROLES,
+  INCIDENT_MANAGER_ROLES,
+  TICKET_MANAGER_ROLES,
+  TICKET_ASSIGNEE_ROLES,
+  LIFECYCLE_NOTIFICATION_ROLES,
+  canManagePlatform,
+  canAccessAllMonitoredResources,
+  canInspectMonitoringDetails,
+  canViewIncidents,
+  canManageIncidents,
+  canManageTickets,
+  isTicketAssigneeCandidate,
+  receivesLifecycleNotifications,
+  opensWebsiteExternallyFromDashboard,
+  roleLabel,
+} from "./rbac";
 
 /** BullMQ monitoring check job payload (scheduler → worker). */
 export interface MonitoringJobPayload {

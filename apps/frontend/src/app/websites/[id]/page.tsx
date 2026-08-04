@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
@@ -16,12 +16,14 @@ import {
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { dashboardApi } from "@/lib/api-services";
+import { useAuth } from "@/lib/auth-context";
 import {
   clipText,
   formatDateTime,
   formatRelative,
   incidentStatusLabel,
   msLabel,
+  opensWebsiteExternallyFromDashboard,
 } from "@/lib/format";
 import type { WebsiteDetailResponse } from "@/lib/types";
 
@@ -30,6 +32,8 @@ const HISTORY_PAGE_SIZE = 5;
 export default function WebsiteDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<WebsiteDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -37,6 +41,13 @@ export default function WebsiteDetailPage() {
   const [incidentPage, setIncidentPage] = useState(1);
 
   useEffect(() => {
+    if (!authLoading && user && opensWebsiteExternallyFromDashboard(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!user || opensWebsiteExternallyFromDashboard(user.role)) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -57,7 +68,7 @@ export default function WebsiteDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, user]);
 
   const monitoringHistory = data?.monitoring_history ?? [];
   const incidentHistory = data?.incident_history ?? [];
@@ -73,6 +84,14 @@ export default function WebsiteDetailPage() {
   }, [incidentHistory, incidentPage]);
 
   const title = data?.website.name || "Detail Website";
+
+  if (!user || opensWebsiteExternallyFromDashboard(user.role)) {
+    return (
+      <AppShell title="Detail Website">
+        <LoadingState />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title={title}>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { IconExternal } from "@/components/icons";
@@ -18,6 +18,7 @@ import { incidentsApi, ticketsApi, websitesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   canManageIncidents,
+  canViewIncidents,
   formatDateTime,
   incidentDisplayTitle,
   incidentStatusLabel,
@@ -37,7 +38,8 @@ const SEVERITY_OPTIONS: { value: Severity; label: string }[] = [
 export default function IncidentDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [website, setWebsite] = useState<Website | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -46,6 +48,12 @@ export default function IncidentDetailPage() {
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
   const [ticketPage, setTicketPage] = useState(1);
+
+  useEffect(() => {
+    if (!authLoading && user && !canViewIncidents(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, user, router]);
 
   async function load() {
     setLoading(true);
@@ -68,9 +76,10 @@ export default function IncidentDetailPage() {
   }
 
   useEffect(() => {
+    if (!user || !canViewIncidents(user.role)) return;
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, user]);
 
   async function updateStatus(status: IncidentStatus) {
     if (!incident) return;
@@ -124,6 +133,14 @@ export default function IncidentDetailPage() {
     const start = (ticketPage - 1) * TICKET_PAGE_SIZE;
     return tickets.slice(start, start + TICKET_PAGE_SIZE);
   }, [tickets, ticketPage]);
+
+  if (!user || !canViewIncidents(user.role)) {
+    return (
+      <AppShell title="Detail Incident">
+        <LoadingState />
+      </AppShell>
+    );
+  }
 
   const primaryAction =
     incident?.status === "open"

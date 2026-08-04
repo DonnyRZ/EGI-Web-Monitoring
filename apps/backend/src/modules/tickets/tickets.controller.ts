@@ -11,10 +11,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { UserRole } from "@egi/database";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
+import { TICKET_MANAGER_ROLES_PRISMA } from "../../common/resource-access";
 import { CreateTicketDto, TicketsQueryDto, UpdateTicketDto } from "./tickets.dto";
 import { TicketsService } from "./tickets.service";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
@@ -33,7 +33,7 @@ export class TicketsController {
 
   @Post()
   @HttpCode(201)
-  @Roles(UserRole.developer, UserRole.helpdesk, UserRole.it_ops)
+  @Roles(...TICKET_MANAGER_ROLES_PRISMA)
   create(@Body() dto: CreateTicketDto) {
     return this.ticketsService.create(dto);
   }
@@ -44,7 +44,7 @@ export class TicketsController {
   }
 
   @Patch(":id")
-  @Roles(UserRole.developer, UserRole.helpdesk, UserRole.it_ops)
+  @Roles(...TICKET_MANAGER_ROLES_PRISMA)
   update(@Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateTicketDto) {
     return this.ticketsService.update(id, dto);
   }

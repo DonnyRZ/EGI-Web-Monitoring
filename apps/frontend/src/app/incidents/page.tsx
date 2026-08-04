@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Select } from "@/components/Select";
@@ -12,13 +13,17 @@ import {
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { incidentsApi, websitesApi } from "@/lib/api-services";
+import { useAuth } from "@/lib/auth-context";
 import {
+  canViewIncidents,
   formatRelative,
   incidentStatusLabel,
 } from "@/lib/format";
 import type { Incident, IncidentStatus, Severity, Website } from "@/lib/types";
 
 export default function IncidentsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [items, setItems] = useState<Incident[]>([]);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [websitesError, setWebsitesError] = useState("");
@@ -30,6 +35,13 @@ export default function IncidentsPage() {
   const [tab, setTab] = useState<"active" | "all">("active");
 
   useEffect(() => {
+    if (!authLoading && user && !canViewIncidents(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!user || !canViewIncidents(user.role)) return;
     let cancelled = false;
     websitesApi
       .list({ limit: 100 })
@@ -48,9 +60,10 @@ export default function IncidentsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!user || !canViewIncidents(user.role)) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -75,7 +88,15 @@ export default function IncidentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [status, severity, websiteId, tab]);
+  }, [status, severity, websiteId, tab, user]);
+
+  if (!user || !canViewIncidents(user.role)) {
+    return (
+      <AppShell title="Incidents">
+        <LoadingState />
+      </AppShell>
+    );
+  }
 
   const websiteMap = Object.fromEntries(websites.map((w) => [w.id, w]));
 

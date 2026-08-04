@@ -11,17 +11,17 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { UserRole } from "@egi/database";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
+import { PLATFORM_ADMIN_ROLES_PRISMA } from "../../common/resource-access";
 import { CreateUserDto, UpdateUserDto, UsersQueryDto } from "./users.dto";
 import { UsersService } from "./users.service";
 
 @ApiTags("Users")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.it_ops)
+@Roles(...PLATFORM_ADMIN_ROLES_PRISMA)
 @Controller("users")
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

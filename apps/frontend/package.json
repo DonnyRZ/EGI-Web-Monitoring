@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@egi/shared-types": "*",
     "next": "^15.5.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

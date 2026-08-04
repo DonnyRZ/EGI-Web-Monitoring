@@ -12,10 +12,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { UserRole } from "@egi/database";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
+import { PLATFORM_ADMIN_ROLES_PRISMA } from "../../common/resource-access";
 import { CreateWebsiteDto, UpdateWebsiteDto, WebsitesQueryDto } from "./websites.dto";
 import { WebsitesService } from "./websites.service";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
@@ -34,7 +34,7 @@ export class WebsitesController {
 
   @Post()
   @HttpCode(201)
-  @Roles(UserRole.it_ops)
+  @Roles(...PLATFORM_ADMIN_ROLES_PRISMA)
   create(@Body() dto: CreateWebsiteDto) {
     return this.websitesService.create(dto);
   }
@@ -45,14 +45,14 @@ export class WebsitesController {
   }
 
   @Patch(":id")
-  @Roles(UserRole.it_ops)
+  @Roles(...PLATFORM_ADMIN_ROLES_PRISMA)
   update(@Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateWebsiteDto) {
     return this.websitesService.update(id, dto);
   }
 
   @Delete(":id")
   @HttpCode(204)
-  @Roles(UserRole.it_ops)
+  @Roles(...PLATFORM_ADMIN_ROLES_PRISMA)
   async deactivate(@Param("id", ParseUUIDPipe) id: string) {
     await this.websitesService.deactivate(id);
   }

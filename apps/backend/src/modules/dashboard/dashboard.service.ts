@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { IncidentStatus } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
@@ -52,11 +52,12 @@ export class DashboardService {
   }
 
   async detail(websiteId: string, historyLimit: number, user: AuthUser) {
+    if (!canAccessAllMonitoredResources(user)) {
+      throw new ForbiddenException("Monitoring detail requires an operational role");
+    }
+
     const website = await this.prisma.website.findFirst({
-      where: {
-        id: websiteId,
-        ...(canAccessAllMonitoredResources(user) ? {} : { ownerId: user.id }),
-      },
+      where: { id: websiteId },
     });
     if (!website) throw new NotFoundException("Website not found");
 

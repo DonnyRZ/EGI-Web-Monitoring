@@ -7,7 +7,7 @@ import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { websitesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { formatDateTime, isItOps } from "@/lib/format";
+import { canManagePlatform, formatDateTime } from "@/lib/format";
 import type { Website } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
@@ -31,7 +31,7 @@ export default function AdminWebsitesPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && user && !isItOps(user.role)) {
+    if (!authLoading && user && !canManagePlatform(user.role)) {
       router.replace("/dashboard");
     }
   }, [authLoading, user, router]);
@@ -50,7 +50,7 @@ export default function AdminWebsitesPage() {
   }
 
   useEffect(() => {
-    if (user && isItOps(user.role)) void load();
+    if (user && canManagePlatform(user.role)) void load();
   }, [user]);
 
   function openCreate() {
@@ -101,7 +101,7 @@ export default function AdminWebsitesPage() {
     }
   }
 
-  if (!user || !isItOps(user.role)) {
+  if (!user || !canManagePlatform(user.role)) {
     return (
       <AppShell title="Kelola Website">
         <LoadingState />

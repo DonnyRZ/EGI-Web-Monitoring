@@ -8,22 +8,17 @@ import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { usersApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { formatDateTime, isItOps, roleLabel } from "@/lib/format";
+import { USER_ROLES } from "@egi/shared-types";
+import { canManagePlatform, formatDateTime, roleLabel } from "@/lib/format";
 import type { User, UserRole } from "@/lib/types";
 
-const roles: UserRole[] = [
-  "end_user",
-  "business_owner",
-  "helpdesk",
-  "developer",
-  "it_ops",
-];
+const roles: UserRole[] = [...USER_ROLES];
 
 const emptyForm = {
   name: "",
   email: "",
   password: "",
-  role: "helpdesk" as UserRole,
+  role: "end_user" as UserRole,
   is_active: true,
 };
 
@@ -40,7 +35,7 @@ export default function AdminUsersPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    if (!authLoading && user && !isItOps(user.role)) {
+    if (!authLoading && user && !canManagePlatform(user.role)) {
       router.replace("/dashboard");
     }
   }, [authLoading, user, router]);
@@ -59,7 +54,7 @@ export default function AdminUsersPage() {
   }
 
   useEffect(() => {
-    if (user && isItOps(user.role)) void load();
+    if (user && canManagePlatform(user.role)) void load();
   }, [user]);
 
   function openCreate() {
@@ -111,7 +106,7 @@ export default function AdminUsersPage() {
     }
   }
 
-  if (!user || !isItOps(user.role)) {
+  if (!user || !canManagePlatform(user.role)) {
     return (
       <AppShell title="Users">
         <LoadingState />

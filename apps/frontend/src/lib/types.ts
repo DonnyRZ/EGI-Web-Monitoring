@@ -1,15 +1,22 @@
-export type MonitoringStatus = "normal" | "warning" | "down" | "unknown";
-export type Severity = "critical" | "high" | "medium" | "low";
-export type IncidentStatus = "open" | "in_progress" | "resolved" | "closed";
-export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
-export type NotificationChannel = "dashboard" | "email" | "telegram";
-export type NotificationStatus = "pending" | "sent" | "failed";
-export type UserRole =
-  | "end_user"
-  | "business_owner"
-  | "helpdesk"
-  | "developer"
-  | "it_ops";
+export type {
+  MonitoringStatus,
+  Severity,
+  IncidentStatus,
+  TicketStatus,
+  NotificationChannel,
+  NotificationStatus,
+  UserRole,
+} from "@egi/shared-types";
+
+import type {
+  IncidentStatus,
+  MonitoringStatus,
+  NotificationChannel,
+  NotificationStatus,
+  Severity,
+  TicketStatus,
+  UserRole,
+} from "@egi/shared-types";
 
 export interface User {
   id: string;

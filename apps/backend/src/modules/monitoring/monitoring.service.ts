@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toMonitoringResultDto } from "../../common/mappers";
@@ -12,9 +12,16 @@ import type { AuthUser } from "../../common/current-user.decorator";
 export class MonitoringService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private assertOperational(user: AuthUser) {
+    if (!canAccessAllMonitoredResources(user)) {
+      throw new ForbiddenException("Monitoring results require an operational role");
+    }
+  }
+
   private async assertWebsite(websiteId: string, user: AuthUser) {
+    this.assertOperational(user);
     const website = await this.prisma.website.findFirst({
-      where: { id: websiteId, ...(canAccessAllMonitoredResources(user) ? {} : { ownerId: user.id }) },
+      where: { id: websiteId },
     });
     if (!website) throw new NotFoundException("Website not found");
   }
@@ -63,7 +70,10 @@ export class MonitoringService {
 
   async get(id: string, user: AuthUser) {
     const result = await this.prisma.monitoringResult.findFirst({
-      where: { id, ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }) },
+      where: {
+        id,
+        ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }),
+      },
     });
     if (!result) throw new NotFoundException("Monitoring result not found");
     return toMonitoringResultDto(result);
@@ -71,7 +81,10 @@ export class MonitoringService {
 
   async getScreenshotSignedUrl(id: string, user: AuthUser) {
     const result = await this.prisma.monitoringResult.findFirst({
-      where: { id, ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }) },
+      where: {
+        id,
+        ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }),
+      },
     });
     if (!result) throw new NotFoundException("Monitoring result not found");
     if (!result.screenshotUrl) {

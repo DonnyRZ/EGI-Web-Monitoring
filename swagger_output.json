@@ -43,7 +43,7 @@
       },
       "UserRole": {
         "type": "string",
-        "enum": ["end_user", "business_owner", "helpdesk", "developer", "it_ops"]
+        "enum": ["end_user", "developer", "superadmin"]
       },
       "MonitoringStatus": {
         "type": "string",

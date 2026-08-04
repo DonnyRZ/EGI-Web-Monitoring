@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { IconExternal } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState, StatusPill } from "@/components/ui";
 import { dashboardApi } from "@/lib/api-services";
-import { formatRelative } from "@/lib/format";
+import { useAuth } from "@/lib/auth-context";
+import { formatRelative, opensWebsiteExternallyFromDashboard } from "@/lib/format";
 import type { DashboardWebsiteCard, MonitoringStatus } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<MonitoringStatus | "all">("all");
+  const openExternally = opensWebsiteExternallyFromDashboard(user?.role);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +81,8 @@ export default function DashboardPage() {
         <div className="card-grid">
           {filtered.map((card) => {
             const status = card.latest_result?.status || "unknown";
-            return (
-              <Link key={card.website.id} href={`/websites/${card.website.id}`} className="website-card">
+            const body = (
+              <>
                 <div className="website-card-shot">
                   <ScreenshotImage
                     resultId={card.latest_result?.id}
@@ -93,6 +97,11 @@ export default function DashboardPage() {
                   </div>
                   <div className="website-card-meta">
                     <span>{card.website.domain}</span>
+                    {openExternally ? (
+                      <span className="website-card-external" aria-hidden>
+                        <IconExternal />
+                      </span>
+                    ) : null}
                   </div>
                   <div className="website-card-meta">
                     <span>
@@ -107,6 +116,30 @@ export default function DashboardPage() {
                     ) : null}
                   </div>
                 </div>
+              </>
+            );
+
+            if (openExternally) {
+              return (
+                <a
+                  key={card.website.id}
+                  href={card.website.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="website-card"
+                >
+                  {body}
+                </a>
+              );
+            }
+
+            return (
+              <Link
+                key={card.website.id}
+                href={`/websites/${card.website.id}`}
+                className="website-card"
+              >
+                {body}
               </Link>
             );
           })}

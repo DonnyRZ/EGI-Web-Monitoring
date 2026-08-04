@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { IncidentStatus, Prisma } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toIncidentDto } from "../../common/mappers";
@@ -11,7 +11,15 @@ import type { AuthUser } from "../../common/current-user.decorator";
 export class IncidentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private assertOperational(user: AuthUser) {
+    if (!canAccessAllMonitoredResources(user)) {
+      throw new ForbiddenException("Incidents require an operational role");
+    }
+  }
+
   async list(pagination: PaginationQueryDto, filters: IncidentsQueryDto, user: AuthUser) {
+    this.assertOperational(user);
+
     const where: Prisma.IncidentWhereInput = {};
     if (filters.website_id) where.websiteId = filters.website_id;
     if (filters.status) where.status = filters.status;
@@ -21,7 +29,6 @@ export class IncidentsService {
         in: [IncidentStatus.open, IncidentStatus.in_progress],
       };
     }
-    if (!canAccessAllMonitoredResources(user)) where.website = { ownerId: user.id };
 
     const [total, incidents] = await this.prisma.$transaction([
       this.prisma.incident.count({ where }),
@@ -40,9 +47,8 @@ export class IncidentsService {
   }
 
   async get(id: string, user: AuthUser) {
-    const incident = await this.prisma.incident.findFirst({
-      where: { id, ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }) },
-    });
+    this.assertOperational(user);
+    const incident = await this.prisma.incident.findFirst({ where: { id } });
     if (!incident) throw new NotFoundException("Incident not found");
     return toIncidentDto(incident);
   }

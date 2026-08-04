@@ -18,7 +18,7 @@ test("requeues only pending email and Telegram notifications", async (t) => {
       name: "Notification test",
       email: `notification-test-${randomUUID()}@example.test`,
       passwordHash: "not-used",
-      role: "it_ops",
+      role: "superadmin",
     },
   });
   const created = await prisma.notification.createMany({

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WebsitesService } from "./websites.service";
 
-const owner = { id: "owner-1", email: "owner@example.test", role: "business_owner" };
-const ops = { id: "ops-1", email: "ops@example.test", role: "it_ops" };
+const owner = { id: "owner-1", email: "owner@example.test", role: "end_user" };
+const ops = { id: "ops-1", email: "ops@example.test", role: "superadmin" };
 
 function makeService() {
   const calls: Array<{ method: string; args: unknown }> = [];

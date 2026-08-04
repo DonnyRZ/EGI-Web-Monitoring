@@ -3,7 +3,7 @@ import test from "node:test";
 import { AuthService } from "./auth.service";
 import { hashToken } from "../../common/crypto";
 
-const user = { id: "user-1", email: "user@example.test", role: "it_ops", isActive: true };
+const user = { id: "user-1", email: "user@example.test", role: "superadmin", isActive: true };
 
 function makeService(updateCount = 1) {
   const prisma = {
