@@ -53,7 +53,7 @@ async function main() {
     where: { email: "rbac.enduser@egi.test" },
   });
 
-  // Ensure at least one owned website for end_user dashboard scoping.
+  // Optional ownership assignment for ticket/notification owner tests (dashboard is not owner-scoped).
   const site = await prisma.website.findFirst({
     where: { isActive: true },
     orderBy: { name: "asc" },

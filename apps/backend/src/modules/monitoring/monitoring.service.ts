@@ -69,10 +69,13 @@ export class MonitoringService {
   }
 
   async get(id: string, user: AuthUser) {
+    // Dashboard cards (including end_user) need result/screenshot access for active sites.
     const result = await this.prisma.monitoringResult.findFirst({
       where: {
         id,
-        ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }),
+        ...(canAccessAllMonitoredResources(user)
+          ? {}
+          : { website: { isActive: true } }),
       },
     });
     if (!result) throw new NotFoundException("Monitoring result not found");
@@ -83,7 +86,9 @@ export class MonitoringService {
     const result = await this.prisma.monitoringResult.findFirst({
       where: {
         id,
-        ...(canAccessAllMonitoredResources(user) ? {} : { website: { ownerId: user.id } }),
+        ...(canAccessAllMonitoredResources(user)
+          ? {}
+          : { website: { isActive: true } }),
       },
     });
     if (!result) throw new NotFoundException("Monitoring result not found");

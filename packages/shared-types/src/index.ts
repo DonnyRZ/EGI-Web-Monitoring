@@ -29,7 +29,9 @@ export {
   canManageTickets,
   isTicketAssigneeCandidate,
   receivesLifecycleNotifications,
+  isEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard,
+  canViewDashboardScreenshots,
   roleLabel,
 } from "./rbac";
 

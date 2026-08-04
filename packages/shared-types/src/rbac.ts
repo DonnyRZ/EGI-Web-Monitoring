@@ -19,7 +19,7 @@ export const PLATFORM_ADMIN_ROLES = ["superadmin"] as const satisfies readonly U
 
 /**
  * Read/inspect every monitored website, incident, ticket, and probe detail.
- * end_user is owner-scoped on the dashboard list only.
+ * end_user gets a public "healthy sites" dashboard instead (all active + normal).
  */
 export const ALL_RESOURCE_ACCESS_ROLES = [
   "superadmin",
@@ -43,7 +43,7 @@ export const TICKET_ASSIGNEE_ROLES = [
 
 /**
  * Roles that always receive incident lifecycle notifications.
- * Website owners (end_user) are added separately per website in the worker.
+ * Website owners are still included separately per website in the worker.
  */
 export const LIFECYCLE_NOTIFICATION_ROLES = [
   "superadmin",
@@ -92,9 +92,19 @@ export function receivesLifecycleNotifications(role?: string | null): boolean {
   return roleIn(role, LIFECYCLE_NOTIFICATION_ROLES);
 }
 
+/** end_user dashboard: all active sites, but only latest status normal. */
+export function isEndUserPublicDashboard(role?: string | null): boolean {
+  return role === "end_user";
+}
+
 /** Dashboard card opens the live site instead of monitoring detail. */
 export function opensWebsiteExternallyFromDashboard(role?: string | null): boolean {
-  return role === "end_user";
+  return isEndUserPublicDashboard(role);
+}
+
+/** Dashboard card screenshots are visible to every authenticated role. */
+export function canViewDashboardScreenshots(role?: string | null): boolean {
+  return Boolean(role);
 }
 
 export function roleLabel(role: UserRole): string {

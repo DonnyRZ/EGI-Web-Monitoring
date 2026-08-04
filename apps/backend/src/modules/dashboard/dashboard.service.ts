@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { IncidentStatus } from "@egi/database";
+import { IncidentStatus, MonitoringStatus } from "@egi/database";
+import { isEndUserPublicDashboard } from "@egi/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   toIncidentDto,
@@ -20,10 +21,7 @@ export class DashboardService {
 
   async main(user: AuthUser) {
     const websites = await this.prisma.website.findMany({
-      where: {
-        isActive: true,
-        ...(canAccessAllMonitoredResources(user) ? {} : { ownerId: user.id }),
-      },
+      where: { isActive: true },
       orderBy: { name: "asc" },
       include: {
         monitoringResults: {
@@ -38,15 +36,23 @@ export class DashboardService {
       },
     });
 
-    const data = websites.map((website) => {
-      const latestResult = website.monitoringResults[0] ?? null;
-      const activeIncident = website.incidents[0] ?? null;
-      return {
-        website: toWebsiteDto(website),
-        latest_result: latestResult ? toMonitoringResultDto(latestResult) : null,
-        active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
-      };
-    });
+    const endUserView = isEndUserPublicDashboard(user.role);
+
+    const data = websites
+      .map((website) => {
+        const latestResult = website.monitoringResults[0] ?? null;
+        const activeIncident = website.incidents[0] ?? null;
+        return {
+          website: toWebsiteDto(website),
+          latest_result: latestResult ? toMonitoringResultDto(latestResult) : null,
+          active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
+        };
+      })
+      .filter((card) => {
+        if (!endUserView) return true;
+        // Public gallery: only currently healthy (normal) sites.
+        return card.latest_result?.status === MonitoringStatus.normal;
+      });
 
     return { data };
   }

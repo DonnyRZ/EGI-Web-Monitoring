@@ -23,7 +23,7 @@ export const TICKET_MANAGER_ROLES_PRISMA = asPrismaRoles(TICKET_MANAGER_ROLES);
 
 /**
  * These roles operate the monitoring platform and must be able to investigate
- * every service. Other authenticated roles are limited to their owner_id.
+ * every service (probe detail, incidents, tickets).
  */
 export const OPERATIONAL_ROLES_PRISMA = asPrismaRoles(ALL_RESOURCE_ACCESS_ROLES);
 

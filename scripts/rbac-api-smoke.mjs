@@ -113,9 +113,14 @@ async function main() {
     const euCount = eu.data?.length ?? 0;
     if (saCount < 1) fail("dashboard superadmin", "no websites");
     else ok("dashboard superadmin", `${saCount} websites`);
-    if (euCount < 1) fail("dashboard end_user scoped", "expected >=1 owned");
-    else if (euCount >= saCount) fail("dashboard end_user scoped", `end_user=${euCount} >= superadmin=${saCount}`);
-    else ok("dashboard end_user scoped", `${euCount} < ${saCount}`);
+    if (euCount < 1) fail("dashboard end_user normal gallery", "expected >=1 normal site");
+    else {
+      const nonNormal = (eu.data || []).filter(
+        (c) => (c.latest_result?.status || "unknown") !== "normal",
+      );
+      if (nonNormal.length) fail("dashboard end_user normal only", JSON.stringify(nonNormal[0]?.latest_result?.status));
+      else ok("dashboard end_user normal gallery", `${euCount} normal (<= ${saCount})`);
+    }
   } catch (e) {
     fail("dashboard", e.message);
   }

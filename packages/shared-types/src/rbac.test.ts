@@ -14,6 +14,7 @@ import {
   canManagePlatform,
   canManageTickets,
   canViewIncidents,
+  isEndUserPublicDashboard,
   isTicketAssigneeCandidate,
   opensWebsiteExternallyFromDashboard,
   receivesLifecycleNotifications,
@@ -59,7 +60,9 @@ test("worker assignee and notification role sets", () => {
   assert.equal(receivesLifecycleNotifications("end_user"), false);
 });
 
-test("end_user dashboard cards open the live website", () => {
+test("end_user dashboard is a public healthy-sites gallery", () => {
+  assert.equal(isEndUserPublicDashboard("end_user"), true);
+  assert.equal(isEndUserPublicDashboard("developer"), false);
   assert.equal(opensWebsiteExternallyFromDashboard("end_user"), true);
   assert.equal(opensWebsiteExternallyFromDashboard("developer"), false);
   assert.equal(opensWebsiteExternallyFromDashboard("superadmin"), false);
