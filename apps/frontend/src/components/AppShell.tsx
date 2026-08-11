@@ -5,7 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { canManagePlatform, canViewIncidents, canViewTasks, initials } from "@/lib/format";
+import {
+  canManagePlatform,
+  canViewDeveloperWorkload,
+  canViewIncidents,
+  canViewTasks,
+  initials,
+} from "@/lib/format";
 import { incidentsApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
 import {
@@ -90,12 +96,19 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     ...(canViewTasks(user.role) && user.role !== "pic_web"
       ? [
-          { href: "/tasks", label: user.role === "superadmin" ? "Task Monitoring" : "To-Do List", icon: IconTasks },
+          {
+            href: "/tasks",
+            label: user.role === "superadmin" || user.role === "bos_it" ? "Task Monitoring" : "To-Do List",
+            icon: IconTasks,
+          },
           { href: "/tickets", label: "Tiket", icon: IconTasks },
         ]
       : []),
     ...(user.role === "pic_web"
       ? [{ href: "/pic-web/tickets", label: "Tiket Saya", icon: IconTasks }]
+      : []),
+    ...(canViewDeveloperWorkload(user.role)
+      ? [{ href: "/team", label: "Developer", icon: IconUsers }]
       : []),
     ...(canViewIncidents(user.role) && user.role !== "pic_web"
       ? [

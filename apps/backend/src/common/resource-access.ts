@@ -4,6 +4,7 @@ import {
   INCIDENT_MANAGER_ROLES,
   PLATFORM_ADMIN_ROLES,
   TICKET_MANAGER_ROLES,
+  WORKLOAD_VIEWER_ROLES,
   canAccessAllMonitoredResources as roleCanAccessAllMonitoredResources,
 } from "@egi/shared-types";
 import type { AuthUser } from "./current-user.decorator";
@@ -20,6 +21,9 @@ export const INCIDENT_MANAGER_ROLES_PRISMA = asPrismaRoles(INCIDENT_MANAGER_ROLE
 
 /** @Roles(...) — create / update tickets. */
 export const TICKET_MANAGER_ROLES_PRISMA = asPrismaRoles(TICKET_MANAGER_ROLES);
+
+/** @Roles(...) — view developer workload/overdue summary. */
+export const WORKLOAD_VIEWER_ROLES_PRISMA = asPrismaRoles(WORKLOAD_VIEWER_ROLES);
 
 /**
  * These roles operate the monitoring platform and must be able to investigate

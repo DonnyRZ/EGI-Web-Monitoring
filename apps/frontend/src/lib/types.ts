@@ -149,6 +149,18 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface DeveloperWorkload {
+  developer_id: string;
+  developer_name: string;
+  tickets_open: number;
+  tickets_in_progress: number;
+  tickets_overdue: number;
+  tasks_pending: number;
+  tasks_in_progress: number;
+  tasks_overdue: number;
+  total_active: number;
+}
+
 export interface ApiErrorBody {
   statusCode: number;
   message: string | string[];

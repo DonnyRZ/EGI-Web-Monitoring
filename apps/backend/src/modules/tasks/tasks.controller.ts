@@ -35,7 +35,7 @@ export class TasksController {
   }
 
   @Get()
-  @Roles(UserRole.superadmin, UserRole.developer)
+  @Roles(UserRole.superadmin, UserRole.developer, UserRole.bos_it)
   list(@Query() query: TasksQueryDto, @CurrentUser() user: AuthUser) {
     return this.tasksService.list(query, query, user);
   }

@@ -10,6 +10,7 @@ import { TicketsModule } from "./modules/tickets/tickets.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { WorkloadModule } from "./modules/workload/workload.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -28,6 +29,7 @@ import { HealthController } from "./health.controller";
     TasksModule,
     NotificationsModule,
     DashboardModule,
+    WorkloadModule,
   ],
   controllers: [HealthController],
 })

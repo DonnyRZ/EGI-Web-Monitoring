@@ -57,12 +57,12 @@ export class TasksService {
   async list(pagination: PaginationQueryDto, filters: TasksQueryDto, user: AuthUser) {
     const where: Prisma.TaskWhereInput = {};
 
-    if (canManagePlatform(user.role)) {
+    if (canManagePlatform(user.role) || user.role === UserRole.bos_it) {
       if (filters.assignee_id) where.assigneeId = filters.assignee_id;
     } else if (user.role === UserRole.developer) {
       where.assigneeId = user.id;
     } else {
-      throw new ForbiddenException("Tasks require superadmin or developer role");
+      throw new ForbiddenException("Tasks require superadmin, bos_it, or developer role");
     }
 
     if (filters.website_id) where.websiteId = filters.website_id;

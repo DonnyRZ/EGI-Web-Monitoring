@@ -25,6 +25,7 @@ export {
   TICKET_MANAGER_ROLES,
   TICKET_ASSIGNEE_ROLES,
   LIFECYCLE_NOTIFICATION_ROLES,
+  WORKLOAD_VIEWER_ROLES,
   canManagePlatform,
   canAccessAllMonitoredResources,
   canInspectMonitoringDetails,
@@ -37,6 +38,7 @@ export {
   isEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard,
   canViewDashboardScreenshots,
+  canViewDeveloperWorkload,
   roleLabel,
 } from "./rbac";
 

@@ -25,7 +25,7 @@ function isOverdue(task: Task) {
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const isSuperadmin = user?.role === "superadmin";
+  const isReadOnlyViewer = user?.role === "superadmin" || user?.role === "bos_it";
   const [items, setItems] = useState<Task[]>([]);
   const [websites, setWebsites] = useState<Record<string, Website>>({});
   const [loading, setLoading] = useState(true);
@@ -82,17 +82,17 @@ export default function TasksPage() {
 
   if (!user || !canViewTasks(user.role) || user.role === "pic_web") {
     return (
-      <AppShell title={isSuperadmin ? "Task Monitoring" : "To-Do List"}>
+      <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
         <LoadingState />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title={isSuperadmin ? "Task Monitoring" : "To-Do List"}>
+    <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          {isSuperadmin
+          {isReadOnlyViewer
             ? "Pantau progress task, SLA, dan status pekerjaan developer."
             : "Tugas yang didelegasikan oleh Superadmin. Perbarui status saat Anda mulai atau menyelesaikan pekerjaan."}
         </p>
@@ -118,7 +118,7 @@ export default function TasksPage() {
                 <th>Catatan instruksi</th>
                 <th>SLA</th>
                 <th>Status</th>
-                {!isSuperadmin ? <th>Aksi</th> : null}
+                {!isReadOnlyViewer ? <th>Aksi</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -162,7 +162,7 @@ export default function TasksPage() {
                         {taskStatusLabel(task.status)}
                       </span>
                     </td>
-                    {!isSuperadmin ? (
+                    {!isReadOnlyViewer ? (
                       <td>
                         <div className="row-actions">
                         {task.status === "pending" ? (

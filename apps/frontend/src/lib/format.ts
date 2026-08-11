@@ -1,6 +1,7 @@
 import {
   canManageIncidents as sharedCanManageIncidents,
   canManagePlatform as sharedCanManagePlatform,
+  canViewDeveloperWorkload as sharedCanViewDeveloperWorkload,
   canViewIncidents as sharedCanViewIncidents,
   canViewTasks as sharedCanViewTasks,
   opensWebsiteExternallyFromDashboard as sharedOpensWebsiteExternallyFromDashboard,
@@ -19,6 +20,7 @@ export const canManageIncidents = sharedCanManageIncidents;
 export const canManagePlatform = sharedCanManagePlatform;
 export const canViewIncidents = sharedCanViewIncidents;
 export const canViewTasks = sharedCanViewTasks;
+export const canViewDeveloperWorkload = sharedCanViewDeveloperWorkload;
 export const opensWebsiteExternallyFromDashboard =
   sharedOpensWebsiteExternallyFromDashboard;
 export const roleLabel = (role: UserRole) => sharedRoleLabel(role);

@@ -46,6 +46,12 @@ export const TICKET_ASSIGNEE_ROLES = [
   "developer",
 ] as const satisfies readonly UserRole[];
 
+/** View the developer workload/overdue summary (read-only, cross-developer). */
+export const WORKLOAD_VIEWER_ROLES = [
+  "superadmin",
+  "bos_it",
+] as const satisfies readonly UserRole[];
+
 /**
  * Roles that always receive incident lifecycle notifications.
  * Website owners are still included separately per website in the worker.
@@ -97,6 +103,11 @@ export function canManageTickets(role?: string | null): boolean {
 
 export function isTicketAssigneeCandidate(role?: string | null): boolean {
   return roleIn(role, TICKET_ASSIGNEE_ROLES);
+}
+
+/** Developer workload summary page (who's overloaded / overdue). */
+export function canViewDeveloperWorkload(role?: string | null): boolean {
+  return roleIn(role, WORKLOAD_VIEWER_ROLES);
 }
 
 export function receivesLifecycleNotifications(role?: string | null): boolean {

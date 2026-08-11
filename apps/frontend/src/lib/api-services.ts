@@ -1,6 +1,7 @@
 import { apiFetch } from "./api";
 import type {
   DashboardWebsiteCard,
+  DeveloperWorkload,
   Incident,
   IncidentStatus,
   LoginResponse,
@@ -131,6 +132,10 @@ export const tasksApi = {
   }) => apiFetch<Task>("/tasks", { method: "POST", body }),
   updateStatus: (id: string, status: string) =>
     apiFetch<Task>(`/tasks/${id}/status`, { method: "PATCH", body: { status } }),
+};
+
+export const workloadApi = {
+  developers: () => apiFetch<DeveloperWorkload[]>("/workload/developers"),
 };
 
 export const notificationsApi = {
