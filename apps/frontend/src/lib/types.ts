@@ -99,10 +99,14 @@ export interface Task {
   id: string;
   website_id: string;
   assignee_id: string;
+  ticket_id: string | null;
   instruction_notes: string;
   attachment_url: string | null;
   status: TaskStatus;
-  sla_deadline: string;
+  sla_deadline: string | null;
+  problem: string | null;
+  expectation: string | null;
+  ticket_attachment_url: string | null;
   created_at: string;
   updated_at: string;
 }

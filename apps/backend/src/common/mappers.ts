@@ -176,21 +176,27 @@ export function toTaskDto(task: {
   id: string;
   websiteId: string;
   assigneeId: string;
+  ticketId: string | null;
   instructionNotes: string;
   attachmentUrl: string | null;
   status: string;
-  slaDeadline: Date;
+  slaDeadline: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  ticket?: { id: string; description: string | null; expectation: string | null; attachmentUrl: string | null } | null;
 }) {
   return {
     id: task.id,
     website_id: task.websiteId,
     assignee_id: task.assigneeId,
+    ticket_id: task.ticketId,
     instruction_notes: task.instructionNotes,
     attachment_url: task.attachmentUrl,
     status: task.status,
     sla_deadline: task.slaDeadline,
+    problem: task.ticket?.description ?? null,
+    expectation: task.ticket?.expectation ?? null,
+    ticket_attachment_url: task.ticket?.attachmentUrl ?? null,
     created_at: task.createdAt,
     updated_at: task.updatedAt,
   };

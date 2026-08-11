@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, TaskStatus, UserRole } from "@egi/database";
+import { Prisma, TaskStatus, TicketStatus, UserRole } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTaskDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
@@ -16,6 +16,10 @@ const DEVELOPER_ALLOWED_STATUSES: TaskStatus[] = [
   TaskStatus.in_progress,
   TaskStatus.done,
 ];
+
+const TASK_INCLUDE = {
+  ticket: { select: { id: true, description: true, expectation: true, attachmentUrl: true } },
+} as const;
 
 @Injectable()
 export class TasksService {
@@ -49,6 +53,7 @@ export class TasksService {
         slaDeadline: new Date(dto.sla_deadline),
         status: TaskStatus.pending,
       },
+      include: TASK_INCLUDE,
     });
 
     return toTaskDto(task);
@@ -72,6 +77,7 @@ export class TasksService {
       this.prisma.task.count({ where }),
       this.prisma.task.findMany({
         where,
+        include: TASK_INCLUDE,
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
         orderBy: [{ slaDeadline: "asc" }, { createdAt: "desc" }],
@@ -103,11 +109,42 @@ export class TasksService {
       throw new ForbiddenException("Tasks require superadmin or developer role");
     }
 
-    const task = await this.prisma.task.update({
-      where: { id },
-      data: { status: dto.status },
+    const task = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.task.update({
+        where: { id },
+        data: { status: dto.status },
+        include: TASK_INCLUDE,
+      });
+
+      if (updated.ticketId) {
+        await this.syncTicketFromTask(tx, updated);
+      }
+
+      return updated;
     });
 
     return toTaskDto(task);
+  }
+
+  /** Mirror the task's progress onto its originating ticket so Bos IT sees real status without a second update. */
+  private async syncTicketFromTask(
+    tx: Prisma.TransactionClient,
+    task: { ticketId: string | null; status: TaskStatus },
+  ) {
+    if (!task.ticketId) return;
+    const ticket = await tx.ticket.findUnique({ where: { id: task.ticketId } });
+    if (!ticket || ticket.status === TicketStatus.closed) return;
+
+    if (task.status === TaskStatus.in_progress && ticket.status === TicketStatus.open) {
+      await tx.ticket.update({
+        where: { id: ticket.id },
+        data: { status: TicketStatus.in_progress },
+      });
+    } else if (task.status === TaskStatus.done && ticket.status !== TicketStatus.resolved) {
+      await tx.ticket.update({
+        where: { id: ticket.id },
+        data: { status: TicketStatus.resolved, resolvedAt: ticket.resolvedAt ?? new Date() },
+      });
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { Prisma, Severity, TicketCategory, TicketStatus } from "@egi/database";
+import { Prisma, Severity, TaskStatus, TicketCategory, TicketStatus } from "@egi/database";
 import { canManagePlatform } from "@egi/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
@@ -105,22 +105,42 @@ export class TicketsService {
       (website ? website.itPicId ?? website.backupItPicId ?? null : null);
 
     const title = dto.title?.trim() || this.titleForCategory(dto.category);
-    const ticket = await this.prisma.ticket.create({
-      data: {
-        incidentId: dto.incident_id,
-        websiteId: dto.website_id,
-        createdBy: user.id,
-        title,
-        category: dto.category,
-        description: dto.description?.trim(),
-        expectation: dto.expectation?.trim(),
-        attachmentUrl: dto.attachment_url,
-        assignedTo,
-        priority: dto.priority ?? Severity.medium,
-        status: TicketStatus.open,
-      },
-      include: TICKET_INCLUDE,
+
+    const ticket = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.ticket.create({
+        data: {
+          incidentId: dto.incident_id,
+          websiteId: dto.website_id,
+          createdBy: user.id,
+          title,
+          category: dto.category,
+          description: dto.description?.trim(),
+          expectation: dto.expectation?.trim(),
+          attachmentUrl: dto.attachment_url,
+          assignedTo,
+          priority: dto.priority ?? Severity.medium,
+          status: TicketStatus.open,
+        },
+        include: TICKET_INCLUDE,
+      });
+
+      // Auto-create the developer's task so tickets and to-do work stay in one pipeline.
+      if (created.websiteId && created.assignedTo) {
+        await tx.task.create({
+          data: {
+            websiteId: created.websiteId,
+            assigneeId: created.assignedTo,
+            ticketId: created.id,
+            instructionNotes: `Tiket: ${created.title}`,
+            slaDeadline: created.slaDeadline,
+            status: TaskStatus.pending,
+          },
+        });
+      }
+
+      return created;
     });
+
     return toTicketDto(ticket);
   }
 
@@ -173,26 +193,75 @@ export class TicketsService {
     }
 
     const canEditSla = canManagePlatform(user.role) || user.role === "bos_it";
-    const ticket = await this.prisma.ticket.update({
-      where: { id },
-      data: {
-        title: dto.title,
-        assignedTo: canEditSla ? dto.assigned_to : undefined,
-        priority: dto.priority,
-        status: dto.status,
-        slaDeadline:
-          canEditSla && dto.sla_deadline !== undefined
-            ? dto.sla_deadline
-              ? new Date(dto.sla_deadline)
-              : null
-            : undefined,
-        resolvedAt:
-          (dto.status === TicketStatus.resolved || dto.status === TicketStatus.closed) && !existing.resolvedAt
-            ? new Date()
-            : undefined,
-      },
-      include: TICKET_INCLUDE,
+
+    const ticket = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.ticket.update({
+        where: { id },
+        data: {
+          title: dto.title,
+          assignedTo: canEditSla ? dto.assigned_to : undefined,
+          priority: dto.priority,
+          status: dto.status,
+          slaDeadline:
+            canEditSla && dto.sla_deadline !== undefined
+              ? dto.sla_deadline
+                ? new Date(dto.sla_deadline)
+                : null
+              : undefined,
+          resolvedAt:
+            (dto.status === TicketStatus.resolved || dto.status === TicketStatus.closed) && !existing.resolvedAt
+              ? new Date()
+              : undefined,
+        },
+        include: TICKET_INCLUDE,
+      });
+
+      if (canEditSla && (dto.assigned_to !== undefined || dto.sla_deadline !== undefined)) {
+        await this.syncTaskFromTicket(tx, updated);
+      }
+
+      return updated;
     });
+
     return toTicketDto(ticket);
+  }
+
+  /** Keep the linked task's assignee/deadline aligned with the ticket after Bos IT/Superadmin edits it. */
+  private async syncTaskFromTicket(
+    tx: Prisma.TransactionClient,
+    ticket: {
+      id: string;
+      title: string;
+      websiteId: string | null;
+      assignedTo: string | null;
+      slaDeadline: Date | null;
+    },
+  ) {
+    if (!ticket.assignedTo) return;
+
+    const existingTask = await tx.task.findUnique({ where: { ticketId: ticket.id } });
+    if (existingTask) {
+      await tx.task.update({
+        where: { id: existingTask.id },
+        data: {
+          assigneeId: ticket.assignedTo,
+          slaDeadline: ticket.slaDeadline,
+        },
+      });
+      return;
+    }
+
+    if (ticket.websiteId) {
+      await tx.task.create({
+        data: {
+          websiteId: ticket.websiteId,
+          assigneeId: ticket.assignedTo,
+          ticketId: ticket.id,
+          instructionNotes: `Tiket: ${ticket.title}`,
+          slaDeadline: ticket.slaDeadline,
+          status: TaskStatus.pending,
+        },
+      });
+    }
   }
 }

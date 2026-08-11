@@ -9,14 +9,12 @@ import { ApiError } from "@/lib/api";
 import { ticketsApi, websitesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
-  canViewTasks,
   clipText,
-  formatDateTime,
   isoToLocalInput,
   localInputToIso,
   ticketStatusLabel,
 } from "@/lib/format";
-import type { Ticket, TicketStatus, Website } from "@/lib/types";
+import type { Ticket, Website } from "@/lib/types";
 
 function isOverdue(ticket: Ticket) {
   if (ticket.status === "resolved" || ticket.status === "closed" || !ticket.sla_deadline) return false;
@@ -24,11 +22,13 @@ function isOverdue(ticket: Ticket) {
   return Number.isFinite(deadline) && deadline < Date.now();
 }
 
+function canAccess(role?: string | null) {
+  return role === "superadmin" || role === "bos_it";
+}
+
 export default function TicketsInboxPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const canEditSla = user?.role === "superadmin" || user?.role === "bos_it";
-  const isDeveloper = user?.role === "developer";
   const [items, setItems] = useState<Ticket[]>([]);
   const [websites, setWebsites] = useState<Record<string, Website>>({});
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,12 @@ export default function TicketsInboxPage() {
   const [slaDrafts, setSlaDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!authLoading && user && (!canViewTasks(user.role) || user.role === "pic_web")) {
+    if (authLoading || !user) return;
+    if (user.role === "developer") {
+      router.replace("/tasks");
+      return;
+    }
+    if (!canAccess(user.role)) {
       router.replace("/dashboard");
     }
   }, [authLoading, user, router]);
@@ -69,11 +74,11 @@ export default function TicketsInboxPage() {
   }, []);
 
   useEffect(() => {
-    if (!user || !canViewTasks(user.role) || user.role === "pic_web") return;
+    if (!user || !canAccess(user.role)) return;
     void loadTickets();
   }, [user, loadTickets]);
 
-  async function updateTicket(ticketId: string, body: { status?: TicketStatus; sla_deadline?: string }) {
+  async function updateTicket(ticketId: string, body: { sla_deadline?: string }) {
     setActionError("");
     setUpdatingId(ticketId);
     try {
@@ -100,7 +105,7 @@ export default function TicketsInboxPage() {
     }
   }
 
-  if (!user || !canViewTasks(user.role) || user.role === "pic_web") {
+  if (!user || !canAccess(user.role)) {
     return (
       <AppShell title="Tiket">
         <LoadingState />
@@ -112,9 +117,9 @@ export default function TicketsInboxPage() {
     <AppShell title="Tiket">
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          {isDeveloper
-            ? "Tiket yang ditugaskan ke Anda. Deadline boleh kosong — tetap boleh dikerjakan."
-            : "Pantau tiket PIC Web. Isi deadline kapan sempat; tiket sudah masuk ke developer tanpa acc."}
+          Pantau tiket PIC Web. Isi deadline kapan sempat — tiket sudah masuk ke to-do developer secara otomatis
+          begitu dibuat, tanpa perlu acc dulu. Status di sini ikut berubah saat developer mengerjakan/menyelesaikan
+          task-nya.
         </p>
       </div>
 
@@ -123,10 +128,7 @@ export default function TicketsInboxPage() {
       {loading ? <LoadingState /> : null}
 
       {!loading && !error && items.length === 0 ? (
-        <EmptyState
-          title="Belum ada tiket"
-          description={isDeveloper ? "Tiket yang ditugaskan ke Anda akan muncul di sini." : "Tiket dari PIC Web akan muncul di sini."}
-        />
+        <EmptyState title="Belum ada tiket" description="Tiket dari PIC Web akan muncul di sini." />
       ) : null}
 
       {!loading && items.length > 0 ? (
@@ -140,7 +142,7 @@ export default function TicketsInboxPage() {
                 <th>Developer</th>
                 <th>Deadline</th>
                 <th>Status</th>
-                <th>Aksi</th>
+                <th>Lampiran</th>
               </tr>
             </thead>
             <tbody>
@@ -172,36 +174,28 @@ export default function TicketsInboxPage() {
                     </td>
                     <td>{ticket.assigned_to_name || <span className="muted">Belum ada developer</span>}</td>
                     <td>
-                      {canEditSla ? (
-                        <div className="row-actions" style={{ justifyContent: "flex-start" }}>
-                          <input
-                            type="datetime-local"
-                            className="text-input"
-                            value={slaDrafts[ticket.id] ?? ""}
-                            onChange={(e) =>
-                              setSlaDrafts((prev) => ({ ...prev, [ticket.id]: e.target.value }))
-                            }
-                            style={{ minWidth: 190 }}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-neutral"
-                            disabled={busy || !slaDrafts[ticket.id]}
-                            onClick={() => {
-                              const iso = localInputToIso(slaDrafts[ticket.id] ?? "");
-                              if (iso) void updateTicket(ticket.id, { sla_deadline: iso });
-                            }}
-                          >
-                            {busy ? "…" : "Simpan"}
-                          </button>
-                        </div>
-                      ) : ticket.sla_deadline ? (
-                        <span className={overdue ? "task-sla-overdue" : undefined}>
-                          {formatDateTime(ticket.sla_deadline)}
-                        </span>
-                      ) : (
-                        <span className="muted">Belum ada deadline</span>
-                      )}
+                      <div className="row-actions" style={{ justifyContent: "flex-start" }}>
+                        <input
+                          type="datetime-local"
+                          className="text-input"
+                          value={slaDrafts[ticket.id] ?? ""}
+                          onChange={(e) =>
+                            setSlaDrafts((prev) => ({ ...prev, [ticket.id]: e.target.value }))
+                          }
+                          style={{ minWidth: 190 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-neutral"
+                          disabled={busy || !slaDrafts[ticket.id]}
+                          onClick={() => {
+                            const iso = localInputToIso(slaDrafts[ticket.id] ?? "");
+                            if (iso) void updateTicket(ticket.id, { sla_deadline: iso });
+                          }}
+                        >
+                          {busy ? "…" : "Simpan"}
+                        </button>
+                      </div>
                       {overdue ? (
                         <div className="muted" style={{ fontSize: "0.75rem", color: "var(--danger)" }}>
                           Lewat deadline
@@ -214,37 +208,17 @@ export default function TicketsInboxPage() {
                       </span>
                     </td>
                     <td>
-                      <div className="row-actions">
-                        {ticket.attachment_url ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-neutral"
-                            onClick={() => void openAttachment(ticket.id)}
-                          >
-                            Lampiran
-                          </button>
-                        ) : null}
-                        {isDeveloper && ticket.status === "open" ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            disabled={busy}
-                            onClick={() => void updateTicket(ticket.id, { status: "in_progress" })}
-                          >
-                            {busy ? "…" : "Mulai Kerjakan"}
-                          </button>
-                        ) : null}
-                        {isDeveloper && ticket.status === "in_progress" ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            disabled={busy}
-                            onClick={() => void updateTicket(ticket.id, { status: "resolved" })}
-                          >
-                            {busy ? "…" : "Selesai"}
-                          </button>
-                        ) : null}
-                      </div>
+                      {ticket.attachment_url ? (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-neutral"
+                          onClick={() => void openAttachment(ticket.id)}
+                        >
+                          Lampiran
+                        </button>
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
                     </td>
                   </tr>
                 );

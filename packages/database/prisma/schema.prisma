@@ -204,6 +204,7 @@ model Ticket {
   website      Website?       @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   creator      User?          @relation("TicketCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   assignee     User?          @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  task         Task?
 
   @@index([incidentId])
   @@index([websiteId])
@@ -241,15 +242,17 @@ model Task {
   id               String     @id @default(uuid()) @db.Uuid
   websiteId        String     @map("website_id") @db.Uuid
   assigneeId       String     @map("assignee_id") @db.Uuid
+  ticketId         String?    @unique @map("ticket_id") @db.Uuid
   instructionNotes String     @map("instruction_notes")
   attachmentUrl    String?    @map("attachment_url")
   status           TaskStatus @default(pending)
-  slaDeadline      DateTime   @map("sla_deadline")
+  slaDeadline      DateTime?  @map("sla_deadline")
   createdAt        DateTime   @default(now()) @map("created_at")
   updatedAt        DateTime   @updatedAt @map("updated_at")
 
   website  Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   assignee User    @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([websiteId])
   @@index([assigneeId])

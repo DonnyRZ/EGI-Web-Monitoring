@@ -70,7 +70,7 @@ export class WorkloadService {
       if (!row) continue;
       if (task.status === TaskStatus.pending) row.tasks_pending += 1;
       else if (task.status === TaskStatus.in_progress) row.tasks_in_progress += 1;
-      if (task.slaDeadline.getTime() < now) row.tasks_overdue += 1;
+      if (task.slaDeadline && task.slaDeadline.getTime() < now) row.tasks_overdue += 1;
       row.total_active += 1;
     }
 

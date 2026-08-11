@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { tasksApi, websitesApi } from "@/lib/api-services";
+import { tasksApi, ticketsApi, websitesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   canViewTasks,
@@ -17,7 +17,7 @@ import {
 import type { Task, TaskStatus, Website } from "@/lib/types";
 
 function isOverdue(task: Task) {
-  if (task.status === "done") return false;
+  if (task.status === "done" || !task.sla_deadline) return false;
   const deadline = new Date(task.sla_deadline).getTime();
   return Number.isFinite(deadline) && deadline < Date.now();
 }
@@ -80,6 +80,16 @@ export default function TasksPage() {
     }
   }
 
+  async function openAttachment(ticketId: string) {
+    setActionError("");
+    try {
+      const signed = await ticketsApi.attachment(ticketId);
+      window.open(signed.url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Gagal membuka lampiran");
+    }
+  }
+
   if (!user || !canViewTasks(user.role) || user.role === "pic_web") {
     return (
       <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
@@ -93,8 +103,8 @@ export default function TasksPage() {
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
           {isReadOnlyViewer
-            ? "Pantau progress task, SLA, dan status pekerjaan developer."
-            : "Tugas yang didelegasikan oleh Superadmin. Perbarui status saat Anda mulai atau menyelesaikan pekerjaan."}
+            ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web maupun delegasi Superadmin."
+            : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
         </p>
       </div>
 
@@ -115,10 +125,11 @@ export default function TasksPage() {
             <thead>
               <tr>
                 <th>Website</th>
-                <th>Catatan instruksi</th>
+                <th>Masalah</th>
+                <th>Ekspektasi</th>
                 <th>SLA</th>
                 <th>Status</th>
-                {!isReadOnlyViewer ? <th>Aksi</th> : null}
+                <th>{isReadOnlyViewer ? "Lampiran" : "Aksi"}</th>
               </tr>
             </thead>
             <tbody>
@@ -126,6 +137,7 @@ export default function TasksPage() {
                 const site = websites[task.website_id];
                 const busy = updatingId === task.id;
                 const overdue = isOverdue(task);
+                const problem = task.ticket_id ? task.problem : task.instruction_notes;
                 return (
                   <tr key={task.id}>
                     <td>
@@ -142,15 +154,20 @@ export default function TasksPage() {
                         </div>
                       ) : null}
                     </td>
-                    <td style={{ maxWidth: 360 }}>
-                      <span title={task.instruction_notes}>
-                        {clipText(task.instruction_notes, 160)}
-                      </span>
+                    <td style={{ maxWidth: 260 }} title={problem ?? undefined}>
+                      {problem ? clipText(problem, 140) : <span className="muted">-</span>}
+                    </td>
+                    <td style={{ maxWidth: 220 }} title={task.expectation ?? undefined}>
+                      {task.expectation ? clipText(task.expectation, 140) : <span className="muted">-</span>}
                     </td>
                     <td>
-                      <span className={overdue ? "task-sla-overdue" : undefined}>
-                        {formatDateTime(task.sla_deadline)}
-                      </span>
+                      {task.sla_deadline ? (
+                        <span className={overdue ? "task-sla-overdue" : undefined}>
+                          {formatDateTime(task.sla_deadline)}
+                        </span>
+                      ) : (
+                        <span className="muted">Belum ada deadline</span>
+                      )}
                       {overdue ? (
                         <div className="muted" style={{ fontSize: "0.75rem", color: "var(--danger)" }}>
                           Lewat SLA
@@ -162,10 +179,18 @@ export default function TasksPage() {
                         {taskStatusLabel(task.status)}
                       </span>
                     </td>
-                    {!isReadOnlyViewer ? (
-                      <td>
-                        <div className="row-actions">
-                        {task.status === "pending" ? (
+                    <td>
+                      <div className="row-actions">
+                        {task.ticket_id && task.ticket_attachment_url ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-neutral"
+                            onClick={() => void openAttachment(task.ticket_id as string)}
+                          >
+                            Lampiran
+                          </button>
+                        ) : null}
+                        {!isReadOnlyViewer && task.status === "pending" ? (
                           <button
                             type="button"
                             className="btn btn-sm btn-primary"
@@ -175,7 +200,7 @@ export default function TasksPage() {
                             {busy ? "…" : "Mulai Kerjakan"}
                           </button>
                         ) : null}
-                        {task.status === "in_progress" ? (
+                        {!isReadOnlyViewer && task.status === "in_progress" ? (
                           <button
                             type="button"
                             className="btn btn-sm btn-primary"
@@ -185,14 +210,13 @@ export default function TasksPage() {
                             {busy ? "…" : "Selesai"}
                           </button>
                         ) : null}
-                        {task.status === "done" ? (
+                        {!isReadOnlyViewer && task.status === "done" ? (
                           <span className="muted" style={{ fontSize: "0.85rem" }}>
                             Selesai
                           </span>
                         ) : null}
-                        </div>
-                      </td>
-                    ) : null}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
