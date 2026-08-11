@@ -43,6 +43,12 @@ enum TicketStatus {
   closed
 }
 
+enum TicketCategory {
+  website
+  help_desk
+  procurement
+}
+
 enum NotificationChannel {
   dashboard
   email
@@ -78,6 +84,7 @@ model User {
   itWebsites Website[]          @relation("WebsiteItPic")
   backupItWebsites Website[]    @relation("WebsiteBackupItPic")
   assignedTickets Ticket[]     @relation("TicketAssignee")
+  createdTickets Ticket[]      @relation("TicketCreator")
   assignedTasks Task[]         @relation("TaskAssignee")
   notifications Notification[]
 
@@ -117,6 +124,7 @@ model Website {
   monitoringResults  MonitoringResult[]
   incidents          Incident[]
   tasks              Task[]
+  tickets            Ticket[]
 
   @@index([isActive])
   @@map("websites")
@@ -175,22 +183,33 @@ model Incident {
 }
 
 model Ticket {
-  id         String       @id @default(uuid()) @db.Uuid
-  incidentId String       @map("incident_id") @db.Uuid
-  title      String       @db.VarChar(255)
-  assignedTo String?      @map("assigned_to") @db.Uuid
-  priority   Severity
-  status     TicketStatus
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  resolvedAt DateTime?    @map("resolved_at")
+  id           String         @id @default(uuid()) @db.Uuid
+  incidentId   String?        @map("incident_id") @db.Uuid
+  websiteId    String?        @map("website_id") @db.Uuid
+  createdBy    String?        @map("created_by") @db.Uuid
+  title        String         @db.VarChar(255)
+  category     TicketCategory?
+  description  String?
+  attachmentUrl String?       @map("attachment_url")
+  assignedTo   String?        @map("assigned_to") @db.Uuid
+  priority     Severity       @default(medium)
+  status       TicketStatus
+  slaDeadline  DateTime?      @map("sla_deadline")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  resolvedAt   DateTime?      @map("resolved_at")
 
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  assignee User?    @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  incident     Incident?      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  website      Website?       @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  creator      User?          @relation("TicketCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  assignee     User?          @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
 
   @@index([incidentId])
+  @@index([websiteId])
+  @@index([createdBy])
   @@index([assignedTo])
   @@index([status])
+  @@index([slaDeadline])
   @@map("tickets")
 }
 

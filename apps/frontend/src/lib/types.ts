@@ -3,6 +3,7 @@ export type {
   Severity,
   IncidentStatus,
   TicketStatus,
+  TicketCategory,
   NotificationChannel,
   NotificationStatus,
   TaskStatus,
@@ -17,6 +18,7 @@ import type {
   Severity,
   TaskStatus,
   TicketStatus,
+  TicketCategory,
   UserRole,
 } from "@egi/shared-types";
 
@@ -75,11 +77,17 @@ export interface Incident {
 
 export interface Ticket {
   id: string;
-  incident_id: string;
+  incident_id: string | null;
+  website_id: string | null;
+  created_by: string | null;
   title: string;
+  category: TicketCategory | null;
+  description: string | null;
+  attachment_url: string | null;
   assigned_to: string | null;
   priority: Severity;
   status: TicketStatus;
+  sla_deadline: string | null;
   created_at: string;
   updated_at: string;
   resolved_at: string | null;

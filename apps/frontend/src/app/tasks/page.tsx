@@ -34,7 +34,7 @@ export default function TasksPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && user && !canViewTasks(user.role)) {
+    if (!authLoading && user && (!canViewTasks(user.role) || user.role === "pic_web")) {
       router.replace("/dashboard");
     }
   }, [authLoading, user, router]);
@@ -62,7 +62,7 @@ export default function TasksPage() {
   }, []);
 
   useEffect(() => {
-    if (!user || !canViewTasks(user.role)) return;
+    if (!user || !canViewTasks(user.role) || user.role === "pic_web") return;
     void loadTasks();
   }, [user, loadTasks]);
 
@@ -80,7 +80,7 @@ export default function TasksPage() {
     }
   }
 
-  if (!user || !canViewTasks(user.role)) {
+  if (!user || !canViewTasks(user.role) || user.role === "pic_web") {
     return (
       <AppShell title={isSuperadmin ? "Task Monitoring" : "To-Do List"}>
         <LoadingState />

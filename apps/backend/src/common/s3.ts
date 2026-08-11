@@ -1,10 +1,11 @@
 import {
   GetObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-function createS3Client(): S3Client {
+export function createS3Client(): S3Client {
   // Workers use the private Docker endpoint for uploads. Signed URLs must use
   // an endpoint reachable by the browser through the public Nginx vhost.
   const endpoint =
@@ -59,4 +60,20 @@ export async function createScreenshotSignedUrl(
   );
 
   return { url, expiresAt };
+}
+
+
+export async function uploadObject(
+  key: string,
+  body: Buffer,
+  contentType: string,
+) {
+  const client = createS3Client();
+  await client.send(new PutObjectCommand({
+    Bucket: getBucket(),
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  }));
+  return key;
 }

@@ -80,8 +80,25 @@ export const incidentsApi = {
 };
 
 export const ticketsApi = {
-  list: (params: { incident_id?: string; page?: number; limit?: number } = {}) =>
+  list: (params: {
+    incident_id?: string;
+    website_id?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  } = {}) =>
     apiFetch<{ data: Ticket[]; meta: PaginatedMeta }>(`/tickets${qs(params)}`),
+  uploadAttachment: (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return apiFetch<{ attachment_url: string }>("/tickets/attachments", { method: "POST", body });
+  },
+  create: (body: {
+    website_id: string;
+    category: "website" | "help_desk" | "procurement";
+    description: string;
+    attachment_url?: string;
+  }) => apiFetch<Ticket>("/tickets", { method: "POST", body }),
 };
 
 export const tasksApi = {

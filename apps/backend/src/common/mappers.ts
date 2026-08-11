@@ -106,11 +106,17 @@ export function toIncidentDto(incident: {
 
 export function toTicketDto(ticket: {
   id: string;
-  incidentId: string;
+  incidentId: string | null;
+  websiteId: string | null;
+  createdBy: string | null;
   title: string;
+  category: string | null;
+  description: string | null;
+  attachmentUrl: string | null;
   assignedTo: string | null;
   priority: string;
   status: string;
+  slaDeadline: Date | null;
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;
@@ -118,10 +124,16 @@ export function toTicketDto(ticket: {
   return {
     id: ticket.id,
     incident_id: ticket.incidentId,
+    website_id: ticket.websiteId,
+    created_by: ticket.createdBy,
     title: ticket.title,
+    category: ticket.category,
+    description: ticket.description,
+    attachment_url: ticket.attachmentUrl,
     assigned_to: ticket.assignedTo,
     priority: ticket.priority,
     status: ticket.status,
+    sla_deadline: ticket.slaDeadline,
     created_at: ticket.createdAt,
     updated_at: ticket.updatedAt,
     resolved_at: ticket.resolvedAt,
