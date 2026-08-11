@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import { IsDateString, IsEnum, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from "class-validator";
 import { Severity, TicketCategory, TicketStatus } from "@egi/database";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 
@@ -33,6 +33,11 @@ export class CreateTicketDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  expectation?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   attachment_url?: string;
 
   @ApiPropertyOptional({ enum: Severity })
@@ -55,6 +60,7 @@ export class UpdateTicketDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @ValidateIf((_, value) => value !== null)
   @IsUUID()
   assigned_to?: string | null;
 
@@ -67,6 +73,12 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsEnum(TicketStatus)
   status?: TicketStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsDateString()
+  sla_deadline?: string | null;
 }
 
 export class TicketsQueryDto extends PaginationQueryDto {

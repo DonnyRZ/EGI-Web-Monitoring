@@ -89,13 +89,13 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     ...(canViewTasks(user.role) && user.role !== "pic_web"
-      ? [{ href: "/tasks", label: user.role === "superadmin" ? "Task Monitoring" : "To-Do List", icon: IconTasks }]
+      ? [
+          { href: "/tasks", label: user.role === "superadmin" ? "Task Monitoring" : "To-Do List", icon: IconTasks },
+          { href: "/tickets", label: "Tiket", icon: IconTasks },
+        ]
       : []),
     ...(user.role === "pic_web"
-      ? [
-          { href: "/pic-web/websites", label: "Website Saya", icon: IconGlobe },
-          { href: "/pic-web/tickets", label: "Tiket Saya", icon: IconTasks },
-        ]
+      ? [{ href: "/pic-web/tickets", label: "Tiket Saya", icon: IconTasks }]
       : []),
     ...(canViewIncidents(user.role) && user.role !== "pic_web"
       ? [

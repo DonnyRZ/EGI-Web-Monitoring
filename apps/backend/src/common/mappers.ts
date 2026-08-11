@@ -112,6 +112,7 @@ export function toTicketDto(ticket: {
   title: string;
   category: string | null;
   description: string | null;
+  expectation: string | null;
   attachmentUrl: string | null;
   assignedTo: string | null;
   priority: string;
@@ -120,6 +121,7 @@ export function toTicketDto(ticket: {
   createdAt: Date;
   updatedAt: Date;
   resolvedAt: Date | null;
+  assignee?: { id: string; name: string } | null;
 }) {
   return {
     id: ticket.id,
@@ -129,8 +131,10 @@ export function toTicketDto(ticket: {
     title: ticket.title,
     category: ticket.category,
     description: ticket.description,
+    expectation: ticket.expectation,
     attachment_url: ticket.attachmentUrl,
     assigned_to: ticket.assignedTo,
+    assigned_to_name: ticket.assignee?.name ?? null,
     priority: ticket.priority,
     status: ticket.status,
     sla_deadline: ticket.slaDeadline,

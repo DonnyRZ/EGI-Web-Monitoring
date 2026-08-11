@@ -53,9 +53,18 @@ export class TicketsController {
     return this.ticketsService.get(id, user);
   }
 
+  @Get(":id/attachment")
+  getAttachment(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.ticketsService.getAttachmentSignedUrl(id, user);
+  }
+
   @Patch(":id")
   @Roles(...TICKET_MANAGER_ROLES_PRISMA)
-  update(@Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateTicketDto) {
-    return this.ticketsService.update(id, dto);
+  update(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTicketDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.ticketsService.update(id, dto, user);
   }
 }

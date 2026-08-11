@@ -35,7 +35,8 @@ test("resolved ticket cannot reopen and closed ticket cannot change", async () =
     },
   } as never);
 
-  await assert.rejects(() => service.update("ticket", { status: TicketStatus.open }), /cannot be reopened/);
+  const admin = { id: "admin", email: "admin@example.test", role: "superadmin" };
+  await assert.rejects(() => service.update("ticket", { status: TicketStatus.open }, admin), /cannot be reopened/);
   ticket = { ...ticket, status: TicketStatus.closed };
-  await assert.rejects(() => service.update("ticket", { title: "changed" }), /Closed tickets/);
+  await assert.rejects(() => service.update("ticket", { title: "changed" }, admin), /Closed tickets/);
 });

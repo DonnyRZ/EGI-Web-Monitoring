@@ -190,6 +190,7 @@ model Ticket {
   title        String         @db.VarChar(255)
   category     TicketCategory?
   description  String?
+  expectation  String?
   attachmentUrl String?       @map("attachment_url")
   assignedTo   String?        @map("assigned_to") @db.Uuid
   priority     Severity       @default(medium)

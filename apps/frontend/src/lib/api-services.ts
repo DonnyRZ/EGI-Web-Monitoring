@@ -83,6 +83,7 @@ export const ticketsApi = {
   list: (params: {
     incident_id?: string;
     website_id?: string;
+    assigned_to?: string;
     status?: string;
     page?: number;
     limit?: number;
@@ -93,12 +94,23 @@ export const ticketsApi = {
     body.append("file", file);
     return apiFetch<{ attachment_url: string }>("/tickets/attachments", { method: "POST", body });
   },
+  attachment: (id: string) =>
+    apiFetch<{ url: string; expires_at: string }>(`/tickets/${id}/attachment`),
   create: (body: {
     website_id: string;
     category: "website" | "help_desk" | "procurement";
     description: string;
+    expectation: string;
     attachment_url?: string;
   }) => apiFetch<Ticket>("/tickets", { method: "POST", body }),
+  update: (
+    id: string,
+    body: Partial<{
+      status: string;
+      sla_deadline: string | null;
+      assigned_to: string | null;
+    }>,
+  ) => apiFetch<Ticket>(`/tickets/${id}`, { method: "PATCH", body }),
 };
 
 export const tasksApi = {

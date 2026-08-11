@@ -8,7 +8,7 @@ import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { ticketsApi, websitesApi } from "@/lib/api-services";
-import { ticketStatusLabel } from "@/lib/format";
+import { formatDateTime, ticketStatusLabel } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 import type { Ticket, Website } from "@/lib/types";
 
@@ -29,6 +29,7 @@ export default function PicWebTicketsPage() {
   const [websiteId, setWebsiteId] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [expectation, setExpectation] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,8 +62,8 @@ export default function PicWebTicketsPage() {
     e.preventDefault();
     setError("");
     setSuccess("");
-    if (!websiteId || !category || !description.trim()) {
-      setError("Website, kategori, dan deskripsi wajib diisi");
+    if (!websiteId || !category || !description.trim() || !expectation.trim()) {
+      setError("Website, kategori, masalah, dan ekspektasi wajib diisi");
       return;
     }
     setSaving(true);
@@ -73,12 +74,14 @@ export default function PicWebTicketsPage() {
         website_id: websiteId,
         category: category as "website" | "help_desk" | "procurement",
         description: description.trim(),
+        expectation: expectation.trim(),
         attachment_url: attachmentUrl,
       });
       setDescription("");
+      setExpectation("");
       setCategory("");
       setFile(null);
-      setSuccess("Tiket berhasil dikirim ke tim IT.");
+      setSuccess("Tiket berhasil dikirim ke developer penanggung jawab.");
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal mengirim tiket");
@@ -101,7 +104,9 @@ export default function PicWebTicketsPage() {
 
       <div className="panel">
         <h2 className="panel-title">Buat tiket</h2>
-        <p className="muted" style={{ margin: "0 0 16px" }}>Tiket akan diteruskan ke Bos IT untuk penentuan developer dan SLA.</p>
+        <p className="muted" style={{ margin: "0 0 16px" }}>
+          Tiket langsung masuk ke developer penanggung jawab website itu. Deadline bisa diisi Bos IT belakangan.
+        </p>
         <form onSubmit={submit}>
           <div className="form-grid">
             <div className="form-field">
@@ -113,8 +118,12 @@ export default function PicWebTicketsPage() {
               <Select id="pic-ticket-category" className="block" value={category} onChange={setCategory} placeholder="Pilih kategori" options={categoryOptions} />
             </div>
             <div className="form-field full">
-              <label htmlFor="pic-ticket-description">Deskripsi</label>
-              <textarea id="pic-ticket-description" className="textarea" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Jelaskan masalah atau kebutuhan secara rinci..." />
+              <label htmlFor="pic-ticket-description">Masalah yang ditemukan</label>
+              <textarea id="pic-ticket-description" className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Contoh: fotonya salah" />
+            </div>
+            <div className="form-field full">
+              <label htmlFor="pic-ticket-expectation">Ekspektasi</label>
+              <textarea id="pic-ticket-expectation" className="textarea" rows={3} value={expectation} onChange={(e) => setExpectation(e.target.value)} placeholder="Contoh: harusnya foto Y" />
             </div>
             <div className="form-field full">
               <label htmlFor="pic-ticket-attachment">Lampiran</label>
@@ -139,7 +148,16 @@ export default function PicWebTicketsPage() {
         {!loading && tickets.length > 0 ? (
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>Website</th><th>Kategori</th><th>Deskripsi</th><th>Status</th><th>SLA</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Website</th>
+                  <th>Kategori</th>
+                  <th>Masalah</th>
+                  <th>Ekspektasi</th>
+                  <th>Status</th>
+                  <th>Deadline</th>
+                </tr>
+              </thead>
               <tbody>
                 {tickets.map((ticket) => {
                   const website = websites.find((item) => item.id === ticket.website_id);
@@ -147,9 +165,10 @@ export default function PicWebTicketsPage() {
                     <tr key={ticket.id}>
                       <td>{website ? <Link href={`/websites/${website.id}`} className="list-title">{website.name}</Link> : <span className="muted">-</span>}</td>
                       <td>{categoryLabel(ticket.category)}</td>
-                      <td style={{ maxWidth: 380 }}>{ticket.description ?? ticket.title}</td>
+                      <td style={{ maxWidth: 240 }}>{ticket.description ?? ticket.title}</td>
+                      <td style={{ maxWidth: 240 }}>{ticket.expectation || <span className="muted">-</span>}</td>
                       <td><span className={`badge-soft task-status-${ticket.status}`}>{ticketStatusLabel(ticket.status)}</span></td>
-                      <td>{ticket.sla_deadline ? new Date(ticket.sla_deadline).toLocaleString("id-ID") : <span className="muted">Menunggu Bos IT</span>}</td>
+                      <td>{ticket.sla_deadline ? formatDateTime(ticket.sla_deadline) : <span className="muted">Belum ada deadline</span>}</td>
                     </tr>
                   );
                 })}

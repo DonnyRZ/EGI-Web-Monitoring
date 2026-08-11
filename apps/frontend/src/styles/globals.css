@@ -800,9 +800,16 @@ h3,
   color: var(--egi-blue-dark);
 }
 
-.task-status-done {
+.task-status-done,
+.task-status-resolved,
+.task-status-closed {
   background: var(--success-soft);
   color: var(--success);
+}
+
+.task-status-open {
+  background: #eef0f3;
+  color: #5c6570;
 }
 
 .task-sla-overdue {

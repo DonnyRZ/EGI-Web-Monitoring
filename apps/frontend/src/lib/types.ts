@@ -83,8 +83,10 @@ export interface Ticket {
   title: string;
   category: TicketCategory | null;
   description: string | null;
+  expectation: string | null;
   attachment_url: string | null;
   assigned_to: string | null;
+  assigned_to_name: string | null;
   priority: Severity;
   status: TicketStatus;
   sla_deadline: string | null;
