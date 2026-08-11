@@ -671,6 +671,114 @@ h3,
   gap: 10px;
 }
 
+.file-dropzone-wrap {
+  width: 100%;
+}
+
+.file-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: #fafbfc;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.file-dropzone:hover,
+.file-dropzone:focus-within {
+  border-color: var(--egi-blue);
+  background: var(--egi-blue-soft);
+}
+
+.file-dropzone.is-dragover {
+  border-color: var(--egi-blue);
+  background: var(--egi-blue-soft);
+  box-shadow: 0 0 0 3px var(--egi-blue-soft);
+}
+
+.file-dropzone.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.file-dropzone-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--egi-blue-soft);
+  color: var(--egi-blue-dark);
+}
+
+.file-dropzone:hover .file-dropzone-icon,
+.file-dropzone.is-dragover .file-dropzone-icon {
+  background: var(--egi-blue-mid);
+}
+
+.file-dropzone-copy,
+.file-dropzone-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.file-dropzone-copy strong,
+.file-dropzone-meta strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-dropzone-copy span,
+.file-dropzone-meta span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.file-dropzone-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid var(--egi-blue-mid);
+  border-radius: var(--radius-md);
+  background: var(--egi-blue-soft);
+}
+
+.file-dropzone-remove {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.file-dropzone-remove:hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--border-strong);
+  color: var(--danger);
+}
+
 .success-banner {
   background: var(--success-soft);
   color: var(--success);

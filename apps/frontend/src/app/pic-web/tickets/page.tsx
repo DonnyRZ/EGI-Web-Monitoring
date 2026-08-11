@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { AppShell } from "@/components/AppShell";
+import { FileDropzone } from "@/components/FileDropzone";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -117,8 +118,12 @@ export default function PicWebTicketsPage() {
             </div>
             <div className="form-field full">
               <label htmlFor="pic-ticket-attachment">Lampiran</label>
-              <input id="pic-ticket-attachment" className="text-input block" type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              {file ? <span className="muted" style={{ fontSize: "0.85rem" }}>{file.name}</span> : null}
+              <FileDropzone
+                id="pic-ticket-attachment"
+                file={file}
+                disabled={saving}
+                onChange={setFile}
+              />
             </div>
           </div>
           <div className="modal-actions" style={{ marginTop: 16 }}>

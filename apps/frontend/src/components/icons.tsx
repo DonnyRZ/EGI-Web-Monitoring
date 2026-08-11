@@ -141,3 +141,20 @@ export function IconTasks(props: IconProps) {
     </IconBase>
   );
 }
+
+export function IconPaperclip(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M8.5 12.5 14 7a3.2 3.2 0 0 1 4.5 4.5l-7.2 7.2a4.5 4.5 0 0 1-6.4-6.4l6.8-6.8" />
+    </IconBase>
+  );
+}
+
+export function IconX(props: IconProps) {
+  return (
+    <IconBase size={16} strokeWidth={2} {...props}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </IconBase>
+  );
+}
