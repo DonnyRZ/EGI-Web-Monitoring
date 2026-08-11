@@ -10,7 +10,7 @@ import { EmptyState, ErrorBanner, LoadingState, StatusPill } from "@/components/
 import { dashboardApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { formatRelative, opensWebsiteExternallyFromDashboard } from "@/lib/format";
-import type { DashboardWebsiteCard, MonitoringStatus } from "@/lib/types";
+import type { DashboardWebsiteCard } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
 export default function DashboardPage() {
@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState<MonitoringStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "down">("all");
   const openExternally = opensWebsiteExternallyFromDashboard(user?.role);
 
   useEffect(() => {
@@ -44,7 +44,11 @@ export default function DashboardPage() {
 
   const filtered = useMemo(() => {
     if (statusFilter === "all") return cards;
-    return cards.filter((c) => (c.latest_result?.status || "unknown") === statusFilter);
+    return cards.filter((c) => {
+      const status = c.latest_result?.status || "unknown";
+      if (statusFilter === "active") return status === "normal" || status === "warning";
+      return status === statusFilter;
+    });
   }, [cards, statusFilter]);
 
   return (
@@ -52,14 +56,12 @@ export default function DashboardPage() {
       <div className="toolbar">
         <Select
           value={statusFilter}
-          onChange={(v) => setStatusFilter(v as MonitoringStatus | "all")}
+          onChange={(v) => setStatusFilter(v as "all" | "active" | "down")}
           aria-label="Filter status"
           options={[
             { value: "all", label: "Semua status" },
-            { value: "normal", label: "Normal" },
-            { value: "warning", label: "Warning" },
+            { value: "active", label: "Aktif" },
             { value: "down", label: "Down" },
-            { value: "unknown", label: "Unknown" },
           ]}
         />
         <span className="muted" style={{ fontSize: "0.9rem" }}>

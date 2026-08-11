@@ -25,6 +25,7 @@ function isOverdue(task: Task) {
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const isSuperadmin = user?.role === "superadmin";
   const [items, setItems] = useState<Task[]>([]);
   const [websites, setWebsites] = useState<Record<string, Website>>({});
   const [loading, setLoading] = useState(true);
@@ -81,18 +82,19 @@ export default function TasksPage() {
 
   if (!user || !canViewTasks(user.role)) {
     return (
-      <AppShell title="To-Do List">
+      <AppShell title={isSuperadmin ? "Task Monitoring" : "To-Do List"}>
         <LoadingState />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="To-Do List">
+    <AppShell title={isSuperadmin ? "Task Monitoring" : "To-Do List"}>
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          Tugas yang didelegasikan oleh Superadmin. Perbarui status saat Anda mulai atau
-          menyelesaikan pekerjaan.
+          {isSuperadmin
+            ? "Pantau progress task, SLA, dan status pekerjaan developer."
+            : "Tugas yang didelegasikan oleh Superadmin. Perbarui status saat Anda mulai atau menyelesaikan pekerjaan."}
         </p>
       </div>
 
@@ -116,7 +118,7 @@ export default function TasksPage() {
                 <th>Catatan instruksi</th>
                 <th>SLA</th>
                 <th>Status</th>
-                <th>Aksi</th>
+                {!isSuperadmin ? <th>Aksi</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -160,8 +162,9 @@ export default function TasksPage() {
                         {taskStatusLabel(task.status)}
                       </span>
                     </td>
-                    <td>
-                      <div className="row-actions">
+                    {!isSuperadmin ? (
+                      <td>
+                        <div className="row-actions">
                         {task.status === "pending" ? (
                           <button
                             type="button"
@@ -187,8 +190,9 @@ export default function TasksPage() {
                             Selesai
                           </span>
                         ) : null}
-                      </div>
-                    </td>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}

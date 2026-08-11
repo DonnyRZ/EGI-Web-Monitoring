@@ -62,9 +62,8 @@ export function formatRelative(value?: string | null) {
 export function statusLabel(status: MonitoringStatus) {
   switch (status) {
     case "normal":
-      return "Normal";
     case "warning":
-      return "Warning";
+      return "Aktif";
     case "down":
       return "Down";
     default:

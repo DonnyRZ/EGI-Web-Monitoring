@@ -89,7 +89,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     ...(canViewTasks(user.role)
-      ? [{ href: "/tasks", label: "To-Do List", icon: IconTasks }]
+      ? [{ href: "/tasks", label: user.role === "superadmin" ? "Task Monitoring" : "To-Do List", icon: IconTasks }]
       : []),
     ...(canViewIncidents(user.role)
       ? [
