@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
     <AppShell title="Users">
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          Kelola akun internal. Hanya role IT Ops yang dapat mengakses halaman ini.
+          Kelola akun dan role internal platform.
         </p>
         <button type="button" className="btn btn-sm btn-neutral" onClick={openCreate}>
           Tambah User

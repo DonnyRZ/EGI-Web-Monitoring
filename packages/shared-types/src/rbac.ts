@@ -1,16 +1,18 @@
 /**
- * Central RBAC policy (3-role model).
+ * Central RBAC policy.
  *
- * Roles: superadmin | developer | end_user
+ * Roles: superadmin | bos_it | developer | pic_web | end_user
  * Rewrite capability sets here — apps should not hardcode role string compares.
  */
 
-export type UserRole = "superadmin" | "developer" | "end_user";
+export type UserRole = "superadmin" | "bos_it" | "developer" | "pic_web" | "end_user";
 
 /** Stable order for admin UI / API docs. */
 export const USER_ROLES = [
   "end_user",
+  "pic_web",
   "developer",
+  "bos_it",
   "superadmin",
 ] as const satisfies readonly UserRole[];
 
@@ -23,7 +25,9 @@ export const PLATFORM_ADMIN_ROLES = ["superadmin"] as const satisfies readonly U
  */
 export const ALL_RESOURCE_ACCESS_ROLES = [
   "superadmin",
+  "bos_it",
   "developer",
+  "pic_web",
 ] as const satisfies readonly UserRole[];
 
 /** Mutate / close incidents. */
@@ -32,12 +36,14 @@ export const INCIDENT_MANAGER_ROLES = ["superadmin"] as const satisfies readonly
 /** Create / update tickets. */
 export const TICKET_MANAGER_ROLES = [
   "superadmin",
+  "bos_it",
   "developer",
+  "pic_web",
 ] as const satisfies readonly UserRole[];
 
 /** Auto-assignee candidates when an incident opens. */
 export const TICKET_ASSIGNEE_ROLES = [
-  "superadmin",
+  "bos_it",
   "developer",
 ] as const satisfies readonly UserRole[];
 
@@ -47,6 +53,7 @@ export const TICKET_ASSIGNEE_ROLES = [
  */
 export const LIFECYCLE_NOTIFICATION_ROLES = [
   "superadmin",
+  "bos_it",
   "developer",
 ] as const satisfies readonly UserRole[];
 
@@ -118,6 +125,10 @@ export function roleLabel(role: UserRole): string {
       return "Superadmin";
     case "developer":
       return "Developer";
+    case "bos_it":
+      return "Bos IT";
+    case "pic_web":
+      return "PIC Web";
     case "end_user":
       return "End User";
   }

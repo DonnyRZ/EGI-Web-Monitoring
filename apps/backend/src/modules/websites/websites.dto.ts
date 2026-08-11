@@ -32,6 +32,16 @@ export class CreateWebsiteDto {
   @IsUUID()
   owner_id?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  it_pic_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  backup_it_pic_id?: string;
+
   @ApiPropertyOptional({ default: 5 })
   @IsOptional()
   @Type(() => Number)
@@ -67,6 +77,16 @@ export class UpdateWebsiteDto {
   @IsOptional()
   @IsUUID()
   owner_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  it_pic_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  backup_it_pic_id?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

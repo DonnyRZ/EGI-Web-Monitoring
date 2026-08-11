@@ -123,7 +123,9 @@ export const websitesApi = {
     name: string;
     domain: string;
     url: string;
-    owner_id?: string;
+    owner_id?: string | null;
+    it_pic_id?: string | null;
+    backup_it_pic_id?: string | null;
     monitoring_interval_minutes?: number;
     is_active?: boolean;
   }) => apiFetch<Website>("/websites", { method: "POST", body }),
@@ -134,6 +136,8 @@ export const websitesApi = {
       domain: string;
       url: string;
       owner_id: string | null;
+      it_pic_id: string | null;
+      backup_it_pic_id: string | null;
       monitoring_interval_minutes: number;
       is_active: boolean;
     }>,

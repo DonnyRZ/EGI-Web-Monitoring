@@ -28,6 +28,8 @@ export function toWebsiteDto(website: {
   domain: string;
   url: string;
   ownerId: string | null;
+  itPicId: string | null;
+  backupItPicId: string | null;
   monitoringIntervalMinutes: number;
   isActive: boolean;
   createdAt: Date;
@@ -39,6 +41,8 @@ export function toWebsiteDto(website: {
     domain: website.domain,
     url: website.url,
     owner_id: website.ownerId,
+    it_pic_id: website.itPicId,
+    backup_it_pic_id: website.backupItPicId,
     monitoring_interval_minutes: website.monitoringIntervalMinutes,
     is_active: website.isActive,
     created_at: website.createdAt,

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@egi/database";
+import { Prisma, UserRole } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toWebsiteDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
@@ -36,12 +36,16 @@ export class WebsitesService {
   async create(dto: CreateWebsiteDto) {
     await assertSafeMonitoringUrl(dto.url);
     await this.assertOwnerExists(dto.owner_id);
+    await this.assertDeveloperExists(dto.it_pic_id);
+    await this.assertDeveloperExists(dto.backup_it_pic_id);
     const website = await this.prisma.website.create({
       data: {
         name: dto.name,
         domain: dto.domain,
         url: dto.url,
         ownerId: dto.owner_id,
+        itPicId: dto.it_pic_id,
+        backupItPicId: dto.backup_it_pic_id,
         monitoringIntervalMinutes: dto.monitoring_interval_minutes ?? 5,
         isActive: dto.is_active ?? true,
       },
@@ -63,6 +67,8 @@ export class WebsitesService {
     await this.requireExisting(id);
     if (dto.url !== undefined) await assertSafeMonitoringUrl(dto.url);
     await this.assertOwnerExists(dto.owner_id);
+    await this.assertDeveloperExists(dto.it_pic_id);
+    await this.assertDeveloperExists(dto.backup_it_pic_id);
     const website = await this.prisma.website.update({
       where: { id },
       data: {
@@ -70,6 +76,8 @@ export class WebsitesService {
         domain: dto.domain,
         url: dto.url,
         ownerId: dto.owner_id,
+        itPicId: dto.it_pic_id,
+        backupItPicId: dto.backup_it_pic_id,
         monitoringIntervalMinutes: dto.monitoring_interval_minutes,
         isActive: dto.is_active,
       },
@@ -89,6 +97,15 @@ export class WebsitesService {
     const website = await this.prisma.website.findUnique({ where: { id } });
     if (!website) throw new NotFoundException("Website not found");
     return website;
+  }
+
+  private async assertDeveloperExists(userId: string | null | undefined) {
+    if (userId === undefined || userId === null) return;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException("Developer assignment user not found");
+    if (user.role !== UserRole.developer || !user.isActive) {
+      throw new NotFoundException("Assignment must target an active developer");
+    }
   }
 
   private async assertOwnerExists(ownerId: string | null | undefined) {

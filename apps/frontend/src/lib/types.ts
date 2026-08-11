@@ -38,6 +38,8 @@ export interface Website {
   domain: string;
   url: string;
   owner_id: string | null;
+  it_pic_id: string | null;
+  backup_it_pic_id: string | null;
   monitoring_interval_minutes: number;
   is_active: boolean;
   created_at: string;

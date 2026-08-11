@@ -9,7 +9,9 @@ datasource db {
 
 enum UserRole {
   end_user
+  pic_web
   developer
+  bos_it
   superadmin
 }
 
@@ -73,6 +75,8 @@ model User {
 
   sessions      UserSession[]
   ownedWebsites Website[]      @relation("WebsiteOwner")
+  itWebsites Website[]          @relation("WebsiteItPic")
+  backupItWebsites Website[]    @relation("WebsiteBackupItPic")
   assignedTickets Ticket[]     @relation("TicketAssignee")
   assignedTasks Task[]         @relation("TaskAssignee")
   notifications Notification[]
@@ -100,12 +104,16 @@ model Website {
   domain                     String   @db.VarChar(255)
   url                        String
   ownerId                    String?  @map("owner_id") @db.Uuid
+  itPicId                    String?  @map("it_pic_id") @db.Uuid
+  backupItPicId              String?  @map("backup_it_pic_id") @db.Uuid
   monitoringIntervalMinutes  Int      @default(5) @map("monitoring_interval_minutes")
   isActive                   Boolean  @default(true) @map("is_active")
   createdAt                  DateTime @default(now()) @map("created_at")
   updatedAt                  DateTime @updatedAt @map("updated_at")
 
   owner              User?              @relation("WebsiteOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  itPic              User?              @relation("WebsiteItPic", fields: [itPicId], references: [id], onDelete: SetNull)
+  backupItPic        User?              @relation("WebsiteBackupItPic", fields: [backupItPicId], references: [id], onDelete: SetNull)
   monitoringResults  MonitoringResult[]
   incidents          Incident[]
   tasks              Task[]

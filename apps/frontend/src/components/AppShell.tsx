@@ -104,6 +104,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     ...(canManagePlatform(user.role)
       ? [
           { href: "/admin/websites", label: "Kelola Website", icon: IconGlobe },
+          { href: "/admin/assignments", label: "PIC & Assignment", icon: IconUsers },
           { href: "/admin/users", label: "Users", icon: IconUsers },
         ]
       : []),
