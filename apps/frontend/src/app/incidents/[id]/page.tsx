@@ -299,6 +299,15 @@ export default function IncidentDetailPage() {
                             <span className="badge-soft">{ticketStatusLabel(t.status)}</span>
                             <span>Dibuat {formatDateTime(t.created_at)}</span>
                           </div>
+                          <div className="list-meta">
+                            {t.assigned_to_name ? (
+                              <span>
+                                Developer: <strong>{t.assigned_to_name}</strong>
+                              </span>
+                            ) : (
+                              <span className="muted">Belum ada developer ditugaskan</span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

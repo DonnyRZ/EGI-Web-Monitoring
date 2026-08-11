@@ -7,18 +7,22 @@ import { IconExternal } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState, StatusPill } from "@/components/ui";
-import { dashboardApi } from "@/lib/api-services";
+import { dashboardApi, tasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { formatRelative, opensWebsiteExternallyFromDashboard } from "@/lib/format";
 import type { DashboardWebsiteCard } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
+type StatusFilter = "all" | "active" | "down" | "my_tasks";
+
 export default function DashboardPage() {
   const { user } = useAuth();
+  const isDeveloper = user?.role === "developer";
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "down">("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [myTaskWebsiteIds, setMyTaskWebsiteIds] = useState<Set<string> | null>(null);
   const openExternally = opensWebsiteExternallyFromDashboard(user?.role);
 
   useEffect(() => {
@@ -42,40 +46,74 @@ export default function DashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (statusFilter !== "my_tasks" || !isDeveloper || myTaskWebsiteIds) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await tasksApi.list({ limit: 100 });
+        if (cancelled) return;
+        const ids = new Set(
+          res.data
+            .filter((t) => t.status === "pending" || t.status === "in_progress")
+            .map((t) => t.website_id),
+        );
+        setMyTaskWebsiteIds(ids);
+      } catch {
+        if (!cancelled) setMyTaskWebsiteIds(new Set());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [statusFilter, isDeveloper, myTaskWebsiteIds]);
+
   const filtered = useMemo(() => {
+    if (statusFilter === "my_tasks") {
+      if (!myTaskWebsiteIds) return [];
+      return cards.filter((c) => myTaskWebsiteIds.has(c.website.id));
+    }
     if (statusFilter === "all") return cards;
     return cards.filter((c) => {
       const status = c.latest_result?.status || "unknown";
       if (statusFilter === "active") return status === "normal" || status === "warning";
       return status === statusFilter;
     });
-  }, [cards, statusFilter]);
+  }, [cards, statusFilter, myTaskWebsiteIds]);
 
   return (
     <AppShell title="Dashboard">
       <div className="toolbar">
         <Select
           value={statusFilter}
-          onChange={(v) => setStatusFilter(v as "all" | "active" | "down")}
+          onChange={(v) => setStatusFilter(v as StatusFilter)}
           aria-label="Filter status"
           options={[
             { value: "all", label: "Semua status" },
             { value: "active", label: "Aktif" },
             { value: "down", label: "Down" },
+            ...(isDeveloper ? [{ value: "my_tasks", label: "Tugas Saya" }] : []),
           ]}
         />
         <span className="muted" style={{ fontSize: "0.9rem" }}>
-          {filtered.length} website
+          {statusFilter === "my_tasks" && !myTaskWebsiteIds ? "Memuat…" : `${filtered.length} website`}
         </span>
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}
-      {loading ? <LoadingState /> : null}
+      {loading || (statusFilter === "my_tasks" && !myTaskWebsiteIds) ? <LoadingState /> : null}
 
-      {!loading && !error && filtered.length === 0 ? (
+      {!loading &&
+      !error &&
+      filtered.length === 0 &&
+      (statusFilter !== "my_tasks" || myTaskWebsiteIds) ? (
         <EmptyState
-          title="Tidak ada website"
-          description="Belum ada data monitoring untuk filter ini."
+          title={statusFilter === "my_tasks" ? "Tidak ada tugas aktif" : "Tidak ada website"}
+          description={
+            statusFilter === "my_tasks"
+              ? "Situs dengan tugas aktif untuk Anda akan muncul di sini."
+              : "Belum ada data monitoring untuk filter ini."
+          }
         />
       ) : null}
 
@@ -83,6 +121,8 @@ export default function DashboardPage() {
         <div className="card-grid">
           {filtered.map((card) => {
             const status = card.latest_result?.status || "unknown";
+            const isPic = isDeveloper && card.website.it_pic_id === user?.id;
+            const isBackupPic = isDeveloper && !isPic && card.website.backup_it_pic_id === user?.id;
             const body = (
               <>
                 <div className="website-card-shot">
@@ -114,6 +154,16 @@ export default function DashboardPage() {
                     {card.active_incident ? (
                       <span className="priority-tag high" style={{ fontSize: "0.78rem" }}>
                         Incident aktif
+                      </span>
+                    ) : null}
+                    {isPic ? (
+                      <span className="priority-tag" style={{ fontSize: "0.78rem" }}>
+                        Anda PIC
+                      </span>
+                    ) : null}
+                    {isBackupPic ? (
+                      <span className="priority-tag" style={{ fontSize: "0.78rem" }}>
+                        Anda backup PIC
                       </span>
                     ) : null}
                   </div>

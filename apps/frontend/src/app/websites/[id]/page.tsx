@@ -15,7 +15,7 @@ import {
   StatusPill,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { dashboardApi } from "@/lib/api-services";
+import { dashboardApi, tasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   clipText,
@@ -25,8 +25,9 @@ import {
   msLabel,
   canManagePlatform,
   opensWebsiteExternallyFromDashboard,
+  taskStatusLabel,
 } from "@/lib/format";
-import type { WebsiteDetailResponse } from "@/lib/types";
+import type { Task, WebsiteDetailResponse } from "@/lib/types";
 
 const HISTORY_PAGE_SIZE = 5;
 
@@ -40,6 +41,9 @@ export default function WebsiteDetailPage() {
   const [error, setError] = useState("");
   const [monitoringPage, setMonitoringPage] = useState(1);
   const [incidentPage, setIncidentPage] = useState(1);
+  const [myTasks, setMyTasks] = useState<Task[]>([]);
+  const [myTasksLoading, setMyTasksLoading] = useState(false);
+  const isDeveloper = user?.role === "developer";
 
   useEffect(() => {
     if (!authLoading && user && opensWebsiteExternallyFromDashboard(user.role)) {
@@ -66,6 +70,26 @@ export default function WebsiteDetailPage() {
         if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user]);
+
+  useEffect(() => {
+    if (!user || user.role !== "developer") return;
+    let cancelled = false;
+    setMyTasksLoading(true);
+    tasksApi
+      .list({ website_id: id, limit: 50 })
+      .then((res) => {
+        if (!cancelled) setMyTasks(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setMyTasks([]);
+      })
+      .finally(() => {
+        if (!cancelled) setMyTasksLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -115,8 +139,20 @@ export default function WebsiteDetailPage() {
             <div className="stack-gap">
               <div className="panel status-summary">
                 <div className="status-summary-head">
-                  <h2 className="panel-title" style={{ margin: 0 }}>
+                  <h2 className="panel-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                     Status terkini
+                    {isDeveloper && data.website.it_pic_id === user?.id ? (
+                      <span className="priority-tag" style={{ fontSize: "0.78rem" }}>
+                        Anda IT PIC
+                      </span>
+                    ) : null}
+                    {isDeveloper &&
+                    data.website.it_pic_id !== user?.id &&
+                    data.website.backup_it_pic_id === user?.id ? (
+                      <span className="priority-tag" style={{ fontSize: "0.78rem" }}>
+                        Anda backup IT PIC
+                      </span>
+                    ) : null}
                   </h2>
                   <a
                     className="btn btn-open-site"
@@ -209,6 +245,44 @@ export default function WebsiteDetailPage() {
             </div>
           ) : null}
 
+          {isDeveloper ? (
+            <div className="panel">
+              <h2 className="panel-title">Tugas Anda di situs ini</h2>
+              {myTasksLoading ? <LoadingState /> : null}
+              {!myTasksLoading && myTasks.length === 0 ? (
+                <EmptyState
+                  title="Tidak ada tugas aktif"
+                  description="Belum ada tugas untuk Anda di situs ini."
+                />
+              ) : null}
+              {!myTasksLoading && myTasks.length > 0 ? (
+                <div className="list-panel" style={{ border: "none" }}>
+                  {myTasks.map((task) => {
+                    const problem = task.ticket_id ? task.problem : task.instruction_notes;
+                    return (
+                      <Link key={task.id} href="/tasks" className="list-item">
+                        <div className="list-item-main">
+                          <h3 className="list-title">
+                            {problem ? clipText(problem, 100) : "Tugas tanpa deskripsi"}
+                          </h3>
+                          <div className="list-meta">
+                            <span className={`badge-soft task-status-${task.status}`}>
+                              {taskStatusLabel(task.status)}
+                            </span>
+                            <span>
+                              {task.sla_deadline
+                                ? `SLA ${formatDateTime(task.sla_deadline)}`
+                                : "Belum ada deadline"}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="panel">
             <h2 className="panel-title">Riwayat monitoring</h2>

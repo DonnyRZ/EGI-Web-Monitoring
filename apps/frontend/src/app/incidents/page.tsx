@@ -33,6 +33,8 @@ export default function IncidentsPage() {
   const [severity, setSeverity] = useState<Severity | "">("");
   const [websiteId, setWebsiteId] = useState("");
   const [tab, setTab] = useState<"active" | "all">("active");
+  const [onlyMySites, setOnlyMySites] = useState(false);
+  const isDeveloper = user?.role === "developer";
 
   useEffect(() => {
     if (!authLoading && user && !canViewIncidents(user.role)) {
@@ -99,6 +101,25 @@ export default function IncidentsPage() {
   }
 
   const websiteMap = Object.fromEntries(websites.map((w) => [w.id, w]));
+  const mySiteIds = new Set(
+    isDeveloper
+      ? websites
+          .filter((w) => w.it_pic_id === user.id || w.backup_it_pic_id === user.id)
+          .map((w) => w.id)
+      : [],
+  );
+  const websiteOptions = onlyMySites
+    ? websites.filter((w) => mySiteIds.has(w.id))
+    : websites;
+  const displayItems = onlyMySites ? items.filter((inc) => mySiteIds.has(inc.website_id)) : items;
+
+  function toggleOnlyMySites() {
+    const next = !onlyMySites;
+    setOnlyMySites(next);
+    if (next && websiteId && !mySiteIds.has(websiteId)) {
+      setWebsiteId("");
+    }
+  }
 
   return (
     <AppShell title="Incidents">
@@ -128,13 +149,23 @@ export default function IncidentsPage() {
       </p>
 
       <div className="toolbar">
+        {isDeveloper ? (
+          <button
+            type="button"
+            className={`filter-toggle ${onlyMySites ? "active" : ""}`}
+            aria-pressed={onlyMySites}
+            onClick={toggleOnlyMySites}
+          >
+            Hanya situs saya
+          </button>
+        ) : null}
         <Select
           value={websiteId}
           onChange={setWebsiteId}
           aria-label="Filter website"
           options={[
-            { value: "", label: "Semua website" },
-            ...websites.map((w) => ({ value: w.id, label: w.name })),
+            { value: "", label: onlyMySites ? "Semua situs saya" : "Semua website" },
+            ...websiteOptions.map((w) => ({ value: w.id, label: w.name })),
           ]}
         />
         <Select
@@ -167,8 +198,15 @@ export default function IncidentsPage() {
       {websitesError ? <ErrorBanner message={websitesError} /> : null}
       {loading ? <LoadingState /> : null}
 
-      {!loading && !error && items.length === 0 ? (
-        <EmptyState title="Tidak ada incident" description="Tidak ada data untuk filter ini." />
+      {!loading && !error && displayItems.length === 0 ? (
+        <EmptyState
+          title="Tidak ada incident"
+          description={
+            onlyMySites
+              ? "Tidak ada incident untuk situs yang menjadi tanggung jawab Anda."
+              : "Tidak ada data untuk filter ini."
+          }
+        />
       ) : null}
 
       {!websitesError && websites.length === 0 ? (
@@ -178,9 +216,9 @@ export default function IncidentsPage() {
         </p>
       ) : null}
 
-      {!loading && items.length > 0 ? (
+      {!loading && displayItems.length > 0 ? (
         <div className="list-panel">
-          {items.map((inc) => {
+          {displayItems.map((inc) => {
             const site = websiteMap[inc.website_id];
             return (
               <Link key={inc.id} href={`/incidents/${inc.id}`} className="list-item">

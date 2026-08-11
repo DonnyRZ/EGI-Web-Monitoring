@@ -22,6 +22,15 @@ function isOverdue(task: Task) {
   return Number.isFinite(deadline) && deadline < Date.now();
 }
 
+type TaskTab = "all" | "pending" | "in_progress" | "overdue";
+
+const TAB_LABELS: Record<TaskTab, string> = {
+  all: "Semua",
+  pending: "Pending",
+  in_progress: "Dikerjakan",
+  overdue: "Overdue",
+};
+
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -32,6 +41,7 @@ export default function TasksPage() {
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<TaskTab>("all");
 
   useEffect(() => {
     if (!authLoading && user && (!canViewTasks(user.role) || user.role === "pic_web")) {
@@ -98,6 +108,36 @@ export default function TasksPage() {
     );
   }
 
+  const pendingCount = items.filter((t) => t.status === "pending").length;
+  const inProgressCount = items.filter((t) => t.status === "in_progress").length;
+  const overdueCount = items.filter((t) => isOverdue(t)).length;
+
+  const filteredItems = items.filter((task) => {
+    if (tab === "pending") return task.status === "pending";
+    if (tab === "in_progress") return task.status === "in_progress";
+    if (tab === "overdue") return isOverdue(task);
+    return true;
+  });
+
+  const emptyTabCopy: Record<TaskTab, { title: string; description: string }> = {
+    all: {
+      title: "Belum ada tugas",
+      description: "Tugas yang ditugaskan ke Anda akan muncul di sini.",
+    },
+    pending: {
+      title: "Tidak ada tugas pending",
+      description: "Semua tugas sudah mulai dikerjakan atau selesai.",
+    },
+    in_progress: {
+      title: "Tidak ada yang sedang dikerjakan",
+      description: "Belum ada tugas yang berstatus dikerjakan.",
+    },
+    overdue: {
+      title: "Tidak ada yang lewat deadline",
+      description: "Semua tugas masih dalam batas SLA. Kerja bagus!",
+    },
+  };
+
   return (
     <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
       <div className="page-toolbar">
@@ -107,6 +147,43 @@ export default function TasksPage() {
             : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
         </p>
       </div>
+
+      {!loading && items.length > 0 ? (
+        <div className="metrics-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+          <div className="metric">
+            <div className="metric-label">Pending</div>
+            <div className="metric-value">{pendingCount}</div>
+          </div>
+          <div className="metric">
+            <div className="metric-label">Dikerjakan</div>
+            <div className="metric-value">{inProgressCount}</div>
+          </div>
+          <div className="metric">
+            <div className="metric-label">Overdue</div>
+            <div className="metric-value" style={overdueCount > 0 ? { color: "var(--danger)" } : undefined}>
+              {overdueCount}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {!loading && items.length > 0 ? (
+        <div className="page-tabs" role="tablist" aria-label="Filter tugas">
+          {(Object.keys(TAB_LABELS) as TaskTab[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`page-tab ${tab === key ? "active" : ""}`}
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+            >
+              {TAB_LABELS[key]}
+              {key === "overdue" && overdueCount > 0 ? ` (${overdueCount})` : ""}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {error ? <ErrorBanner message={error} /> : null}
       {actionError ? <ErrorBanner message={actionError} /> : null}
@@ -119,7 +196,14 @@ export default function TasksPage() {
         />
       ) : null}
 
-      {!loading && items.length > 0 ? (
+      {!loading && items.length > 0 && filteredItems.length === 0 ? (
+        <EmptyState
+          title={emptyTabCopy[tab].title}
+          description={emptyTabCopy[tab].description}
+        />
+      ) : null}
+
+      {!loading && filteredItems.length > 0 ? (
         <div className="panel table-wrap" style={{ padding: 0 }}>
           <table className="table">
             <thead>
@@ -133,13 +217,13 @@ export default function TasksPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((task) => {
+              {filteredItems.map((task) => {
                 const site = websites[task.website_id];
                 const busy = updatingId === task.id;
                 const overdue = isOverdue(task);
                 const problem = task.ticket_id ? task.problem : task.instruction_notes;
                 return (
-                  <tr key={task.id}>
+                  <tr key={task.id} className={overdue ? "task-row-overdue" : undefined}>
                     <td>
                       {site ? (
                         <Link href={`/websites/${task.website_id}`} className="list-title">
@@ -153,6 +237,11 @@ export default function TasksPage() {
                           {site.domain}
                         </div>
                       ) : null}
+                      <div>
+                        <span className={`task-source-tag ${task.ticket_id ? "ticket" : "delegation"}`}>
+                          {task.ticket_id ? "Tiket PIC" : "Delegasi"}
+                        </span>
+                      </div>
                     </td>
                     <td style={{ maxWidth: 260 }} title={problem ?? undefined}>
                       {problem ? clipText(problem, 140) : <span className="muted">-</span>}

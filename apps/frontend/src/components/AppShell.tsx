@@ -12,7 +12,7 @@ import {
   canViewTasks,
   initials,
 } from "@/lib/format";
-import { incidentsApi } from "@/lib/api-services";
+import { incidentsApi, tasksApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
 import {
   IconAlert,
@@ -54,12 +54,41 @@ function loadActiveIncidents() {
   return activeIncidentsRequest;
 }
 
+let myOpenTasksCache = 0;
+let myOpenTasksCachedAt = 0;
+let myOpenTasksRequest: Promise<number> | null = null;
+
+/** Developer's own pending + in_progress task count, shown as a nav badge so they see workload before opening the page. */
+function loadMyOpenTasks() {
+  const now = Date.now();
+  if (now - myOpenTasksCachedAt < 30_000) {
+    return Promise.resolve(myOpenTasksCache);
+  }
+  if (!myOpenTasksRequest) {
+    myOpenTasksRequest = tasksApi
+      .list({ limit: 100 })
+      .then((res) => {
+        const count = res.data.filter(
+          (t) => t.status === "pending" || t.status === "in_progress",
+        ).length;
+        myOpenTasksCache = count;
+        myOpenTasksCachedAt = Date.now();
+        return myOpenTasksCache;
+      })
+      .finally(() => {
+        myOpenTasksRequest = null;
+      });
+  }
+  return myOpenTasksRequest;
+}
+
 export function AppShell({ title, children, actions }: AppShellProps) {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeIncidents, setActiveIncidents] = useState(0);
+  const [myOpenTasks, setMyOpenTasks] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -75,6 +104,19 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     loadActiveIncidents()
       .then((count) => {
         if (!cancelled) setActiveIncidents(count);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== "developer") return;
+    let cancelled = false;
+    loadMyOpenTasks()
+      .then((count) => {
+        if (!cancelled) setMyOpenTasks(count);
       })
       .catch(() => undefined);
     return () => {
@@ -100,6 +142,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
             href: "/tasks",
             label: user.role === "superadmin" || user.role === "bos_it" ? "Task Monitoring" : "To-Do List",
             icon: IconTasks,
+            badge: user.role === "developer" && myOpenTasks > 0 ? myOpenTasks : undefined,
           },
         ]
       : []),
