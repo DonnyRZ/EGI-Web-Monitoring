@@ -7,6 +7,7 @@ import { WebsitesModule } from "./modules/websites/websites.module";
 import { MonitoringModule } from "./modules/monitoring/monitoring.module";
 import { IncidentsModule } from "./modules/incidents/incidents.module";
 import { TicketsModule } from "./modules/tickets/tickets.module";
+import { TasksModule } from "./modules/tasks/tasks.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthController } from "./health.controller";
@@ -24,6 +25,7 @@ import { HealthController } from "./health.controller";
     MonitoringModule,
     IncidentsModule,
     TicketsModule,
+    TasksModule,
     NotificationsModule,
     DashboardModule,
   ],

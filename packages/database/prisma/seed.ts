@@ -1,6 +1,31 @@
 import { hashSync } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { PrismaClient, UserRole } from "@prisma/client";
+
+/** Load monorepo root `.env` when seed runs via workspace (Prisma only auto-loads package-local env). */
+function loadRootEnv() {
+  const envPath = resolve(__dirname, "../../../.env");
+  if (!existsSync(envPath)) return;
+  for (const raw of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadRootEnv();
 
 const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 10;
@@ -23,6 +48,7 @@ function domainFromUrl(url: string): string {
 }
 
 const ADMIN_EMAIL = "egi.egiholding@gmail.com";
+const DEVELOPER_EMAIL = "donny@egiresources.com";
 const LEGACY_ADMIN_EMAIL = "admin@egi.co.id";
 
 const websites = [
@@ -49,6 +75,11 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
   const enforcePassword = Boolean(process.env.SEED_ADMIN_PASSWORD);
   const passwordHash = hashPassword(adminPassword);
+
+  const developerEmail = process.env.SEED_DEVELOPER_EMAIL ?? DEVELOPER_EMAIL;
+  const developerPassword =
+    process.env.SEED_DEVELOPER_PASSWORD ?? adminPassword;
+  const developerHash = hashPassword(developerPassword);
 
   // Migrate the legacy dummy admin to the real address without creating a
   // duplicate: rename it in place (keeping its existing password) when the
@@ -85,6 +116,26 @@ async function main() {
     },
   });
 
+  const developer = await prisma.user.upsert({
+    where: { email: developerEmail },
+    update: {
+      isActive: true,
+      role: UserRole.developer,
+      name: "Donny",
+      ...(enforcePassword || process.env.SEED_DEVELOPER_PASSWORD
+        ? { passwordHash: developerHash }
+        : {}),
+    },
+    create: {
+      name: "Donny",
+      email: developerEmail,
+      passwordHash: developerHash,
+      role: UserRole.developer,
+      emailVerifiedAt: new Date(),
+      isActive: true,
+    },
+  });
+
   for (const site of websites) {
     const existing = await prisma.website.findFirst({
       where: { url: site.url },
@@ -106,7 +157,9 @@ async function main() {
     });
   }
 
-  console.log(`Seeded admin ${admin.email} and ${websites.length} websites`);
+  console.log(
+    `Seeded admin ${admin.email}, developer ${developer.email}, and ${websites.length} websites`,
+  );
 }
 
 main()

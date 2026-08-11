@@ -1,23 +1,27 @@
 import {
-  canManageIncidents,
-  canManagePlatform,
-  canViewIncidents,
-  opensWebsiteExternallyFromDashboard,
-  roleLabel,
+  canManageIncidents as sharedCanManageIncidents,
+  canManagePlatform as sharedCanManagePlatform,
+  canViewIncidents as sharedCanViewIncidents,
+  canViewTasks as sharedCanViewTasks,
+  opensWebsiteExternallyFromDashboard as sharedOpensWebsiteExternallyFromDashboard,
+  roleLabel as sharedRoleLabel,
 } from "@egi/shared-types";
 import type {
   IncidentStatus,
   MonitoringStatus,
   Severity,
+  TaskStatus,
+  UserRole,
 } from "./types";
 
-export {
-  canManageIncidents,
-  canManagePlatform,
-  canViewIncidents,
-  opensWebsiteExternallyFromDashboard,
-  roleLabel,
-};
+// Re-assign (not `export { ... }`) so Next/webpack resolves CJS named exports from @egi/shared-types.
+export const canManageIncidents = sharedCanManageIncidents;
+export const canManagePlatform = sharedCanManagePlatform;
+export const canViewIncidents = sharedCanViewIncidents;
+export const canViewTasks = sharedCanViewTasks;
+export const opensWebsiteExternallyFromDashboard =
+  sharedOpensWebsiteExternallyFromDashboard;
+export const roleLabel = (role: UserRole) => sharedRoleLabel(role);
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -106,6 +110,19 @@ export function ticketStatusLabel(status: string) {
       return "Closed";
     default:
       return status.replace(/_/g, " ");
+  }
+}
+
+export function taskStatusLabel(status: TaskStatus | string) {
+  switch (status) {
+    case "pending":
+      return "Pending";
+    case "in_progress":
+      return "In Progress";
+    case "done":
+      return "Done";
+    default:
+      return String(status).replace(/_/g, " ");
   }
 }
 

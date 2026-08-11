@@ -12,6 +12,8 @@ export type NotificationChannel = "dashboard" | "email" | "telegram";
 
 export type NotificationStatus = "pending" | "sent" | "failed";
 
+export type TaskStatus = "pending" | "in_progress" | "done";
+
 export type { UserRole } from "./rbac";
 export {
   USER_ROLES,
@@ -25,6 +27,7 @@ export {
   canAccessAllMonitoredResources,
   canInspectMonitoringDetails,
   canViewIncidents,
+  canViewTasks,
   canManageIncidents,
   canManageTickets,
   isTicketAssigneeCandidate,

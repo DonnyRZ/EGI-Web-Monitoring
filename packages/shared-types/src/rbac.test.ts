@@ -19,6 +19,7 @@ import {
   opensWebsiteExternallyFromDashboard,
   receivesLifecycleNotifications,
   roleLabel,
+  canViewTasks,
 } from "./rbac";
 
 test("USER_ROLES lists the 3-role model", () => {
@@ -39,9 +40,11 @@ test("global resource / incident view access", () => {
     assert.equal(canAccessAllMonitoredResources(role), true);
     assert.equal(canInspectMonitoringDetails(role), true);
     assert.equal(canViewIncidents(role), true);
+    assert.equal(canViewTasks(role), true);
   }
   assert.equal(canAccessAllMonitoredResources("end_user"), false);
   assert.equal(canViewIncidents("end_user"), false);
+  assert.equal(canViewTasks("end_user"), false);
 });
 
 test("incident mutate is superadmin only; tickets include developer", () => {

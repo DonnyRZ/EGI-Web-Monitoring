@@ -130,3 +130,14 @@ export function IconCheck(props: IconProps) {
     </IconBase>
   );
 }
+
+export function IconTasks(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="4.5" y="3.5" width="15" height="17" rx="2" fill="currentColor" fillOpacity="0.12" />
+      <path d="M8 8h8" />
+      <path d="M8 12h8" />
+      <path d="M8 16h5" />
+    </IconBase>
+  );
+}

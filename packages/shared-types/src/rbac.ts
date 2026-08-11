@@ -76,6 +76,11 @@ export function canViewIncidents(role?: string | null): boolean {
   return canAccessAllMonitoredResources(role);
 }
 
+/** Task to-do list pages (delegated work for developers). */
+export function canViewTasks(role?: string | null): boolean {
+  return canAccessAllMonitoredResources(role);
+}
+
 export function canManageIncidents(role?: string | null): boolean {
   return roleIn(role, INCIDENT_MANAGER_ROLES);
 }

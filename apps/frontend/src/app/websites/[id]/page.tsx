@@ -23,9 +23,11 @@ import {
   formatRelative,
   incidentStatusLabel,
   msLabel,
+  canManagePlatform,
   opensWebsiteExternallyFromDashboard,
 } from "@/lib/format";
 import type { WebsiteDetailResponse } from "@/lib/types";
+import { DelegateTaskForm } from "@/components/DelegateTaskForm";
 
 const HISTORY_PAGE_SIZE = 5;
 
@@ -206,6 +208,10 @@ export default function WebsiteDetailPage() {
                 </div>
               </div>
             </div>
+          ) : null}
+
+          {canManagePlatform(user.role) ? (
+            <DelegateTaskForm websiteId={data.website.id} websiteName={data.website.name} />
           ) : null}
 
           <div className="panel">

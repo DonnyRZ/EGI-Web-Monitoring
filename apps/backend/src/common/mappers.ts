@@ -152,6 +152,30 @@ export function toNotificationDto(notification: {
   };
 }
 
+export function toTaskDto(task: {
+  id: string;
+  websiteId: string;
+  assigneeId: string;
+  instructionNotes: string;
+  attachmentUrl: string | null;
+  status: string;
+  slaDeadline: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: task.id,
+    website_id: task.websiteId,
+    assignee_id: task.assigneeId,
+    instruction_notes: task.instructionNotes,
+    attachment_url: task.attachmentUrl,
+    status: task.status,
+    sla_deadline: task.slaDeadline,
+    created_at: task.createdAt,
+    updated_at: task.updatedAt,
+  };
+}
+
 export function paginatedMeta(page: number, limit: number, total: number) {
   return {
     page,

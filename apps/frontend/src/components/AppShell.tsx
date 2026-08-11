@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { canManagePlatform, canViewIncidents, initials } from "@/lib/format";
+import { canManagePlatform, canViewIncidents, canViewTasks, initials } from "@/lib/format";
 import { incidentsApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
 import {
@@ -14,6 +14,7 @@ import {
   IconGlobe,
   IconLogout,
   IconMenu,
+  IconTasks,
   IconUsers,
 } from "./icons";
 
@@ -87,6 +88,9 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
+    ...(canViewTasks(user.role)
+      ? [{ href: "/tasks", label: "To-Do List", icon: IconTasks }]
+      : []),
     ...(canViewIncidents(user.role)
       ? [
           {

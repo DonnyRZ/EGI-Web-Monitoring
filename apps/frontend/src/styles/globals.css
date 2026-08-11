@@ -412,33 +412,33 @@ h3,
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
-
-.status-dot.normal { background: var(--success); }
-.status-dot.warning { background: var(--warning); }
-.status-dot.down { background: var(--danger); }
-.status-dot.unknown { background: var(--unknown); }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 7px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
-  font-size: 0.78rem;
-  font-weight: 600;
-  background: #f3f5f8;
-  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  background: #5c6570;
+  color: #ffffff;
 }
 
-.status-pill.normal { background: var(--success-soft); color: var(--success); }
-.status-pill.warning { background: var(--warning-soft); color: var(--warning); }
-.status-pill.down { background: var(--danger-soft); color: var(--danger); }
+.status-pill.normal { background: var(--success); color: #ffffff; }
+.status-pill.warning { background: var(--warning); color: #ffffff; }
+.status-pill.down { background: var(--danger); color: #ffffff; }
+.status-pill.unknown { background: #5c6570; color: #ffffff; }
 
 .toolbar {
   display: flex;
@@ -657,6 +657,49 @@ h3,
   outline: none;
   resize: vertical;
   min-height: 88px;
+}
+
+.text-input.block {
+  width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.success-banner {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid #c6e6d3;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.task-status-pending {
+  background: #eef0f3;
+  color: #5c6570;
+}
+
+.task-status-in_progress {
+  background: var(--egi-blue-soft);
+  color: var(--egi-blue-dark);
+}
+
+.task-status-done {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.task-sla-overdue {
+  color: var(--danger);
+  font-weight: 650;
 }
 
 .btn {
@@ -1874,7 +1917,7 @@ h1, h2, h3, .page-title {
 .website-card-shot { background: #f1f3f5; }
 .website-card-body { padding: 12px 14px 14px; }
 .website-card-body h3 { font-size: 0.98rem; }
-.status-pill { padding: 2px 7px; border-radius: 4px; font-size: 0.72rem; font-weight: 500; }
+.status-pill { padding: 5px 11px; border-radius: var(--radius-pill); font-size: 0.875rem; font-weight: 700; }
 
 .toolbar { gap: 8px; margin-bottom: 16px; }
 .text-input, .search-input { height: 34px; padding: 0 10px; border-radius: 6px; }

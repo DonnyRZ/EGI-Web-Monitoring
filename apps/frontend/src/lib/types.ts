@@ -5,6 +5,7 @@ export type {
   TicketStatus,
   NotificationChannel,
   NotificationStatus,
+  TaskStatus,
   UserRole,
 } from "@egi/shared-types";
 
@@ -14,6 +15,7 @@ import type {
   NotificationChannel,
   NotificationStatus,
   Severity,
+  TaskStatus,
   TicketStatus,
   UserRole,
 } from "@egi/shared-types";
@@ -79,6 +81,18 @@ export interface Ticket {
   created_at: string;
   updated_at: string;
   resolved_at: string | null;
+}
+
+export interface Task {
+  id: string;
+  website_id: string;
+  assignee_id: string;
+  instruction_notes: string;
+  attachment_url: string | null;
+  status: TaskStatus;
+  sla_deadline: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Notification {

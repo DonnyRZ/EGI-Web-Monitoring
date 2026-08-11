@@ -8,6 +8,7 @@ import type {
   Notification,
   PaginatedMeta,
   Severity,
+  Task,
   Ticket,
   User,
   UserRole,
@@ -81,6 +82,26 @@ export const incidentsApi = {
 export const ticketsApi = {
   list: (params: { incident_id?: string; page?: number; limit?: number } = {}) =>
     apiFetch<{ data: Ticket[]; meta: PaginatedMeta }>(`/tickets${qs(params)}`),
+};
+
+export const tasksApi = {
+  list: (params: {
+    page?: number;
+    limit?: number;
+    website_id?: string;
+    assignee_id?: string;
+    status?: string;
+  } = {}) =>
+    apiFetch<{ data: Task[]; meta: PaginatedMeta }>(`/tasks${qs(params)}`),
+  create: (body: {
+    website_id: string;
+    assignee_id: string;
+    instruction_notes: string;
+    attachment_url?: string;
+    sla_deadline: string;
+  }) => apiFetch<Task>("/tasks", { method: "POST", body }),
+  updateStatus: (id: string, status: string) =>
+    apiFetch<Task>(`/tasks/${id}/status`, { method: "PATCH", body: { status } }),
 };
 
 export const notificationsApi = {
