@@ -20,14 +20,13 @@ export const USER_ROLES = [
 export const PLATFORM_ADMIN_ROLES = ["superadmin"] as const satisfies readonly UserRole[];
 
 /**
- * Read/inspect every monitored website, incident, ticket, and probe detail.
+ * Read/inspect every monitored website, incident, ticket, and probe detail globally.
  * end_user gets a public gallery of active sites (excludes down / unknown / inactive).
  */
 export const ALL_RESOURCE_ACCESS_ROLES = [
   "superadmin",
   "bos_it",
   "developer",
-  "pic_web",
 ] as const satisfies readonly UserRole[];
 
 /** Mutate / close incidents. */

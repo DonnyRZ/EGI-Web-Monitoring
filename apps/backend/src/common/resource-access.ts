@@ -30,3 +30,18 @@ export const OPERATIONAL_ROLES_PRISMA = asPrismaRoles(ALL_RESOURCE_ACCESS_ROLES)
 export function canAccessAllMonitoredResources(user: AuthUser): boolean {
   return roleCanAccessAllMonitoredResources(user.role);
 }
+
+/** PIC Web may operate monitoring resources, but only inside owned websites. */
+export function canOperateScopedResources(user: AuthUser): boolean {
+  return canAccessAllMonitoredResources(user) || user.role === "pic_web";
+}
+
+export function websiteOwnerScope(user: AuthUser): { ownerId?: string } {
+  return user.role === "pic_web" ? { ownerId: user.id } : {};
+}
+
+export function monitoringResultScope(user: AuthUser) {
+  if (canAccessAllMonitoredResources(user)) return {};
+  if (user.role === "pic_web") return { website: { ownerId: user.id } };
+  return { website: { isActive: true } };
+}

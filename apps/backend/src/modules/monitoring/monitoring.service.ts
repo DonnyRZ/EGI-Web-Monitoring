@@ -5,7 +5,7 @@ import { paginatedMeta, toMonitoringResultDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { createScreenshotSignedUrl } from "../../common/s3";
 import { MonitoringHistoryQueryDto } from "./monitoring.dto";
-import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import { canAccessAllMonitoredResources, canOperateScopedResources, monitoringResultScope, websiteOwnerScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 @Injectable()
@@ -13,7 +13,7 @@ export class MonitoringService {
   constructor(private readonly prisma: PrismaService) {}
 
   private assertOperational(user: AuthUser) {
-    if (!canAccessAllMonitoredResources(user)) {
+    if (!canOperateScopedResources(user)) {
       throw new ForbiddenException("Monitoring results require an operational role");
     }
   }
@@ -21,7 +21,7 @@ export class MonitoringService {
   private async assertWebsite(websiteId: string, user: AuthUser) {
     this.assertOperational(user);
     const website = await this.prisma.website.findFirst({
-      where: { id: websiteId },
+      where: { id: websiteId, ...websiteOwnerScope(user) },
     });
     if (!website) throw new NotFoundException("Website not found");
   }
@@ -73,9 +73,7 @@ export class MonitoringService {
     const result = await this.prisma.monitoringResult.findFirst({
       where: {
         id,
-        ...(canAccessAllMonitoredResources(user)
-          ? {}
-          : { website: { isActive: true } }),
+        ...monitoringResultScope(user),
       },
     });
     if (!result) throw new NotFoundException("Monitoring result not found");
@@ -86,9 +84,7 @@ export class MonitoringService {
     const result = await this.prisma.monitoringResult.findFirst({
       where: {
         id,
-        ...(canAccessAllMonitoredResources(user)
-          ? {}
-          : { website: { isActive: true } }),
+        ...monitoringResultScope(user),
       },
     });
     if (!result) throw new NotFoundException("Monitoring result not found");

@@ -7,7 +7,7 @@ import {
   toMonitoringResultDto,
   toWebsiteDto,
 } from "../../common/mappers";
-import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import { canOperateScopedResources, websiteOwnerScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 const ACTIVE_STATUSES = [
@@ -21,7 +21,7 @@ export class DashboardService {
 
   async main(user: AuthUser) {
     const websites = await this.prisma.website.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...websiteOwnerScope(user) },
       orderBy: { name: "asc" },
       include: {
         monitoringResults: {
@@ -63,12 +63,12 @@ export class DashboardService {
   }
 
   async detail(websiteId: string, historyLimit: number, user: AuthUser) {
-    if (!canAccessAllMonitoredResources(user)) {
+    if (!canOperateScopedResources(user)) {
       throw new ForbiddenException("Monitoring detail requires an operational role");
     }
 
     const website = await this.prisma.website.findFirst({
-      where: { id: websiteId },
+      where: { id: websiteId, ...websiteOwnerScope(user) },
     });
     if (!website) throw new NotFoundException("Website not found");
 

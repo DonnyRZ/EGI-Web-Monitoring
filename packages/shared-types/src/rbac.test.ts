@@ -22,8 +22,8 @@ import {
   canViewTasks,
 } from "./rbac";
 
-test("USER_ROLES lists the 3-role model", () => {
-  assert.deepEqual([...USER_ROLES], ["end_user", "developer", "superadmin"]);
+test("USER_ROLES lists the current role model", () => {
+  assert.deepEqual([...USER_ROLES], ["end_user", "pic_web", "developer", "bos_it", "superadmin"]);
 });
 
 test("platform admin is superadmin only", () => {
@@ -35,29 +35,32 @@ test("platform admin is superadmin only", () => {
 });
 
 test("global resource / incident view access", () => {
-  assert.deepEqual([...ALL_RESOURCE_ACCESS_ROLES], ["superadmin", "developer"]);
+  assert.deepEqual([...ALL_RESOURCE_ACCESS_ROLES], ["superadmin", "bos_it", "developer"]);
   for (const role of ALL_RESOURCE_ACCESS_ROLES) {
     assert.equal(canAccessAllMonitoredResources(role), true);
     assert.equal(canInspectMonitoringDetails(role), true);
     assert.equal(canViewIncidents(role), true);
     assert.equal(canViewTasks(role), true);
   }
+  assert.equal(canAccessAllMonitoredResources("pic_web"), false);
+  assert.equal(canViewIncidents("pic_web"), false);
+  assert.equal(canViewTasks("pic_web"), false);
   assert.equal(canAccessAllMonitoredResources("end_user"), false);
   assert.equal(canViewIncidents("end_user"), false);
   assert.equal(canViewTasks("end_user"), false);
 });
 
-test("incident mutate is superadmin only; tickets include developer", () => {
+test("incident mutate is superadmin only; tickets include operational roles", () => {
   assert.deepEqual([...INCIDENT_MANAGER_ROLES], ["superadmin"]);
-  assert.deepEqual([...TICKET_MANAGER_ROLES], ["superadmin", "developer"]);
+  assert.deepEqual([...TICKET_MANAGER_ROLES], ["superadmin", "bos_it", "developer", "pic_web"]);
   assert.equal(canManageIncidents("superadmin"), true);
   assert.equal(canManageIncidents("developer"), false);
   assert.equal(canManageTickets("developer"), true);
 });
 
 test("worker assignee and notification role sets", () => {
-  assert.deepEqual([...TICKET_ASSIGNEE_ROLES], ["superadmin", "developer"]);
-  assert.deepEqual([...LIFECYCLE_NOTIFICATION_ROLES], ["superadmin", "developer"]);
+  assert.deepEqual([...TICKET_ASSIGNEE_ROLES], ["bos_it", "developer"]);
+  assert.deepEqual([...LIFECYCLE_NOTIFICATION_ROLES], ["superadmin", "bos_it", "developer"]);
   assert.equal(isTicketAssigneeCandidate("developer"), true);
   assert.equal(receivesLifecycleNotifications("developer"), true);
   assert.equal(receivesLifecycleNotifications("end_user"), false);

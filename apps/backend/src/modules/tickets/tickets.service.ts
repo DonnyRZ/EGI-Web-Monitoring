@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { CreateTicketDto, TicketsQueryDto, UpdateTicketDto } from "./tickets.dto";
-import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import { canOperateScopedResources } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 import { uploadObject } from "../../common/s3";
 
@@ -14,7 +14,7 @@ export class TicketsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private assertOperational(user: AuthUser) {
-    if (!canAccessAllMonitoredResources(user)) {
+    if (!canOperateScopedResources(user)) {
       throw new ForbiddenException("Tickets require an operational role");
     }
   }

@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toIncidentDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { IncidentsQueryDto, UpdateIncidentDto } from "./incidents.dto";
-import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import { canOperateScopedResources, websiteOwnerScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 @Injectable()
@@ -12,7 +12,7 @@ export class IncidentsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private assertOperational(user: AuthUser) {
-    if (!canAccessAllMonitoredResources(user)) {
+    if (!canOperateScopedResources(user)) {
       throw new ForbiddenException("Incidents require an operational role");
     }
   }
@@ -22,6 +22,7 @@ export class IncidentsService {
 
     const where: Prisma.IncidentWhereInput = {};
     if (filters.website_id) where.websiteId = filters.website_id;
+    if (user.role === "pic_web") where.website = websiteOwnerScope(user);
     if (filters.status) where.status = filters.status;
     if (filters.severity) where.severity = filters.severity;
     if (filters.active_only) {
@@ -48,7 +49,7 @@ export class IncidentsService {
 
   async get(id: string, user: AuthUser) {
     this.assertOperational(user);
-    const incident = await this.prisma.incident.findFirst({ where: { id } });
+    const incident = await this.prisma.incident.findFirst({ where: { id, ...(user.role === "pic_web" ? { website: websiteOwnerScope(user) } : {}) } });
     if (!incident) throw new NotFoundException("Incident not found");
     return toIncidentDto(incident);
   }
