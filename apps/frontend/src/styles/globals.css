@@ -1494,6 +1494,7 @@ h3,
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  margin-bottom: 20px;
 }
 
 .metric {
@@ -2205,7 +2206,7 @@ h1, h2, h3, .page-title {
 .panel + .panel { margin-top: 12px; }
 .panel-title { margin-bottom: 12px; font-size: 1rem; }
 .stack-gap { gap: 12px; }
-.metrics-row { gap: 8px; }
+.metrics-row { gap: 8px; margin-bottom: 14px; }
 .metric { padding: 12px; border-radius: var(--radius-sm); }
 .metric-value { font-size: 1.08rem; }
 .detail-hero { gap: 12px; align-items: start; }
