@@ -15,6 +15,7 @@
     "test:auth": "tsx --test src/modules/auth/auth.service.test.ts",
     "test:auth-cookie": "tsx --test src/modules/auth/auth-cookie.test.ts",
     "test:resource-access": "tsx --test src/common/resource-access.test.ts src/modules/websites/websites.service.test.ts",
+    "test:tickets": "tsx --test src/modules/tickets/tickets.service.test.ts",
     "remediate:test-data": "node scripts/remediate-test-data.mjs",
     "lint": "echo \"@egi/backend: no lint configured yet\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"

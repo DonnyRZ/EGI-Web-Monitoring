@@ -1,6 +1,15 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { Prisma, Severity, TaskStatus, TicketCategory, TicketStatus } from "@egi/database";
+import {
+  NotificationChannel,
+  NotificationStatus,
+  Prisma,
+  Severity,
+  TaskStatus,
+  TicketCategory,
+  TicketStatus,
+  UserRole,
+} from "@egi/database";
 import { canManagePlatform } from "@egi/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
@@ -138,10 +147,71 @@ export class TicketsService {
         });
       }
 
+      if (created.assignedTo) {
+        await this.notifyTicketAssignment(tx, created, website, user);
+      }
+
       return created;
     });
 
     return toTicketDto(ticket);
+  }
+
+  /** Email the assigned developer that a new ticket landed on their plate, CC'ing every active Bos IT. */
+  private async notifyTicketAssignment(
+    tx: Prisma.TransactionClient,
+    ticket: {
+      id: string;
+      title: string;
+      category: TicketCategory | null;
+      description: string | null;
+      expectation: string | null;
+      assignedTo: string | null;
+      incidentId: string | null;
+    },
+    website: { name: string } | null,
+    creator: AuthUser,
+  ) {
+    if (!ticket.assignedTo) return;
+
+    const [assignee, bosIt] = await Promise.all([
+      tx.user.findUnique({ where: { id: ticket.assignedTo }, select: { email: true } }),
+      tx.user.findMany({
+        where: { role: UserRole.bos_it, isActive: true },
+        select: { email: true },
+      }),
+    ]);
+    if (!assignee?.email) return;
+
+    const ccEmails = bosIt
+      .map((u) => u.email)
+      .filter((email) => email && email !== assignee.email);
+
+    const lines = [
+      "Tiket baru ditugaskan kepada Anda.",
+      website ? `Website: ${website.name}` : null,
+      ticket.category ? `Kategori: ${this.titleForCategory(ticket.category)}` : null,
+      ticket.description ? `Masalah: ${ticket.description}` : null,
+      ticket.expectation ? `Ekspektasi: ${ticket.expectation}` : null,
+      `Dibuat oleh: ${creator.email}`,
+    ].filter((line): line is string => Boolean(line));
+
+    const appUrl = process.env.PUBLIC_APP_URL?.trim();
+    if (appUrl) {
+      lines.push(`Lihat tiket: ${appUrl.replace(/\/+$/, "")}/tasks`);
+    }
+
+    await tx.notification.create({
+      data: {
+        userId: ticket.assignedTo,
+        incidentId: ticket.incidentId ?? undefined,
+        channel: NotificationChannel.email,
+        title: `Tiket baru: ${ticket.title}`,
+        message: lines.join("\n"),
+        status: NotificationStatus.pending,
+        ccEmails,
+      },
+    });
   }
 
   private titleForCategory(category?: TicketCategory) {

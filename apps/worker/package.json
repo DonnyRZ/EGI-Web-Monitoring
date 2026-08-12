@@ -11,6 +11,7 @@
     "postinstall": "playwright install chromium",
     "playwright:install": "playwright install chromium",
     "test": "tsx --test src/probes.test.ts src/target-safety.test.ts src/storage/s3.test.ts src/retention.test.ts",
+    "test:notifications": "tsx --experimental-test-module-mocks --test src/notifications/email.test.ts src/notifications/dispatch.test.ts",
     "test:integration:rules": "tsx --test src/rules-apply.integration.test.ts",
     "test:integration:notifications": "tsx --test src/notifications/reconcile.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",

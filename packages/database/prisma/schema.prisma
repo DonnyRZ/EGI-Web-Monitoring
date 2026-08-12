@@ -223,6 +223,7 @@ model Notification {
   title        String              @db.VarChar(255)
   message      String
   status       NotificationStatus
+  ccEmails     String[]            @default([]) @map("cc_emails")
   sentAt       DateTime?           @map("sent_at")
   readAt       DateTime?           @map("read_at")
   errorMessage String?             @map("error_message")

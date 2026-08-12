@@ -9,6 +9,7 @@ export class EmailConfigError extends Error {
 
 export async function sendEmail(options: {
   to: string;
+  cc?: string[];
   subject: string;
   text: string;
 }): Promise<void> {
@@ -32,6 +33,7 @@ export async function sendEmail(options: {
   await transporter.sendMail({
     from,
     to: options.to,
+    cc: options.cc?.length ? options.cc : undefined,
     subject: options.subject,
     text: options.text,
   });

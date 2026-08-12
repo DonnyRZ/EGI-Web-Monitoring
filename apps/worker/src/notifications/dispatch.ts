@@ -55,6 +55,7 @@ export async function dispatchNotification(
       }
       await sendEmail({
         to: email,
+        cc: notification.ccEmails.length ? notification.ccEmails : undefined,
         subject: notification.title,
         text: notification.message,
       });
