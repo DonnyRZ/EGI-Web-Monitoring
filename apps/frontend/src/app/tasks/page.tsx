@@ -141,23 +141,6 @@ export default function TasksPage() {
     ...developers.map((d) => ({ value: d.id, label: d.name })),
   ];
 
-  const workloadByDeveloper = isReadOnlyViewer
-    ? Object.values(
-        items.reduce<
-          Record<string, { id: string; name: string; pending: number; inProgress: number; overdue: number }>
-        >((acc, task) => {
-          const id = task.assignee_id;
-          if (!acc[id]) {
-            acc[id] = { id, name: task.assignee_name ?? "Tanpa nama", pending: 0, inProgress: 0, overdue: 0 };
-          }
-          if (task.status === "pending") acc[id].pending += 1;
-          if (task.status === "in_progress") acc[id].inProgress += 1;
-          if (isOverdue(task)) acc[id].overdue += 1;
-          return acc;
-        }, {}),
-      ).sort((a, b) => b.overdue - a.overdue || b.pending + b.inProgress - (a.pending + a.inProgress))
-    : [];
-
   const emptyTabCopy: Record<TaskTab, { title: string; description: string }> = {
     all: {
       title: "Belum ada tugas",
@@ -211,31 +194,6 @@ export default function TasksPage() {
             <div className="metric-value" style={overdueCount > 0 ? { color: "var(--danger)" } : undefined}>
               {overdueCount}
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {!loading && isReadOnlyViewer && workloadByDeveloper.length > 0 ? (
-        <div className="panel workload-panel">
-          <div className="panel-title">Workload per Developer</div>
-          <div className="workload-list">
-            {workloadByDeveloper.map((dev) => (
-              <button
-                key={dev.id}
-                type="button"
-                className={`workload-row ${assigneeFilter === dev.id ? "active" : ""}`}
-                onClick={() => setAssigneeFilter(assigneeFilter === dev.id ? "" : dev.id)}
-              >
-                <span className="workload-name">{dev.name}</span>
-                <span className="workload-stats">
-                  <span>Pending: {dev.pending}</span>
-                  <span>Dikerjakan: {dev.inProgress}</span>
-                  <span className={dev.overdue > 0 ? "workload-overdue" : undefined}>
-                    Overdue: {dev.overdue}
-                  </span>
-                </span>
-              </button>
-            ))}
           </div>
         </div>
       ) : null}
