@@ -1713,6 +1713,32 @@ h3,
   font-size: 0.92rem;
 }
 
+.success-banner {
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid #bfe6cd;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.92rem;
+}
+
+.login-links {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  font-size: 0.88rem;
+}
+
+.login-links a {
+  color: var(--egi-blue);
+  text-decoration: none;
+}
+
+.login-links a:hover {
+  text-decoration: underline;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

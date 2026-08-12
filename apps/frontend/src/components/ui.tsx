@@ -38,6 +38,10 @@ export function ErrorBanner({ message }: { message: string }) {
   return <div className="error-banner">{message}</div>;
 }
 
+export function SuccessBanner({ message }: { message: string }) {
+  return <div className="success-banner">{message}</div>;
+}
+
 export function PaginationBar({
   page,
   pageSize,

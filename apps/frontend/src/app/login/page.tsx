@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -87,6 +88,10 @@ export default function LoginPage() {
             {submitting ? "Masuk…" : "Masuk"}
           </button>
         </form>
+
+        <div className="login-links">
+          <Link href="/forgot-password">Lupa password?</Link>
+        </div>
       </div>
     </div>
   );

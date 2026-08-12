@@ -41,6 +41,18 @@ export const authApi = {
       method: "POST",
       body: {},
     }),
+  forgotPassword: (email: string) =>
+    apiFetch<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+      auth: false,
+    }),
+  resetPassword: (token: string, newPassword: string) =>
+    apiFetch<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: { token, new_password: newPassword },
+      auth: false,
+    }),
 };
 
 export const dashboardApi = {

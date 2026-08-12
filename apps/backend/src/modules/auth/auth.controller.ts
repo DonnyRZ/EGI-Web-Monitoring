@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Req, Res, UnauthorizedException,
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { AuthService } from "./auth.service";
-import { LoginDto, RefreshTokenDto, LogoutDto } from "./auth.dto";
+import { LoginDto, RefreshTokenDto, LogoutDto, ForgotPasswordDto, ResetPasswordDto } from "./auth.dto";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { readCookie, REFRESH_COOKIE_NAME } from "./auth-cookie";
@@ -44,6 +44,18 @@ export class AuthController {
   @Get("me")
   me(@CurrentUser() user: AuthUser) {
     return this.authService.me(user.id);
+  }
+
+  @Post("forgot-password")
+  @HttpCode(200)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post("reset-password")
+  @HttpCode(200)
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.new_password);
   }
 
   private withRefreshCookie(response: Response, result: Awaited<ReturnType<AuthService["login"]>>) {
