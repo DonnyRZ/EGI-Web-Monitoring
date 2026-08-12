@@ -29,9 +29,9 @@ export class TasksController {
 
   @Post()
   @HttpCode(201)
-  @Roles(...PLATFORM_ADMIN_ROLES_PRISMA)
-  create(@Body() dto: CreateTaskDto) {
-    return this.tasksService.create(dto);
+  @Roles(...PLATFORM_ADMIN_ROLES_PRISMA, UserRole.developer)
+  create(@Body() dto: CreateTaskDto, @CurrentUser() user: AuthUser) {
+    return this.tasksService.create(dto, user);
   }
 
   @Get()

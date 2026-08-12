@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { AddPersonalTaskModal } from "@/components/AddPersonalTaskModal";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -42,6 +43,7 @@ export default function TasksPage() {
   const [actionError, setActionError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [tab, setTab] = useState<TaskTab>("all");
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user && (!canViewTasks(user.role) || user.role === "pic_web")) {
@@ -143,9 +145,18 @@ export default function TasksPage() {
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
           {isReadOnlyViewer
-            ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web maupun delegasi Superadmin."
+            ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web, delegasi Superadmin, maupun to-do manual."
             : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
         </p>
+        {!isReadOnlyViewer ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setAddModalOpen(true)}
+          >
+            + Tambah To-Do
+          </button>
+        ) : null}
       </div>
 
       {!loading && items.length > 0 ? (
@@ -209,8 +220,7 @@ export default function TasksPage() {
             <thead>
               <tr>
                 <th>Website</th>
-                <th>Masalah</th>
-                <th>Ekspektasi</th>
+                <th>Task</th>
                 <th>SLA</th>
                 <th>Status</th>
                 <th>{isReadOnlyViewer ? "Lampiran" : "Aksi"}</th>
@@ -221,7 +231,11 @@ export default function TasksPage() {
                 const site = websites[task.website_id];
                 const busy = updatingId === task.id;
                 const overdue = isOverdue(task);
-                const problem = task.ticket_id ? task.problem : task.instruction_notes;
+                const sourceTag = task.ticket_id
+                  ? { cls: "ticket", label: "Tiket PIC" }
+                  : task.created_by_id && task.created_by_id === task.assignee_id
+                    ? { cls: "manual", label: "Manual" }
+                    : { cls: "delegation", label: "Delegasi" };
                 return (
                   <tr key={task.id} className={overdue ? "task-row-overdue" : undefined}>
                     <td>
@@ -238,16 +252,27 @@ export default function TasksPage() {
                         </div>
                       ) : null}
                       <div>
-                        <span className={`task-source-tag ${task.ticket_id ? "ticket" : "delegation"}`}>
-                          {task.ticket_id ? "Tiket PIC" : "Delegasi"}
-                        </span>
+                        <span className={`task-source-tag ${sourceTag.cls}`}>{sourceTag.label}</span>
                       </div>
                     </td>
-                    <td style={{ maxWidth: 260 }} title={problem ?? undefined}>
-                      {problem ? clipText(problem, 140) : <span className="muted">-</span>}
-                    </td>
-                    <td style={{ maxWidth: 220 }} title={task.expectation ?? undefined}>
-                      {task.expectation ? clipText(task.expectation, 140) : <span className="muted">-</span>}
+                    <td style={{ maxWidth: 320 }}>
+                      {task.ticket_id ? (
+                        <ul className="task-points">
+                          {task.problem ? (
+                            <li title={task.problem}>{clipText(task.problem, 140)}</li>
+                          ) : null}
+                          {task.expectation ? (
+                            <li title={task.expectation}>{clipText(task.expectation, 140)}</li>
+                          ) : null}
+                          {!task.problem && !task.expectation ? (
+                            <span className="muted">-</span>
+                          ) : null}
+                        </ul>
+                      ) : (
+                        <div title={task.instruction_notes}>
+                          {clipText(task.instruction_notes, 180)}
+                        </div>
+                      )}
                     </td>
                     <td>
                       {task.sla_deadline ? (
@@ -312,6 +337,18 @@ export default function TasksPage() {
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {addModalOpen && user ? (
+        <AddPersonalTaskModal
+          websites={Object.values(websites)}
+          currentUserId={user.id}
+          onClose={() => setAddModalOpen(false)}
+          onCreated={(task) => {
+            setItems((prev) => [task, ...prev]);
+            setAddModalOpen(false);
+          }}
+        />
       ) : null}
     </AppShell>
   );

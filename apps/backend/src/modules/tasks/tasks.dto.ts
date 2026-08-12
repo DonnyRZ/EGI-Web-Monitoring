@@ -15,9 +15,13 @@ export class CreateTaskDto {
   @IsUUID()
   website_id!: string;
 
-  @ApiProperty({ description: "Developer user id to assign" })
+  @ApiPropertyOptional({
+    description:
+      "Developer user id to assign. Required for superadmin delegation; ignored (forced to self) for developers creating their own to-do.",
+  })
+  @IsOptional()
   @IsUUID()
-  assignee_id!: string;
+  assignee_id?: string;
 
   @ApiProperty()
   @IsString()
@@ -30,9 +34,10 @@ export class CreateTaskDto {
   @MaxLength(2000)
   attachment_url?: string;
 
-  @ApiProperty({ example: "2026-08-10T17:00:00.000Z" })
+  @ApiPropertyOptional({ example: "2026-08-10T17:00:00.000Z" })
+  @IsOptional()
   @IsDateString()
-  sla_deadline!: string;
+  sla_deadline?: string;
 }
 
 export class UpdateTaskStatusDto {

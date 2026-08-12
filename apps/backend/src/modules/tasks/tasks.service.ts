@@ -25,15 +25,32 @@ const TASK_INCLUDE = {
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateTaskDto) {
+  async create(dto: CreateTaskDto, user: AuthUser) {
     const website = await this.prisma.website.findUnique({
       where: { id: dto.website_id },
-      select: { id: true },
+      select: { id: true, itPicId: true, backupItPicId: true },
     });
     if (!website) throw new NotFoundException("Website not found");
 
+    let assigneeId: string;
+    if (user.role === UserRole.developer) {
+      // Self-service to-do: developers may only add work for sites they actually own,
+      // and always assign it to themselves regardless of what the client sent.
+      if (website.itPicId !== user.id && website.backupItPicId !== user.id) {
+        throw new ForbiddenException(
+          "You may only add to-dos for websites where you are the IT PIC or backup",
+        );
+      }
+      assigneeId = user.id;
+    } else {
+      if (!dto.assignee_id) {
+        throw new BadRequestException("assignee_id is required");
+      }
+      assigneeId = dto.assignee_id;
+    }
+
     const assignee = await this.prisma.user.findUnique({
-      where: { id: dto.assignee_id },
+      where: { id: assigneeId },
       select: { id: true, role: true, isActive: true },
     });
     if (!assignee) throw new NotFoundException("Assignee not found");
@@ -47,10 +64,11 @@ export class TasksService {
     const task = await this.prisma.task.create({
       data: {
         websiteId: dto.website_id,
-        assigneeId: dto.assignee_id,
+        assigneeId,
+        createdById: user.id,
         instructionNotes: dto.instruction_notes,
         attachmentUrl: dto.attachment_url,
-        slaDeadline: new Date(dto.sla_deadline),
+        slaDeadline: dto.sla_deadline ? new Date(dto.sla_deadline) : null,
         status: TaskStatus.pending,
       },
       include: TASK_INCLUDE,

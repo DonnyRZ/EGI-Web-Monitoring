@@ -176,6 +176,7 @@ export function toTaskDto(task: {
   id: string;
   websiteId: string;
   assigneeId: string;
+  createdById: string | null;
   ticketId: string | null;
   instructionNotes: string;
   attachmentUrl: string | null;
@@ -189,6 +190,7 @@ export function toTaskDto(task: {
     id: task.id,
     website_id: task.websiteId,
     assignee_id: task.assigneeId,
+    created_by_id: task.createdById,
     ticket_id: task.ticketId,
     instruction_notes: task.instructionNotes,
     attachment_url: task.attachmentUrl,

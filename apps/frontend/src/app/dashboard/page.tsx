@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { IconExternal } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
-import { EmptyState, ErrorBanner, LoadingState, StatusPill } from "@/components/ui";
+import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { dashboardApi, tasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { formatRelative, opensWebsiteExternallyFromDashboard } from "@/lib/format";
@@ -120,7 +120,6 @@ export default function DashboardPage() {
       {!loading && filtered.length > 0 ? (
         <div className="card-grid">
           {filtered.map((card) => {
-            const status = card.latest_result?.status || "unknown";
             const isPic = isDeveloper && card.website.it_pic_id === user?.id;
             const isBackupPic = isDeveloper && !isPic && card.website.backup_it_pic_id === user?.id;
             const body = (
@@ -135,7 +134,6 @@ export default function DashboardPage() {
                 <div className="website-card-body">
                   <div className="website-card-top">
                     <h3>{card.website.name}</h3>
-                    <StatusPill status={status} />
                   </div>
                   <div className="website-card-meta">
                     <span>{card.website.domain}</span>

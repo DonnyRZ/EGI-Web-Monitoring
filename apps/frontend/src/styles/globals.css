@@ -842,6 +842,20 @@ h3,
   color: #8a6a3b;
 }
 
+.task-source-tag.manual {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.task-points {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 16px;
+  font-size: 0.88rem;
+}
+
 .btn {
   height: 40px;
   padding: 0 16px;
@@ -2033,7 +2047,8 @@ h3,
     align-items: stretch;
   }
 
-  .page-toolbar .btn-neutral {
+  .page-toolbar .btn-neutral,
+  .page-toolbar .btn-primary {
     align-self: flex-start;
   }
 
