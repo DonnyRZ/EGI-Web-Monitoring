@@ -142,22 +142,7 @@ export default function TasksPage() {
   };
 
   return (
-    <AppShell
-      title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}
-      actions={
-        !isReadOnlyViewer ? (
-          <button
-            type="button"
-            className="icon-btn icon-btn-primary"
-            onClick={() => setAddModalOpen(true)}
-            aria-label="Tambah To-Do"
-            title="Tambah To-Do"
-          >
-            <IconPlus />
-          </button>
-        ) : undefined
-      }
-    >
+    <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
           {isReadOnlyViewer
@@ -185,21 +170,36 @@ export default function TasksPage() {
         </div>
       ) : null}
 
-      {!loading && items.length > 0 ? (
-        <div className="page-tabs" role="tablist" aria-label="Filter tugas">
-          {(Object.keys(TAB_LABELS) as TaskTab[]).map((key) => (
+      {!loading && (items.length > 0 || !isReadOnlyViewer) ? (
+        <div className="page-tabs">
+          <div className="page-tabs-list" role="tablist" aria-label="Filter tugas">
+            {items.length > 0
+              ? (Object.keys(TAB_LABELS) as TaskTab[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`page-tab ${tab === key ? "active" : ""}`}
+                    role="tab"
+                    aria-selected={tab === key}
+                    onClick={() => setTab(key)}
+                  >
+                    {TAB_LABELS[key]}
+                    {key === "overdue" && overdueCount > 0 ? ` (${overdueCount})` : ""}
+                  </button>
+                ))
+              : null}
+          </div>
+          {!isReadOnlyViewer ? (
             <button
-              key={key}
               type="button"
-              className={`page-tab ${tab === key ? "active" : ""}`}
-              role="tab"
-              aria-selected={tab === key}
-              onClick={() => setTab(key)}
+              className="page-tabs-add"
+              onClick={() => setAddModalOpen(true)}
+              aria-label="Tambah To-Do"
+              title="Tambah To-Do"
             >
-              {TAB_LABELS[key]}
-              {key === "overdue" && overdueCount > 0 ? ` (${overdueCount})` : ""}
+              <IconPlus />
             </button>
-          ))}
+          ) : null}
         </div>
       ) : null}
 

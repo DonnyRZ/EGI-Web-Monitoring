@@ -1523,9 +1523,16 @@ h3,
 
 .page-tabs {
   display: flex;
-  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
+}
+
+.page-tabs-list {
+  display: flex;
+  gap: 24px;
 }
 
 .page-tab {
@@ -1547,6 +1554,29 @@ h3,
 .page-tab.active {
   border-color: var(--egi-blue);
   color: var(--egi-blue-dark);
+}
+
+.page-tabs-add {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  flex-shrink: 0;
+  background: var(--egi-blue);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.page-tabs-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.page-tabs-add:hover {
+  background: var(--egi-blue-dark);
 }
 
 .filter-toggle {
@@ -2192,9 +2222,15 @@ h1, h2, h3, .page-title {
 
 .page-tabs {
   display: flex;
-  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 12px;
+}
+.page-tabs-list {
+  display: flex;
+  gap: 18px;
 }
 .page-tab {
   height: 36px;
