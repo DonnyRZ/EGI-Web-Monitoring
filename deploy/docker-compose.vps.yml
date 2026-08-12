@@ -167,6 +167,11 @@ services:
       RETENTION_MONITORING_RESULTS_DAYS: ${RETENTION_MONITORING_RESULTS_DAYS:-90}
       RETENTION_SCREENSHOTS_DAYS: ${RETENTION_SCREENSHOTS_DAYS:-1}
       RETENTION_NOTIFICATIONS_DAYS: ${RETENTION_NOTIFICATIONS_DAYS:-90}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-egi.egiholding@gmail.com}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
