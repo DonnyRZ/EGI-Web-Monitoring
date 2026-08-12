@@ -67,19 +67,68 @@ const websites = [
   { name: "EGI Media", url: "https://egi-media.com/" },
 ] as const;
 
-async function main() {
-  // Real password comes from SEED_ADMIN_PASSWORD (kept out of git). When set,
-  // it is also enforced on re-seed; otherwise we fall back to a dev default and
-  // never overwrite an existing password.
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? ADMIN_EMAIL;
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Admin123!";
-  const enforcePassword = Boolean(process.env.SEED_ADMIN_PASSWORD);
-  const passwordHash = hashPassword(adminPassword);
+/**
+ * Seed is invoked on every backend container start (see
+ * `prisma:migrate && prisma:seed && start:prod` in docker-compose), not just
+ * the very first boot. That means anything placed in an upsert's `update`
+ * branch runs on *every single restart/redeploy*, forever.
+ *
+ * Credentials must therefore only ever be set in the `create` branch (i.e.
+ * the account did not exist yet - true first-time bootstrap). Once an
+ * account exists, its password is owned exclusively by the application's
+ * own auth flows (login, change-password, forgot/reset-password). Seed must
+ * never fight those flows, or any user-initiated password change silently
+ * reverts on the next deploy.
+ *
+ * `isActive`/`role`/`name` ARE still forced on every re-seed, by design: this
+ * is an intentional safety-net so the two bootstrap accounts can never be
+ * accidentally locked out or demoted.
+ */
+export function buildAdminUpsertData(env: NodeJS.ProcessEnv) {
+  const email = env.SEED_ADMIN_EMAIL ?? ADMIN_EMAIL;
+  const password = env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+  return {
+    email,
+    create: {
+      name: "EGI Admin",
+      email,
+      passwordHash: hashPassword(password),
+      role: UserRole.superadmin,
+      emailVerifiedAt: new Date(),
+      isActive: true,
+    },
+    update: {
+      isActive: true,
+      role: UserRole.superadmin,
+    },
+  };
+}
 
-  const developerEmail = process.env.SEED_DEVELOPER_EMAIL ?? DEVELOPER_EMAIL;
-  const developerPassword =
-    process.env.SEED_DEVELOPER_PASSWORD ?? adminPassword;
-  const developerHash = hashPassword(developerPassword);
+export function buildDeveloperUpsertData(env: NodeJS.ProcessEnv) {
+  const email = env.SEED_DEVELOPER_EMAIL ?? DEVELOPER_EMAIL;
+  const password =
+    env.SEED_DEVELOPER_PASSWORD ?? env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+  return {
+    email,
+    create: {
+      name: "Donny",
+      email,
+      passwordHash: hashPassword(password),
+      role: UserRole.developer,
+      emailVerifiedAt: new Date(),
+      isActive: true,
+    },
+    update: {
+      isActive: true,
+      role: UserRole.developer,
+      name: "Donny",
+    },
+  };
+}
+
+async function main() {
+  const adminUpsertData = buildAdminUpsertData(process.env);
+  const developerUpsertData = buildDeveloperUpsertData(process.env);
 
   // Migrate the legacy dummy admin to the real address without creating a
   // duplicate: rename it in place (keeping its existing password) when the
@@ -88,52 +137,33 @@ async function main() {
     where: { email: LEGACY_ADMIN_EMAIL },
   });
   const targetAdmin = await prisma.user.findUnique({
-    where: { email: adminEmail },
+    where: { email: adminUpsertData.email },
   });
-  if (legacyAdmin && !targetAdmin && legacyAdmin.email !== adminEmail) {
+  const legacyRenamed =
+    Boolean(legacyAdmin) && !targetAdmin && legacyAdmin!.email !== adminUpsertData.email;
+  if (legacyRenamed) {
     await prisma.user.update({
-      where: { id: legacyAdmin.id },
-      data: { email: adminEmail },
+      where: { id: legacyAdmin!.id },
+      data: { email: adminUpsertData.email },
     });
   }
 
+  // Account "existed" if it was found under its target email already, or was
+  // just renamed in place from the legacy address above.
+  const adminExisted = Boolean(targetAdmin) || legacyRenamed;
   const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
-    // Only overwrite the password on re-seed when SEED_ADMIN_PASSWORD is set;
-    // otherwise leave whatever password the account currently has.
-    update: {
-      isActive: true,
-      role: UserRole.superadmin,
-      ...(enforcePassword ? { passwordHash } : {}),
-    },
-    create: {
-      name: "EGI Admin",
-      email: adminEmail,
-      passwordHash,
-      role: UserRole.superadmin,
-      emailVerifiedAt: new Date(),
-      isActive: true,
-    },
+    where: { email: adminUpsertData.email },
+    update: adminUpsertData.update,
+    create: adminUpsertData.create,
   });
 
+  const developerExisted = Boolean(
+    await prisma.user.findUnique({ where: { email: developerUpsertData.email } }),
+  );
   const developer = await prisma.user.upsert({
-    where: { email: developerEmail },
-    update: {
-      isActive: true,
-      role: UserRole.developer,
-      name: "Donny",
-      ...(enforcePassword || process.env.SEED_DEVELOPER_PASSWORD
-        ? { passwordHash: developerHash }
-        : {}),
-    },
-    create: {
-      name: "Donny",
-      email: developerEmail,
-      passwordHash: developerHash,
-      role: UserRole.developer,
-      emailVerifiedAt: new Date(),
-      isActive: true,
-    },
+    where: { email: developerUpsertData.email },
+    update: developerUpsertData.update,
+    create: developerUpsertData.create,
   });
 
   for (const site of websites) {
@@ -158,15 +188,23 @@ async function main() {
   }
 
   console.log(
-    `Seeded admin ${admin.email}, developer ${developer.email}, and ${websites.length} websites`,
+    `Admin: ${admin.email} (${adminExisted ? "existing, password untouched" : "created"})`,
   );
+  console.log(
+    `Developer: ${developer.email} (${developerExisted ? "existing, password untouched" : "created"})`,
+  );
+  console.log(`Websites checked: ${websites.length}`);
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Guard so this module can be imported (e.g. by seed.test.ts) for its pure
+// helper functions without triggering a real DB seed run as a side effect.
+if (require.main === module) {
+  main()
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

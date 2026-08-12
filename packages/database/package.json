@@ -19,6 +19,7 @@
     "prisma:push": "prisma db push",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
+    "test:seed": "tsx --test prisma/seed.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"@egi/database: no lint configured yet\""
   },
