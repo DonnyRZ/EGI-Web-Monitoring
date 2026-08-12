@@ -289,6 +289,16 @@ h3,
   color: var(--text);
 }
 
+.icon-btn-primary {
+  background: var(--egi-blue);
+  color: white;
+}
+
+.icon-btn-primary:hover {
+  background: var(--egi-blue-dark);
+  color: white;
+}
+
 .avatar {
   width: 36px;
   height: 36px;
@@ -2047,8 +2057,7 @@ h3,
     align-items: stretch;
   }
 
-  .page-toolbar .btn-neutral,
-  .page-toolbar .btn-primary {
+  .page-toolbar .btn-neutral {
     align-self: flex-start;
   }
 

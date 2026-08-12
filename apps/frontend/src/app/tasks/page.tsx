@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AddPersonalTaskModal } from "@/components/AddPersonalTaskModal";
 import { AppShell } from "@/components/AppShell";
+import { IconPlus } from "@/components/icons";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { tasksApi, ticketsApi, websitesApi } from "@/lib/api-services";
@@ -141,22 +142,28 @@ export default function TasksPage() {
   };
 
   return (
-    <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
+    <AppShell
+      title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}
+      actions={
+        !isReadOnlyViewer ? (
+          <button
+            type="button"
+            className="icon-btn icon-btn-primary"
+            onClick={() => setAddModalOpen(true)}
+            aria-label="Tambah To-Do"
+            title="Tambah To-Do"
+          >
+            <IconPlus />
+          </button>
+        ) : undefined
+      }
+    >
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
           {isReadOnlyViewer
             ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web, delegasi Superadmin, maupun to-do manual."
             : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
         </p>
-        {!isReadOnlyViewer ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setAddModalOpen(true)}
-          >
-            + Tambah To-Do
-          </button>
-        ) : null}
       </div>
 
       {!loading && items.length > 0 ? (
