@@ -6,17 +6,19 @@ import { useCallback, useEffect, useState } from "react";
 import { AddPersonalTaskModal } from "@/components/AddPersonalTaskModal";
 import { AppShell } from "@/components/AppShell";
 import { IconPlus } from "@/components/icons";
+import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { tasksApi, ticketsApi, websitesApi } from "@/lib/api-services";
+import { tasksApi, ticketsApi, usersApi, websitesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   canViewTasks,
   clipText,
   formatDateTime,
+  overdueLabel,
   taskStatusLabel,
 } from "@/lib/format";
-import type { Task, TaskStatus, Website } from "@/lib/types";
+import type { Task, TaskStatus, User, Website } from "@/lib/types";
 
 function isOverdue(task: Task) {
   if (task.status === "done" || !task.sla_deadline) return false;
@@ -45,6 +47,8 @@ export default function TasksPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [tab, setTab] = useState<TaskTab>("all");
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [developers, setDevelopers] = useState<User[]>([]);
+  const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
     if (!authLoading && user && (!canViewTasks(user.role) || user.role === "pic_web")) {
@@ -79,6 +83,14 @@ export default function TasksPage() {
     void loadTasks();
   }, [user, loadTasks]);
 
+  useEffect(() => {
+    if (!user || !isReadOnlyViewer) return;
+    usersApi
+      .list({ role: "developer", is_active: true, limit: 100 })
+      .then((res) => setDevelopers(res.data))
+      .catch(() => setDevelopers([]));
+  }, [user, isReadOnlyViewer]);
+
   async function updateStatus(taskId: string, status: TaskStatus) {
     setActionError("");
     setUpdatingId(taskId);
@@ -111,16 +123,40 @@ export default function TasksPage() {
     );
   }
 
-  const pendingCount = items.filter((t) => t.status === "pending").length;
-  const inProgressCount = items.filter((t) => t.status === "in_progress").length;
-  const overdueCount = items.filter((t) => isOverdue(t)).length;
+  const scopedItems = assigneeFilter ? items.filter((t) => t.assignee_id === assigneeFilter) : items;
 
-  const filteredItems = items.filter((task) => {
+  const pendingCount = scopedItems.filter((t) => t.status === "pending").length;
+  const inProgressCount = scopedItems.filter((t) => t.status === "in_progress").length;
+  const overdueCount = scopedItems.filter((t) => isOverdue(t)).length;
+
+  const filteredItems = scopedItems.filter((task) => {
     if (tab === "pending") return task.status === "pending";
     if (tab === "in_progress") return task.status === "in_progress";
     if (tab === "overdue") return isOverdue(task);
     return true;
   });
+
+  const developerOptions = [
+    { value: "", label: "Semua developer" },
+    ...developers.map((d) => ({ value: d.id, label: d.name })),
+  ];
+
+  const workloadByDeveloper = isReadOnlyViewer
+    ? Object.values(
+        items.reduce<
+          Record<string, { id: string; name: string; pending: number; inProgress: number; overdue: number }>
+        >((acc, task) => {
+          const id = task.assignee_id;
+          if (!acc[id]) {
+            acc[id] = { id, name: task.assignee_name ?? "Tanpa nama", pending: 0, inProgress: 0, overdue: 0 };
+          }
+          if (task.status === "pending") acc[id].pending += 1;
+          if (task.status === "in_progress") acc[id].inProgress += 1;
+          if (isOverdue(task)) acc[id].overdue += 1;
+          return acc;
+        }, {}),
+      ).sort((a, b) => b.overdue - a.overdue || b.pending + b.inProgress - (a.pending + a.inProgress))
+    : [];
 
   const emptyTabCopy: Record<TaskTab, { title: string; description: string }> = {
     all: {
@@ -149,9 +185,18 @@ export default function TasksPage() {
             ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web, delegasi Superadmin, maupun to-do manual."
             : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
         </p>
+        {isReadOnlyViewer ? (
+          <Select
+            value={assigneeFilter}
+            onChange={setAssigneeFilter}
+            options={developerOptions}
+            style={{ minWidth: 200 }}
+            aria-label="Filter berdasarkan developer"
+          />
+        ) : null}
       </div>
 
-      {!loading && items.length > 0 ? (
+      {!loading && scopedItems.length > 0 ? (
         <div className="metrics-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
           <div className="metric">
             <div className="metric-label">Pending</div>
@@ -170,10 +215,35 @@ export default function TasksPage() {
         </div>
       ) : null}
 
-      {!loading && (items.length > 0 || !isReadOnlyViewer) ? (
+      {!loading && isReadOnlyViewer && workloadByDeveloper.length > 0 ? (
+        <div className="panel workload-panel">
+          <div className="panel-title">Workload per Developer</div>
+          <div className="workload-list">
+            {workloadByDeveloper.map((dev) => (
+              <button
+                key={dev.id}
+                type="button"
+                className={`workload-row ${assigneeFilter === dev.id ? "active" : ""}`}
+                onClick={() => setAssigneeFilter(assigneeFilter === dev.id ? "" : dev.id)}
+              >
+                <span className="workload-name">{dev.name}</span>
+                <span className="workload-stats">
+                  <span>Pending: {dev.pending}</span>
+                  <span>Dikerjakan: {dev.inProgress}</span>
+                  <span className={dev.overdue > 0 ? "workload-overdue" : undefined}>
+                    Overdue: {dev.overdue}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {!loading && (scopedItems.length > 0 || !isReadOnlyViewer) ? (
         <div className="page-tabs">
           <div className="page-tabs-list" role="tablist" aria-label="Filter tugas">
-            {items.length > 0
+            {scopedItems.length > 0
               ? (Object.keys(TAB_LABELS) as TaskTab[]).map((key) => (
                   <button
                     key={key}
@@ -227,6 +297,7 @@ export default function TasksPage() {
             <thead>
               <tr>
                 <th>Website</th>
+                {isReadOnlyViewer ? <th>Developer</th> : null}
                 <th>Task</th>
                 <th>SLA</th>
                 <th>Status</th>
@@ -262,6 +333,7 @@ export default function TasksPage() {
                         <span className={`task-source-tag ${sourceTag.cls}`}>{sourceTag.label}</span>
                       </div>
                     </td>
+                    {isReadOnlyViewer ? <td>{task.assignee_name ?? "-"}</td> : null}
                     <td style={{ maxWidth: 320 }}>
                       {task.ticket_id ? (
                         <ul className="task-points">
@@ -291,7 +363,7 @@ export default function TasksPage() {
                       )}
                       {overdue ? (
                         <div className="muted" style={{ fontSize: "0.75rem", color: "var(--danger)" }}>
-                          Lewat SLA
+                          {overdueLabel(task.sla_deadline)}
                         </div>
                       ) : null}
                     </td>

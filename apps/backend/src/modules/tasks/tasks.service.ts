@@ -19,6 +19,7 @@ const DEVELOPER_ALLOWED_STATUSES: TaskStatus[] = [
 
 const TASK_INCLUDE = {
   ticket: { select: { id: true, description: true, expectation: true, attachmentUrl: true } },
+  assignee: { select: { id: true, name: true, email: true } },
 } as const;
 
 @Injectable()

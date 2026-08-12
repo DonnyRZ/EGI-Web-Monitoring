@@ -1522,6 +1522,59 @@ h3,
   overflow: hidden;
 }
 
+.workload-panel {
+  margin-bottom: 20px;
+}
+
+.workload-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workload-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fafbfc;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.workload-row:hover {
+  background: var(--egi-blue-soft);
+  border-color: var(--egi-blue-mid);
+}
+
+.workload-row.active {
+  background: var(--egi-blue-soft);
+  border-color: var(--egi-blue);
+}
+
+.workload-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.workload-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.workload-overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .page-tabs {
   display: flex;
   align-items: center;
@@ -2081,6 +2134,16 @@ h3,
   .history-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .workload-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .workload-stats {
+    flex-wrap: wrap;
+    gap: 8px 14px;
   }
 
   .page-toolbar {

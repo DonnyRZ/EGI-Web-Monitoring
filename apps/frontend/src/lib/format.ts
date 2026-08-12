@@ -45,6 +45,18 @@ export function formatDateTime(value?: string | null) {
   }).format(d);
 }
 
+export function overdueLabel(deadline?: string | null) {
+  if (!deadline) return null;
+  const d = new Date(deadline);
+  if (Number.isNaN(d.getTime())) return null;
+  const diffMs = Date.now() - d.getTime();
+  if (diffMs <= 0) return null;
+  const hours = Math.floor(diffMs / 3_600_000);
+  if (hours < 1) return "Telat <1 jam";
+  if (hours < 24) return `Telat ${hours} jam`;
+  return `Telat ${Math.floor(hours / 24)} hari`;
+}
+
 export function formatRelative(value?: string | null) {
   if (!value) return "—";
   const d = new Date(value);

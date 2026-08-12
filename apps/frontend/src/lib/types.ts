@@ -99,6 +99,7 @@ export interface Task {
   id: string;
   website_id: string;
   assignee_id: string;
+  assignee_name: string | null;
   created_by_id: string | null;
   ticket_id: string | null;
   instruction_notes: string;
