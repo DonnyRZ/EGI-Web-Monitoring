@@ -17,6 +17,7 @@
     "test:resource-access": "tsx --test src/common/resource-access.test.ts src/modules/websites/websites.service.test.ts",
     "test:tickets": "tsx --test src/modules/tickets/tickets.service.test.ts",
     "test:tasks": "tsx --test src/modules/tasks/tasks.service.test.ts",
+    "test:workload": "tsx --test src/modules/workload/workload.service.test.ts",
     "remediate:test-data": "node scripts/remediate-test-data.mjs",
     "lint": "echo \"@egi/backend: no lint configured yet\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"

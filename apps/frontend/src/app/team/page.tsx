@@ -53,7 +53,7 @@ export default function TeamWorkloadPage() {
     <AppShell title="Developer">
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          Ringkasan beban kerja tiap developer: tiket PIC Web dan task yang masih aktif, serta yang sudah lewat deadline.
+          Ringkasan beban kerja aktif tiap developer (tiket dan to-do sudah digabung agar tidak dihitung dobel), serta yang sudah lewat deadline.
         </p>
       </div>
 
@@ -73,43 +73,41 @@ export default function TeamWorkloadPage() {
             <thead>
               <tr>
                 <th>Developer</th>
-                <th>Tiket Open</th>
-                <th>Tiket In Progress</th>
-                <th>Tiket Overdue</th>
-                <th>Task Pending</th>
-                <th>Task In Progress</th>
-                <th>Task Overdue</th>
+                <th>Belum Dikerjakan</th>
+                <th>Sedang Dikerjakan</th>
+                <th>Overdue</th>
                 <th>Total Aktif</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((dev) => {
-                const overdue = dev.tickets_overdue + dev.tasks_overdue;
-                return (
-                  <tr key={dev.developer_id}>
-                    <td>{dev.developer_name}</td>
-                    <td>{dev.tickets_open}</td>
-                    <td>{dev.tickets_in_progress}</td>
-                    <td>
-                      <span className={dev.tickets_overdue > 0 ? "task-sla-overdue" : undefined}>
-                        {dev.tickets_overdue}
-                      </span>
-                    </td>
-                    <td>{dev.tasks_pending}</td>
-                    <td>{dev.tasks_in_progress}</td>
-                    <td>
-                      <span className={dev.tasks_overdue > 0 ? "task-sla-overdue" : undefined}>
-                        {dev.tasks_overdue}
-                      </span>
-                    </td>
-                    <td>
-                      <strong className={overdue > 0 ? "task-sla-overdue" : undefined}>
-                        {dev.total_active}
-                      </strong>
-                    </td>
-                  </tr>
-                );
-              })}
+              {items.map((dev) => (
+                <tr key={dev.developer_id}>
+                  <td>{dev.developer_name}</td>
+                  <td>
+                    {dev.pending}
+                    {dev.pending_orphan_tickets > 0 ? (
+                      <span className="muted"> (termasuk {dev.pending_orphan_tickets} tiket belum ditugaskan)</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    {dev.in_progress}
+                    {dev.in_progress_orphan_tickets > 0 ? (
+                      <span className="muted"> (termasuk {dev.in_progress_orphan_tickets} tiket belum ditugaskan)</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    <span className={dev.overdue > 0 ? "task-sla-overdue" : undefined}>{dev.overdue}</span>
+                    {dev.overdue_orphan_tickets > 0 ? (
+                      <span className="muted"> (termasuk {dev.overdue_orphan_tickets} tiket belum ditugaskan)</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    <strong className={dev.overdue > 0 ? "task-sla-overdue" : undefined}>
+                      {dev.total_active}
+                    </strong>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -158,12 +158,12 @@ export interface LoginResponse {
 export interface DeveloperWorkload {
   developer_id: string;
   developer_name: string;
-  tickets_open: number;
-  tickets_in_progress: number;
-  tickets_overdue: number;
-  tasks_pending: number;
-  tasks_in_progress: number;
-  tasks_overdue: number;
+  pending: number;
+  pending_orphan_tickets: number;
+  in_progress: number;
+  in_progress_orphan_tickets: number;
+  overdue: number;
+  overdue_orphan_tickets: number;
   total_active: number;
 }
 
