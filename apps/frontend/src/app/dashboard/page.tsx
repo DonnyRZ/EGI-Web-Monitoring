@@ -13,7 +13,7 @@ import { formatRelative, opensWebsiteExternallyFromDashboard } from "@/lib/forma
 import type { DashboardWebsiteCard } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
-type StatusFilter = "all" | "active" | "down" | "my_tasks";
+type StatusFilter = "active" | "down" | "my_tasks";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -21,7 +21,7 @@ export default function DashboardPage() {
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [myTaskWebsiteIds, setMyTaskWebsiteIds] = useState<Set<string> | null>(null);
   const openExternally = opensWebsiteExternallyFromDashboard(user?.role);
 
@@ -73,7 +73,6 @@ export default function DashboardPage() {
       if (!myTaskWebsiteIds) return [];
       return cards.filter((c) => myTaskWebsiteIds.has(c.website.id));
     }
-    if (statusFilter === "all") return cards;
     return cards.filter((c) => {
       const status = c.latest_result?.status || "unknown";
       if (statusFilter === "active") return status === "normal" || status === "warning";
@@ -89,7 +88,6 @@ export default function DashboardPage() {
           onChange={(v) => setStatusFilter(v as StatusFilter)}
           aria-label="Filter status"
           options={[
-            { value: "all", label: "Semua status" },
             { value: "active", label: "Aktif" },
             { value: "down", label: "Down" },
             ...(isDeveloper ? [{ value: "my_tasks", label: "Tugas Saya" }] : []),
