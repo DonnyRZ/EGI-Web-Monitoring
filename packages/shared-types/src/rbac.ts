@@ -46,10 +46,14 @@ export const TICKET_ASSIGNEE_ROLES = [
   "developer",
 ] as const satisfies readonly UserRole[];
 
-/** View the developer workload/overdue summary (read-only, cross-developer). */
+/**
+ * View the developer workload/overdue summary (read-only).
+ * PIC Web is included but scoped server-side to developers of their own websites.
+ */
 export const WORKLOAD_VIEWER_ROLES = [
   "superadmin",
   "bos_it",
+  "pic_web",
 ] as const satisfies readonly UserRole[];
 
 /**
@@ -83,14 +87,20 @@ export function canInspectMonitoringDetails(role?: string | null): boolean {
   return canAccessAllMonitoredResources(role);
 }
 
-/** Incidents nav + incident/ticket list pages. */
+/**
+ * Incidents nav + incident list. PIC Web is included but only sees incidents
+ * on websites they own (enforced in IncidentsService).
+ */
 export function canViewIncidents(role?: string | null): boolean {
-  return canAccessAllMonitoredResources(role);
+  return canAccessAllMonitoredResources(role) || role === "pic_web";
 }
 
-/** Task to-do list pages (delegated work for developers). */
+/**
+ * Task list / Task Monitoring. PIC Web is included but only sees tasks
+ * on websites they own (enforced in TasksService).
+ */
 export function canViewTasks(role?: string | null): boolean {
-  return canAccessAllMonitoredResources(role);
+  return canAccessAllMonitoredResources(role) || role === "pic_web";
 }
 
 export function canManageIncidents(role?: string | null): boolean {

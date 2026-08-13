@@ -135,11 +135,11 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-    ...(canViewTasks(user.role) && user.role !== "pic_web"
+    ...(canViewTasks(user.role)
       ? [
           {
             href: "/tasks",
-            label: user.role === "superadmin" || user.role === "bos_it" ? "Task Monitoring" : "To-Do List",
+            label: user.role === "developer" ? "To-Do List" : "Task Monitoring",
             icon: IconTasks,
             badge: user.role === "developer" && myOpenTasks > 0 ? myOpenTasks : undefined,
           },
@@ -154,7 +154,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     ...(canViewDeveloperWorkload(user.role)
       ? [{ href: "/team", label: "Developer", icon: IconUsers }]
       : []),
-    ...(canViewIncidents(user.role) && user.role !== "pic_web"
+    ...(canViewIncidents(user.role)
       ? [
           {
             href: "/incidents",

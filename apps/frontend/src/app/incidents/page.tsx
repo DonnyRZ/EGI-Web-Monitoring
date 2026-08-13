@@ -35,6 +35,7 @@ export default function IncidentsPage() {
   const [tab, setTab] = useState<"active" | "all">("active");
   const [onlyMySites, setOnlyMySites] = useState(false);
   const isDeveloper = user?.role === "developer";
+  const isPicWeb = user?.role === "pic_web";
 
   useEffect(() => {
     if (!authLoading && user && !canViewIncidents(user.role)) {
@@ -145,7 +146,9 @@ export default function IncidentsPage() {
       </div>
 
       <p className="muted" style={{ marginTop: 0, marginBottom: 16, fontSize: "0.92rem" }}>
-        Daftar incident dari hasil monitoring website EGI.
+        {isPicWeb
+          ? "Incident dari website yang menjadi tanggung jawab Anda."
+          : "Daftar incident dari hasil monitoring website EGI."}
       </p>
 
       <div className="toolbar">
@@ -164,7 +167,7 @@ export default function IncidentsPage() {
           onChange={setWebsiteId}
           aria-label="Filter website"
           options={[
-            { value: "", label: onlyMySites ? "Semua situs saya" : "Semua website" },
+            { value: "", label: onlyMySites || isPicWeb ? "Semua situs saya" : "Semua website" },
             ...websiteOptions.map((w) => ({ value: w.id, label: w.name })),
           ]}
         />
@@ -202,7 +205,7 @@ export default function IncidentsPage() {
         <EmptyState
           title="Tidak ada incident"
           description={
-            onlyMySites
+            onlyMySites || isPicWeb
               ? "Tidak ada incident untuk situs yang menjadi tanggung jawab Anda."
               : "Tidak ada data untuk filter ini."
           }

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { TaskStatus, TicketStatus, UserRole } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
+import type { AuthUser } from "../../common/current-user.decorator";
 
 /**
  * A ticket that gets a website + assignee at creation time auto-spawns a
@@ -9,6 +10,9 @@ import { PrismaService } from "../../prisma/prisma.service";
  * double-count the same unit of work. Only tickets with NO linked task
  * (e.g. help_desk/procurement categories without a website) are genuinely
  * standalone and counted here as "orphan tickets".
+ *
+ * PIC Web only sees developers who are IT PIC / backup PIC of websites they
+ * own, and only work items on those websites.
  */
 export interface DeveloperWorkloadRow {
   developer_id: string;
@@ -26,12 +30,21 @@ export interface DeveloperWorkloadRow {
 export class WorkloadService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async developers(): Promise<DeveloperWorkloadRow[]> {
+  async developers(user: AuthUser): Promise<DeveloperWorkloadRow[]> {
     const now = Date.now();
+    const scoped = await this.picWebScope(user);
+
+    if (scoped && scoped.developerIds.length === 0) {
+      return [];
+    }
 
     const [developers, orphanTickets, tasks] = await Promise.all([
       this.prisma.user.findMany({
-        where: { role: UserRole.developer, isActive: true },
+        where: {
+          role: UserRole.developer,
+          isActive: true,
+          ...(scoped ? { id: { in: scoped.developerIds } } : {}),
+        },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
@@ -40,11 +53,15 @@ export class WorkloadService {
           assignedTo: { not: null },
           status: { in: [TicketStatus.open, TicketStatus.in_progress] },
           task: null,
+          ...(scoped ? { websiteId: { in: scoped.websiteIds } } : {}),
         },
         select: { assignedTo: true, status: true, slaDeadline: true },
       }),
       this.prisma.task.findMany({
-        where: { status: { in: [TaskStatus.pending, TaskStatus.in_progress] } },
+        where: {
+          status: { in: [TaskStatus.pending, TaskStatus.in_progress] },
+          ...(scoped ? { websiteId: { in: scoped.websiteIds } } : {}),
+        },
         select: { assigneeId: true, status: true, slaDeadline: true },
       }),
     ]);
@@ -96,5 +113,19 @@ export class WorkloadService {
       if (overdueDiff !== 0) return overdueDiff;
       return b.total_active - a.total_active;
     });
+  }
+
+  private async picWebScope(user: AuthUser) {
+    if (user.role !== UserRole.pic_web) return null;
+    const sites = await this.prisma.website.findMany({
+      where: { ownerId: user.id },
+      select: { id: true, itPicId: true, backupItPicId: true },
+    });
+    const developerIds = [
+      ...new Set(
+        sites.flatMap((s) => [s.itPicId, s.backupItPicId]).filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    return { websiteIds: sites.map((s) => s.id), developerIds };
   }
 }

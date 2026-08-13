@@ -101,3 +101,24 @@ test("superadmin must provide an assignee_id when delegating", async () => {
     /assignee_id is required/,
   );
 });
+
+test("PIC Web lists only tasks on websites they own", async () => {
+  const picWeb: AuthUser = { id: "pic-1", email: "pic@example.test", role: UserRole.pic_web };
+  let capturedWhere: Record<string, unknown> | undefined;
+  const prisma = {
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
+    task: {
+      count: async ({ where }: { where: Record<string, unknown> }) => {
+        capturedWhere = where;
+        return 0;
+      },
+      findMany: async () => [],
+    },
+  };
+  const service = new TasksService(prisma as never);
+
+  await service.list({ page: 1, limit: 20 }, { page: 1, limit: 20 }, picWeb);
+
+  assert.deepEqual(capturedWhere?.website, { ownerId: picWeb.id });
+});
+

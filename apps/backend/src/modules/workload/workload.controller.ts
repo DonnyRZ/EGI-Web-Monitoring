@@ -4,6 +4,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { WORKLOAD_VIEWER_ROLES_PRISMA } from "../../common/resource-access";
+import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 import { WorkloadService } from "./workload.service";
 
 @ApiTags("Workload")
@@ -15,7 +16,7 @@ export class WorkloadController {
   constructor(private readonly workloadService: WorkloadService) {}
 
   @Get("developers")
-  developers() {
-    return this.workloadService.developers();
+  developers(@CurrentUser() user: AuthUser) {
+    return this.workloadService.developers(user);
   }
 }

@@ -38,7 +38,8 @@ const TAB_LABELS: Record<TaskTab, string> = {
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const isReadOnlyViewer = user?.role === "superadmin" || user?.role === "bos_it";
+  const isReadOnlyViewer =
+    user?.role === "superadmin" || user?.role === "bos_it" || user?.role === "pic_web";
   const [items, setItems] = useState<Task[]>([]);
   const [websites, setWebsites] = useState<Record<string, Website>>({});
   const [loading, setLoading] = useState(true);
@@ -51,7 +52,7 @@ export default function TasksPage() {
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
-    if (!authLoading && user && (!canViewTasks(user.role) || user.role === "pic_web")) {
+    if (!authLoading && user && !canViewTasks(user.role)) {
       router.replace("/dashboard");
     }
   }, [authLoading, user, router]);
@@ -79,12 +80,12 @@ export default function TasksPage() {
   }, []);
 
   useEffect(() => {
-    if (!user || !canViewTasks(user.role) || user.role === "pic_web") return;
+    if (!user || !canViewTasks(user.role)) return;
     void loadTasks();
   }, [user, loadTasks]);
 
   useEffect(() => {
-    if (!user || !isReadOnlyViewer) return;
+    if (!user || !isReadOnlyViewer || user.role === "pic_web") return;
     usersApi
       .list({ role: "developer", is_active: true, limit: 100 })
       .then((res) => setDevelopers(res.data))
@@ -115,7 +116,7 @@ export default function TasksPage() {
     }
   }
 
-  if (!user || !canViewTasks(user.role) || user.role === "pic_web") {
+  if (!user || !canViewTasks(user.role)) {
     return (
       <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
         <LoadingState />
@@ -138,7 +139,16 @@ export default function TasksPage() {
 
   const developerOptions = [
     { value: "", label: "Semua developer" },
-    ...developers.map((d) => ({ value: d.id, label: d.name })),
+    ...(user.role === "pic_web"
+      ? Array.from(
+          items.reduce((acc, task) => {
+            if (task.assignee_id && !acc.has(task.assignee_id)) {
+              acc.set(task.assignee_id, task.assignee_name ?? "Tanpa nama");
+            }
+            return acc;
+          }, new Map<string, string>()),
+        ).map(([id, name]) => ({ value: id, label: name }))
+      : developers.map((d) => ({ value: d.id, label: d.name }))),
   ];
 
   const emptyTabCopy: Record<TaskTab, { title: string; description: string }> = {
@@ -164,7 +174,9 @@ export default function TasksPage() {
     <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          {isReadOnlyViewer
+          {user.role === "pic_web"
+            ? "Pantau progress task pada website Anda — tiket yang Anda kirim dan to-do developer terkait."
+            : isReadOnlyViewer
             ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web, delegasi Superadmin, maupun to-do manual."
             : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
         </p>
@@ -238,7 +250,11 @@ export default function TasksPage() {
       {!loading && !error && items.length === 0 ? (
         <EmptyState
           title="Belum ada tugas"
-          description="Tugas yang ditugaskan ke Anda akan muncul di sini."
+          description={
+            user.role === "pic_web"
+              ? "Belum ada tugas pada website Anda."
+              : "Tugas yang ditugaskan ke Anda akan muncul di sini."
+          }
         />
       ) : null}
 

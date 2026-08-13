@@ -20,6 +20,7 @@ import {
   receivesLifecycleNotifications,
   roleLabel,
   canViewTasks,
+  canViewDeveloperWorkload,
 } from "./rbac";
 
 test("USER_ROLES lists the current role model", () => {
@@ -43,11 +44,13 @@ test("global resource / incident view access", () => {
     assert.equal(canViewTasks(role), true);
   }
   assert.equal(canAccessAllMonitoredResources("pic_web"), false);
-  assert.equal(canViewIncidents("pic_web"), false);
-  assert.equal(canViewTasks("pic_web"), false);
+  assert.equal(canViewIncidents("pic_web"), true);
+  assert.equal(canViewTasks("pic_web"), true);
+  assert.equal(canViewDeveloperWorkload("pic_web"), true);
   assert.equal(canAccessAllMonitoredResources("end_user"), false);
   assert.equal(canViewIncidents("end_user"), false);
   assert.equal(canViewTasks("end_user"), false);
+  assert.equal(canViewDeveloperWorkload("end_user"), false);
 });
 
 test("incident mutate is superadmin only; tickets include operational roles", () => {

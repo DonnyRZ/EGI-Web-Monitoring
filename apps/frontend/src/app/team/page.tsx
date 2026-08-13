@@ -53,7 +53,9 @@ export default function TeamWorkloadPage() {
     <AppShell title="Developer">
       <div className="page-toolbar">
         <p className="page-toolbar-desc muted">
-          Ringkasan beban kerja aktif tiap developer (tiket dan to-do sudah digabung agar tidak dihitung dobel), serta yang sudah lewat deadline.
+          {user.role === "pic_web"
+            ? "Beban kerja developer yang menjadi PIC website Anda. Angka hanya menghitung pekerjaan di website milik Anda."
+            : "Ringkasan beban kerja aktif tiap developer (tiket dan to-do sudah digabung agar tidak dihitung dobel), serta yang sudah lewat deadline."}
         </p>
       </div>
 

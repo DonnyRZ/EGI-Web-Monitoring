@@ -85,8 +85,11 @@ export class TasksService {
       if (filters.assignee_id) where.assigneeId = filters.assignee_id;
     } else if (user.role === UserRole.developer) {
       where.assigneeId = user.id;
+    } else if (user.role === UserRole.pic_web) {
+      where.website = { ownerId: user.id };
+      if (filters.assignee_id) where.assigneeId = filters.assignee_id;
     } else {
-      throw new ForbiddenException("Tasks require superadmin, bos_it, or developer role");
+      throw new ForbiddenException("Tasks require superadmin, bos_it, developer, or pic_web role");
     }
 
     if (filters.website_id) where.websiteId = filters.website_id;
