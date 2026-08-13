@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <Image src="/logo-egi.png" alt="EGI" width={48} height={48} />
+          <Image src="/logo-egi.png" alt="EGResources" width={184} height={49} priority />
           <div>
             <h1>Lupa Password</h1>
             <p>Masukkan email untuk menerima link reset password</p>

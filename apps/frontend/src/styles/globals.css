@@ -120,14 +120,16 @@ h3,
 
 .sidebar-brand {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   padding: 22px 20px 18px;
 }
 
 .sidebar-brand img {
-  width: 42px;
-  height: 42px;
+  width: auto;
+  height: 36px;
+  max-width: 100%;
   object-fit: contain;
   background: transparent;
 }
@@ -1816,14 +1818,16 @@ h3,
 
 .login-brand {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 24px;
 }
 
 .login-brand img {
-  width: 48px;
-  height: 48px;
+  width: auto;
+  height: 40px;
+  max-width: 100%;
   object-fit: contain;
   background: transparent;
 }
@@ -2172,8 +2176,8 @@ h1, h2, h3, .page-title {
 }
 
 .page-title { font-size: 1.25rem; line-height: 1.25; }
-.sidebar-brand { gap: 10px; padding: 16px 16px 14px; }
-.sidebar-brand img { width: 34px; height: 34px; }
+.sidebar-brand { gap: 8px; padding: 16px 16px 14px; }
+.sidebar-brand img { width: auto; height: 30px; max-width: 100%; }
 .sidebar-brand-text strong { font-size: 0.94rem; }
 .sidebar-nav { gap: 2px; padding: 10px; }
 .nav-item { gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); font-size: 0.9rem; }

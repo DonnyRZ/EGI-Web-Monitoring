@@ -192,7 +192,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <Image src="/logo-egi.png" alt="EGI" width={42} height={42} />
+          <Image src="/logo-egi.png" alt="EGResources" width={184} height={49} priority />
           <div className="sidebar-brand-text">
             <strong>EGI Monitoring</strong>
             <span>Website Monitoring</span>

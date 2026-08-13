@@ -48,7 +48,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <Image src="/logo-egi.png" alt="EGI" width={48} height={48} />
+          <Image src="/logo-egi.png" alt="EGResources" width={184} height={49} priority />
           <div>
             <h1>EGI Monitoring</h1>
             <p>Masuk untuk memantau website EGI</p>
