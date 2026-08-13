@@ -67,7 +67,7 @@ export class DashboardService {
           error_message AS "errorMessage",
           created_at AS "createdAt"
         FROM monitoring_results
-        WHERE website_id IN (${Prisma.join(ids)})
+        WHERE website_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
         ORDER BY website_id, checked_at DESC
       `,
       this.prisma.incident.findMany({
