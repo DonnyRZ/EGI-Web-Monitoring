@@ -127,6 +127,7 @@ h3,
 }
 
 .sidebar-brand img {
+  display: block;
   width: auto;
   height: 36px;
   max-width: 100%;
@@ -1825,6 +1826,7 @@ h3,
 }
 
 .login-brand img {
+  display: block;
   width: auto;
   height: 40px;
   max-width: 100%;

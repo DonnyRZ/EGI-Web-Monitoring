@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Suspense, FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -51,7 +50,7 @@ function ResetPasswordForm() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <Image src="/logo-egi.png" alt="EGResources" width={184} height={49} priority />
+          <img src="/logo-egi.png" alt="EGResources" />
           <div>
             <h1>Reset Password</h1>
             <p>Buat password baru untuk akun Anda</p>

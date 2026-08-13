@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -48,7 +47,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <Image src="/logo-egi.png" alt="EGResources" width={184} height={49} priority />
+          <img src="/logo-egi.png" alt="EGResources" />
           <div>
             <h1>EGI Monitoring</h1>
             <p>Masuk untuk memantau website EGI</p>

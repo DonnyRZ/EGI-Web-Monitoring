@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -192,7 +191,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <Image src="/logo-egi.png" alt="EGResources" width={184} height={49} priority />
+          <img src="/logo-egi.png" alt="EGResources" />
           <div className="sidebar-brand-text">
             <strong>EGI Monitoring</strong>
             <span>Website Monitoring</span>
