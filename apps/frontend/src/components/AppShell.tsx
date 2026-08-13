@@ -193,7 +193,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
         <div className="sidebar-brand">
           <img src="/logo-egi.png" alt="EGResources" />
           <div className="sidebar-brand-text">
-            <strong>EGI Monitoring</strong>
+            <strong>Hello IT</strong>
             <span>Website Monitoring</span>
           </div>
         </div>

@@ -49,7 +49,7 @@ export default function LoginPage() {
         <div className="login-brand">
           <img src="/logo-egi.png" alt="EGResources" />
           <div>
-            <h1>EGI Monitoring</h1>
+            <h1>Hello IT</h1>
             <p>Masuk untuk memantau website EGI</p>
           </div>
         </div>
