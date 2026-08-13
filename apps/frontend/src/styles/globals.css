@@ -105,6 +105,15 @@ h3,
   background: var(--bg-page);
 }
 
+.app-shell.gallery .shell-main {
+  width: 100%;
+}
+
+.gallery-header-logo {
+  height: 28px;
+  width: auto;
+}
+
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
@@ -1783,18 +1792,32 @@ h3,
 
 .login-links {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-top: 16px;
   font-size: 0.88rem;
 }
 
-.login-links a {
+.login-links a,
+.login-links .link-button {
   color: var(--egi-blue);
   text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
-.login-links a:hover {
+.login-links a:hover,
+.login-links .link-button:hover {
   text-decoration: underline;
+}
+
+.login-links .link-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .login-page {

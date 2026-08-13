@@ -18,6 +18,12 @@ export class AuthController {
     return this.withRefreshCookie(response, await this.authService.login(dto.email, dto.password));
   }
 
+  @Post("guest")
+  @HttpCode(200)
+  async guest(@Res({ passthrough: true }) response: Response) {
+    return this.withRefreshCookie(response, await this.authService.guest());
+  }
+
   @Post("refresh")
   @HttpCode(200)
   async refresh(

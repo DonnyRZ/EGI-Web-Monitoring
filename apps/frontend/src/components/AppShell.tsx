@@ -10,6 +10,7 @@ import {
   canViewIncidents,
   canViewTasks,
   initials,
+  isEndUserPublicDashboard,
 } from "@/lib/format";
 import { incidentsApi, tasksApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
@@ -133,6 +134,8 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     );
   }
 
+  const isGallery = isEndUserPublicDashboard(user.role);
+
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     ...(canViewTasks(user.role)
@@ -179,8 +182,8 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   }
 
   return (
-    <div className="app-shell">
-      {sidebarOpen ? (
+    <div className={`app-shell${isGallery ? " gallery" : ""}`}>
+      {!isGallery && sidebarOpen ? (
         <button
           type="button"
           className="sidebar-overlay"
@@ -189,6 +192,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
         />
       ) : null}
 
+      {!isGallery ? (
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
           <img src="/logo-egi.png" alt="EGResources" />
@@ -230,10 +234,12 @@ export function AppShell({ title, children, actions }: AppShellProps) {
           </button>
         </div>
       </aside>
+      ) : null}
 
       <div className="shell-main">
         <header className="top-header">
           <div className="header-left">
+            {!isGallery ? (
             <button
               type="button"
               className="icon-btn menu-toggle"
@@ -242,14 +248,25 @@ export function AppShell({ title, children, actions }: AppShellProps) {
             >
               <IconMenu />
             </button>
+            ) : (
+              <img src="/logo-egi.png" alt="EGResources" className="gallery-header-logo" />
+            )}
             <h1 className="page-title">{title}</h1>
             {actions}
           </div>
           <div className="header-actions">
-            <NotificationBell />
-            <div className="user-menu" title={user.email}>
-              <span className="avatar">{initials(user.name)}</span>
-            </div>
+            {isGallery ? (
+              <button type="button" className="btn" onClick={() => void onLogout()}>
+                Logout
+              </button>
+            ) : (
+              <>
+                <NotificationBell />
+                <div className="user-menu" title={user.email}>
+                  <span className="avatar">{initials(user.name)}</span>
+                </div>
+              </>
+            )}
           </div>
         </header>
         <main className="content">{children}</main>

@@ -4,6 +4,7 @@ import {
   canViewDeveloperWorkload as sharedCanViewDeveloperWorkload,
   canViewIncidents as sharedCanViewIncidents,
   canViewTasks as sharedCanViewTasks,
+  isEndUserPublicDashboard as sharedIsEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard as sharedOpensWebsiteExternallyFromDashboard,
   roleLabel as sharedRoleLabel,
 } from "@egi/shared-types";
@@ -21,6 +22,7 @@ export const canManagePlatform = sharedCanManagePlatform;
 export const canViewIncidents = sharedCanViewIncidents;
 export const canViewTasks = sharedCanViewTasks;
 export const canViewDeveloperWorkload = sharedCanViewDeveloperWorkload;
+export const isEndUserPublicDashboard = sharedIsEndUserPublicDashboard;
 export const opensWebsiteExternallyFromDashboard =
   sharedOpensWebsiteExternallyFromDashboard;
 export const roleLabel = (role: UserRole) => sharedRoleLabel(role);

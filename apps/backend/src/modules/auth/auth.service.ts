@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { NotificationChannel, NotificationStatus } from "@egi/database";
+import { NotificationChannel, NotificationStatus, UserRole } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { createRefreshToken, hashPassword, hashToken, verifyPassword } from "../../common/crypto";
 import { toUserDto } from "../../common/mappers";
@@ -11,6 +11,9 @@ const RESET_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RESET_RATE_LIMIT_MAX_REQUESTS = 3;
 const GENERIC_FORGOT_PASSWORD_MESSAGE =
   "Jika email terdaftar, kami mengirimkan link reset password ke email tersebut.";
+const DEFAULT_GUEST_EMAIL = "guest@egiresources.com";
+
+type SessionUser = Parameters<typeof toUserDto>[0] & { isActive: boolean; role: string };
 
 @Injectable()
 export class AuthService {
@@ -29,6 +32,23 @@ export class AuthService {
       throw new UnauthorizedException("Invalid email or password");
     }
 
+    return this.issueSession(user, "auth_login_success");
+  }
+
+  async guest() {
+    const email = process.env.GUEST_EMAIL ?? DEFAULT_GUEST_EMAIL;
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive || user.role !== UserRole.end_user) {
+      this.logger.warn("auth_guest_unavailable", undefined, {
+        email_domain: email.split("@")[1] ?? "unknown",
+      });
+      throw new UnauthorizedException("Guest access is unavailable");
+    }
+
+    return this.issueSession(user, "auth_guest_login");
+  }
+
+  private async issueSession(user: SessionUser, event: string) {
     const refreshToken = createRefreshToken();
     const refreshDays = 7;
     const expiresAt = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000);
@@ -47,7 +67,7 @@ export class AuthService {
       role: user.role,
     });
 
-    this.logger.log("auth_login_success", undefined, {
+    this.logger.log(event, undefined, {
       user_id: user.id,
       user_role: user.role,
     });

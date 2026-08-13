@@ -9,7 +9,7 @@ import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { dashboardApi, tasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { formatRelative, opensWebsiteExternallyFromDashboard } from "@/lib/format";
+import { formatRelative, isEndUserPublicDashboard, opensWebsiteExternallyFromDashboard } from "@/lib/format";
 import type { DashboardWebsiteCard } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
@@ -18,6 +18,7 @@ type StatusFilter = "active" | "down" | "my_tasks";
 export default function DashboardPage() {
   const { user } = useAuth();
   const isDeveloper = user?.role === "developer";
+  const isGallery = isEndUserPublicDashboard(user?.role);
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,7 +32,11 @@ export default function DashboardPage() {
       setLoading(true);
       setError("");
       try {
-        const status = statusFilter === "my_tasks" ? undefined : statusFilter;
+        const status = isGallery
+          ? undefined
+          : statusFilter === "my_tasks"
+            ? undefined
+            : statusFilter;
         const res = await dashboardApi.list(status);
         if (!cancelled) setCards(res.data);
       } catch (err) {
@@ -45,7 +50,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter]);
+  }, [statusFilter, isGallery]);
 
   useEffect(() => {
     if (statusFilter !== "my_tasks" || !isDeveloper || myTaskWebsiteIds) return;
@@ -79,6 +84,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell title="Dashboard">
+      {!isGallery ? (
       <div className="toolbar">
         <Select
           value={statusFilter}
@@ -94,6 +100,7 @@ export default function DashboardPage() {
           {statusFilter === "my_tasks" && !myTaskWebsiteIds ? "Memuat…" : `${filtered.length} website`}
         </span>
       </div>
+      ) : null}
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading || (statusFilter === "my_tasks" && !myTaskWebsiteIds) ? <LoadingState /> : null}

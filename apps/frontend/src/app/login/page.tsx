@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api";
 import { ErrorBanner } from "@/components/ui";
 
 export default function LoginPage() {
-  const { user, loading, login } = useAuth();
+  const { user, loading, login, loginAsGuest } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("egi.egiholding@gmail.com");
   const [password, setPassword] = useState("");
@@ -28,6 +28,19 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Login gagal. Coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onGuest() {
+    setError("");
+    setSubmitting(true);
+    try {
+      await loginAsGuest();
+      router.replace("/dashboard");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Login tamu gagal. Coba lagi.");
     } finally {
       setSubmitting(false);
     }
@@ -90,6 +103,9 @@ export default function LoginPage() {
 
         <div className="login-links">
           <Link href="/forgot-password">Lupa password?</Link>
+          <button type="button" className="link-button" onClick={() => void onGuest()} disabled={submitting}>
+            login as guest
+          </button>
         </div>
       </div>
     </div>

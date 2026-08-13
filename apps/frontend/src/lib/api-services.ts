@@ -34,6 +34,12 @@ export const authApi = {
       body: { email, password },
       auth: false,
     }),
+  guest: () =>
+    apiFetch<LoginResponse>("/auth/guest", {
+      method: "POST",
+      body: {},
+      auth: false,
+    }),
   me: () => apiFetch<User>("/auth/me"),
   refresh: () => apiFetch<LoginResponse>("/auth/refresh", { method: "POST", body: {}, auth: false, skipRefresh: true }),
   logout: () =>

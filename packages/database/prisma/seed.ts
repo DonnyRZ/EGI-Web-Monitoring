@@ -49,6 +49,7 @@ function domainFromUrl(url: string): string {
 
 const ADMIN_EMAIL = "egi.egiholding@gmail.com";
 const DEVELOPER_EMAIL = "donny@egiresources.com";
+const GUEST_EMAIL = "guest@egiresources.com";
 const LEGACY_ADMIN_EMAIL = "admin@egi.co.id";
 
 const websites = [
@@ -104,6 +105,26 @@ export function buildAdminUpsertData(env: NodeJS.ProcessEnv) {
   };
 }
 
+export function buildGuestUpsertData(env: NodeJS.ProcessEnv) {
+  const email = env.GUEST_EMAIL ?? env.SEED_GUEST_EMAIL ?? GUEST_EMAIL;
+  return {
+    email,
+    create: {
+      name: "Guest",
+      email,
+      passwordHash: hashPassword(randomBytes(32).toString("hex")),
+      role: UserRole.end_user,
+      emailVerifiedAt: new Date(),
+      isActive: true,
+    },
+    update: {
+      isActive: true,
+      role: UserRole.end_user,
+      name: "Guest",
+    },
+  };
+}
+
 export function buildDeveloperUpsertData(env: NodeJS.ProcessEnv) {
   const email = env.SEED_DEVELOPER_EMAIL ?? DEVELOPER_EMAIL;
   const password =
@@ -129,6 +150,7 @@ export function buildDeveloperUpsertData(env: NodeJS.ProcessEnv) {
 async function main() {
   const adminUpsertData = buildAdminUpsertData(process.env);
   const developerUpsertData = buildDeveloperUpsertData(process.env);
+  const guestUpsertData = buildGuestUpsertData(process.env);
 
   // Migrate the legacy dummy admin to the real address without creating a
   // duplicate: rename it in place (keeping its existing password) when the
@@ -166,6 +188,15 @@ async function main() {
     create: developerUpsertData.create,
   });
 
+  const guestExisted = Boolean(
+    await prisma.user.findUnique({ where: { email: guestUpsertData.email } }),
+  );
+  const guest = await prisma.user.upsert({
+    where: { email: guestUpsertData.email },
+    update: guestUpsertData.update,
+    create: guestUpsertData.create,
+  });
+
   for (const site of websites) {
     const existing = await prisma.website.findFirst({
       where: { url: site.url },
@@ -192,6 +223,9 @@ async function main() {
   );
   console.log(
     `Developer: ${developer.email} (${developerExisted ? "existing, password untouched" : "created"})`,
+  );
+  console.log(
+    `Guest: ${guest.email} (${guestExisted ? "existing, password untouched" : "created"})`,
   );
   console.log(`Websites checked: ${websites.length}`);
 }

@@ -29,6 +29,60 @@ test("refresh rejects a replay that loses the atomic rotation race", async () =>
   await assert.rejects(() => makeService(0).refresh("replayed-token"), /Invalid refresh token/);
 });
 
+const guestUser = {
+  id: "guest-1",
+  name: "Guest",
+  email: "guest@egiresources.com",
+  role: "end_user",
+  telegramChatId: null,
+  emailVerifiedAt: new Date(),
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+function makeGuestService(user: typeof guestUser | (Omit<typeof guestUser, "role" | "isActive"> & { role: string; isActive: boolean }) | null) {
+  const sessions: Record<string, unknown>[] = [];
+  const prisma = {
+    user: {
+      findUnique: async () => user,
+    },
+    userSession: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        sessions.push(data);
+        return data;
+      },
+    },
+  };
+  const jwt = { signAsync: async () => "guest-access-token" };
+  return { service: new AuthService(prisma as never, jwt as never), sessions };
+}
+
+test("guest issues tokens for the seeded end_user without a password", async () => {
+  const { service, sessions } = makeGuestService(guestUser);
+
+  const response = await service.guest();
+
+  assert.equal(response.access_token, "guest-access-token");
+  assert.ok(response.refresh_token);
+  assert.equal(response.user.role, "end_user");
+  assert.equal(response.user.email, guestUser.email);
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0]?.userId, guestUser.id);
+});
+
+test("guest fails when the account is missing or inactive", async () => {
+  await assert.rejects(() => makeGuestService(null).service.guest(), /unavailable/);
+  await assert.rejects(
+    () => makeGuestService({ ...guestUser, isActive: false }).service.guest(),
+    /unavailable/,
+  );
+  await assert.rejects(
+    () => makeGuestService({ ...guestUser, role: "developer" }).service.guest(),
+    /unavailable/,
+  );
+});
+
 type ResetOverrides = {
   user?: { id: string; email: string; name: string; isActive: boolean } | null;
   recentCount?: number;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAdminUpsertData, buildDeveloperUpsertData } from "./seed";
+import { buildAdminUpsertData, buildDeveloperUpsertData, buildGuestUpsertData } from "./seed";
 
 const envWith = (overrides: NodeJS.ProcessEnv) => ({ ...overrides }) as NodeJS.ProcessEnv;
 
@@ -59,9 +59,14 @@ test("email defaults can be overridden via env", () => {
 test("update payloads still force isActive and role as a lockout safety-net", () => {
   const admin = buildAdminUpsertData(envWith({}));
   const developer = buildDeveloperUpsertData(envWith({}));
+  const guest = buildGuestUpsertData(envWith({}));
 
   assert.equal(admin.update.isActive, true);
   assert.equal(admin.update.role, "superadmin");
   assert.equal(developer.update.isActive, true);
   assert.equal(developer.update.role, "developer");
+  assert.equal(guest.update.isActive, true);
+  assert.equal(guest.update.role, "end_user");
+  assert.equal("passwordHash" in guest.update, false);
+  assert.equal(guest.email, "guest@egiresources.com");
 });
