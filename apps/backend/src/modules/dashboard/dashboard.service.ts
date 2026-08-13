@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { IncidentStatus, MonitoringStatus } from "@egi/database";
+import { IncidentStatus, MonitoringStatus, Prisma } from "@egi/database";
 import { isEndUserPublicDashboard } from "@egi/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
@@ -7,6 +7,7 @@ import {
   toMonitoringResultDto,
   toWebsiteDto,
 } from "../../common/mappers";
+import { createScreenshotSignedUrl } from "../../common/s3";
 import { canOperateScopedResources, websiteOwnerScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
@@ -15,51 +16,124 @@ const ACTIVE_STATUSES = [
   IncidentStatus.in_progress,
 ] as const;
 
+export type DashboardStatusFilter = "active" | "down";
+
+type LatestResultRow = {
+  id: string;
+  websiteId: string;
+  scheduledAt: Date;
+  checkedAt: Date;
+  status: MonitoringStatus;
+  httpStatus: number | null;
+  responseTimeMs: number | null;
+  renderTimeMs: number | null;
+  screenshotUrl: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+};
+
+type DashboardLatestResult = ReturnType<typeof toMonitoringResultDto> & {
+  screenshot_signed_url?: string | null;
+  screenshot_expires_at?: Date;
+};
+
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async main(user: AuthUser) {
+  async main(user: AuthUser, statusFilter?: DashboardStatusFilter) {
     const websites = await this.prisma.website.findMany({
       where: { isActive: true, ...websiteOwnerScope(user) },
       orderBy: { name: "asc" },
-      include: {
-        monitoringResults: {
-          orderBy: { checkedAt: "desc" },
-          take: 1,
-        },
-        incidents: {
-          where: { status: { in: [...ACTIVE_STATUSES] } },
-          orderBy: { startedAt: "desc" },
-          take: 1,
-        },
-      },
     });
+
+    if (websites.length === 0) {
+      return { data: [] };
+    }
+
+    const ids = websites.map((website) => website.id);
+    const [latestRows, incidents] = await Promise.all([
+      this.prisma.$queryRaw<LatestResultRow[]>`
+        SELECT DISTINCT ON (website_id)
+          id,
+          website_id AS "websiteId",
+          scheduled_at AS "scheduledAt",
+          checked_at AS "checkedAt",
+          status,
+          http_status AS "httpStatus",
+          response_time_ms AS "responseTimeMs",
+          render_time_ms AS "renderTimeMs",
+          screenshot_url AS "screenshotUrl",
+          error_message AS "errorMessage",
+          created_at AS "createdAt"
+        FROM monitoring_results
+        WHERE website_id IN (${Prisma.join(ids)})
+        ORDER BY website_id, checked_at DESC
+      `,
+      this.prisma.incident.findMany({
+        where: {
+          websiteId: { in: ids },
+          status: { in: [...ACTIVE_STATUSES] },
+        },
+        orderBy: { startedAt: "desc" },
+      }),
+    ]);
+
+    const latestByWebsite = new Map(latestRows.map((row) => [row.websiteId, row]));
+    const incidentByWebsite = new Map<string, (typeof incidents)[number]>();
+    for (const incident of incidents) {
+      if (!incidentByWebsite.has(incident.websiteId)) {
+        incidentByWebsite.set(incident.websiteId, incident);
+      }
+    }
 
     const endUserView = isEndUserPublicDashboard(user.role);
 
-    const data = websites
+    const cards = websites
       .map((website) => {
-        const latestResult = website.monitoringResults[0] ?? null;
-        const activeIncident = website.incidents[0] ?? null;
+        const latestResult = latestByWebsite.get(website.id) ?? null;
+        const activeIncident = incidentByWebsite.get(website.id) ?? null;
         return {
           website: toWebsiteDto(website),
-          latest_result: latestResult ? toMonitoringResultDto(latestResult) : null,
+          latest_result: latestResult
+            ? (toMonitoringResultDto(latestResult) as DashboardLatestResult)
+            : null,
           active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
         };
       })
       .filter((card) => {
-        if (!endUserView) return true;
-        // Public gallery: hide inactive (already), down, and unknown.
         const status = card.latest_result?.status;
-        return (
-          status != null &&
-          status !== MonitoringStatus.down &&
-          status !== MonitoringStatus.unknown
-        );
+        if (endUserView) {
+          return (
+            status != null &&
+            status !== MonitoringStatus.down &&
+            status !== MonitoringStatus.unknown
+          );
+        }
+        if (statusFilter === "active") {
+          return status === MonitoringStatus.normal || status === MonitoringStatus.warning;
+        }
+        if (statusFilter === "down") {
+          return status === MonitoringStatus.down;
+        }
+        return true;
       });
 
-    return { data };
+    await Promise.all(
+      cards.map(async (card) => {
+        const key = card.latest_result?.screenshot_url;
+        if (!key || !card.latest_result) return;
+        try {
+          const signed = await createScreenshotSignedUrl(key);
+          card.latest_result.screenshot_signed_url = signed.url;
+          card.latest_result.screenshot_expires_at = signed.expiresAt;
+        } catch {
+          card.latest_result.screenshot_signed_url = null;
+        }
+      }),
+    );
+
+    return { data: cards };
   }
 
   async detail(websiteId: string, historyLimit: number, user: AuthUser) {

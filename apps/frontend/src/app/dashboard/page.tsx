@@ -31,7 +31,8 @@ export default function DashboardPage() {
       setLoading(true);
       setError("");
       try {
-        const res = await dashboardApi.list();
+        const status = statusFilter === "my_tasks" ? undefined : statusFilter;
+        const res = await dashboardApi.list(status);
         if (!cancelled) setCards(res.data);
       } catch (err) {
         if (!cancelled) {
@@ -44,7 +45,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
     if (statusFilter !== "my_tasks" || !isDeveloper || myTaskWebsiteIds) return;
@@ -73,11 +74,7 @@ export default function DashboardPage() {
       if (!myTaskWebsiteIds) return [];
       return cards.filter((c) => myTaskWebsiteIds.has(c.website.id));
     }
-    return cards.filter((c) => {
-      const status = c.latest_result?.status || "unknown";
-      if (statusFilter === "active") return status === "normal" || status === "warning";
-      return status === statusFilter;
-    });
+    return cards;
   }, [cards, statusFilter, myTaskWebsiteIds]);
 
   return (
@@ -126,6 +123,7 @@ export default function DashboardPage() {
                   <ScreenshotImage
                     resultId={card.latest_result?.id}
                     hasScreenshot={Boolean(card.latest_result?.screenshot_url)}
+                    signedUrl={card.latest_result?.screenshot_signed_url}
                     alt={`Screenshot ${card.website.name}`}
                   />
                 </div>

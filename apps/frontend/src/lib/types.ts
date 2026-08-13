@@ -58,6 +58,8 @@ export interface MonitoringResult {
   response_time_ms: number | null;
   render_time_ms: number | null;
   screenshot_url: string | null;
+  screenshot_signed_url?: string | null;
+  screenshot_expires_at?: string | null;
   error_message: string | null;
   created_at: string;
 }

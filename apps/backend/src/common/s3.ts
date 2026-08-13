@@ -5,7 +5,10 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+let cachedClient: S3Client | null = null;
+
 export function createS3Client(): S3Client {
+  if (cachedClient) return cachedClient;
   // Workers use the private Docker endpoint for uploads. Signed URLs must use
   // an endpoint reachable by the browser through the public Nginx vhost.
   const endpoint =
@@ -15,7 +18,7 @@ export function createS3Client(): S3Client {
   const forcePathStyle =
     (process.env.S3_FORCE_PATH_STYLE ?? "true").toLowerCase() !== "false";
 
-  return new S3Client({
+  cachedClient = new S3Client({
     region: process.env.S3_REGION || "us-east-1",
     endpoint,
     forcePathStyle,
@@ -24,6 +27,7 @@ export function createS3Client(): S3Client {
       secretAccessKey: process.env.S3_SECRET_KEY || "change_me_minio",
     },
   });
+  return cachedClient;
 }
 
 function getBucket(): string {
@@ -52,7 +56,6 @@ export async function createScreenshotSignedUrl(
   const bucket = getBucket();
   const key = screenshotRef.replace(/^\//, "");
 
-  // Optional existence check — if MinIO is down, still attempt signing
   const url = await getSignedUrl(
     client,
     new GetObjectCommand({ Bucket: bucket, Key: key }),

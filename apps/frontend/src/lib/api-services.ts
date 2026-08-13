@@ -56,7 +56,8 @@ export const authApi = {
 };
 
 export const dashboardApi = {
-  list: () => apiFetch<{ data: DashboardWebsiteCard[] }>("/dashboard"),
+  list: (status?: "active" | "down") =>
+    apiFetch<{ data: DashboardWebsiteCard[] }>(`/dashboard${qs({ status })}`),
   website: (id: string, history_limit = 48) =>
     apiFetch<WebsiteDetailResponse>(
       `/dashboard/websites/${id}${qs({ history_limit })}`,

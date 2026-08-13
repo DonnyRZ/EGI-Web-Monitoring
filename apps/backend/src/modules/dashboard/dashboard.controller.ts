@@ -2,7 +2,7 @@ import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from "@nestjs
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { DashboardService } from "./dashboard.service";
-import { WebsiteDetailQueryDto } from "./dashboard.dto";
+import { DashboardQueryDto, WebsiteDetailQueryDto } from "./dashboard.dto";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 
 @ApiTags("Dashboard")
@@ -13,8 +13,8 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get()
-  main(@CurrentUser() user: AuthUser) {
-    return this.dashboardService.main(user);
+  main(@Query() query: DashboardQueryDto, @CurrentUser() user: AuthUser) {
+    return this.dashboardService.main(user, query.status);
   }
 
   @Get("websites/:websiteId")
