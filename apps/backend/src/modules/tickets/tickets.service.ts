@@ -263,6 +263,13 @@ export class TicketsService {
     }
 
     const canEditSla = canManagePlatform(user.role) || user.role === "bos_it";
+    const nextAssigneeId = canEditSla ? dto.assigned_to : undefined;
+    const assigneeChanged =
+      nextAssigneeId !== undefined && nextAssigneeId !== existing.assignedTo;
+
+    if (assigneeChanged && nextAssigneeId) {
+      await this.assertActiveDeveloper(nextAssigneeId);
+    }
 
     const ticket = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.ticket.update({
@@ -290,10 +297,88 @@ export class TicketsService {
         await this.syncTaskFromTicket(tx, updated);
       }
 
+      if (assigneeChanged) {
+        await this.notifyTicketReassignment(tx, updated, existing.assignedTo, user);
+      }
+
       return updated;
     });
 
     return toTicketDto(ticket);
+  }
+
+  private async assertActiveDeveloper(userId: string) {
+    const assignee = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, isActive: true },
+    });
+    if (!assignee) throw new NotFoundException("Assignee not found");
+    if (!assignee.isActive) throw new BadRequestException("Assignee is inactive");
+    if (assignee.role !== UserRole.developer) {
+      throw new BadRequestException("Assignee must have the developer role");
+    }
+  }
+
+  private async notifyTicketReassignment(
+    tx: Prisma.TransactionClient,
+    ticket: {
+      id: string;
+      title: string;
+      websiteId: string | null;
+      incidentId: string | null;
+      assignedTo: string | null;
+    },
+    previousAssigneeId: string | null,
+    actor: AuthUser,
+  ) {
+    const website = ticket.websiteId
+      ? await tx.website.findUnique({
+          where: { id: ticket.websiteId },
+          select: { name: true },
+        })
+      : null;
+    const now = new Date();
+    const siteLine = website ? `Website: ${website.name}` : null;
+
+    if (previousAssigneeId) {
+      await tx.notification.create({
+        data: {
+          userId: previousAssigneeId,
+          incidentId: ticket.incidentId ?? undefined,
+          channel: NotificationChannel.dashboard,
+          title: `Tiket dialihkan: ${ticket.title}`,
+          message: [
+            "Tiket/task ini dialihkan ke developer lain.",
+            siteLine,
+            `Dialihkan oleh: ${actor.email}`,
+          ]
+            .filter((line): line is string => Boolean(line))
+            .join("\n"),
+          status: NotificationStatus.sent,
+          sentAt: now,
+        },
+      });
+    }
+
+    if (ticket.assignedTo) {
+      await tx.notification.create({
+        data: {
+          userId: ticket.assignedTo,
+          incidentId: ticket.incidentId ?? undefined,
+          channel: NotificationChannel.dashboard,
+          title: `Tiket ditugaskan: ${ticket.title}`,
+          message: [
+            "Tiket/task ini ditugaskan kepada Anda.",
+            siteLine,
+            `Ditugaskan oleh: ${actor.email}`,
+          ]
+            .filter((line): line is string => Boolean(line))
+            .join("\n"),
+          status: NotificationStatus.sent,
+          sentAt: now,
+        },
+      });
+    }
   }
 
   /** Keep the linked task's assignee/deadline aligned with the ticket after Bos IT/Superadmin edits it. */

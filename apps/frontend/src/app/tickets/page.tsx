@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { ticketsApi, websitesApi } from "@/lib/api-services";
+import { ticketsApi, websitesApi, workloadApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   clipText,
@@ -14,7 +15,7 @@ import {
   localInputToIso,
   ticketStatusLabel,
 } from "@/lib/format";
-import type { Ticket, Website } from "@/lib/types";
+import type { DeveloperWorkload, Ticket, Website } from "@/lib/types";
 
 function isOverdue(ticket: Ticket) {
   if (ticket.status === "resolved" || ticket.status === "closed" || !ticket.sla_deadline) return false;
@@ -31,6 +32,7 @@ export default function TicketsInboxPage() {
   const router = useRouter();
   const [items, setItems] = useState<Ticket[]>([]);
   const [websites, setWebsites] = useState<Record<string, Website>>({});
+  const [developers, setDevelopers] = useState<DeveloperWorkload[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -54,12 +56,14 @@ export default function TicketsInboxPage() {
       setError("");
     }
     try {
-      const [ticketRes, websitesRes] = await Promise.all([
+      const [ticketRes, websitesRes, developerRes] = await Promise.all([
         ticketsApi.list({ limit: 100 }),
         websitesApi.list({ limit: 100 }).catch(() => ({ data: [] as Website[] })),
+        workloadApi.developers().catch(() => [] as DeveloperWorkload[]),
       ]);
       setItems(ticketRes.data);
       setWebsites(Object.fromEntries(websitesRes.data.map((w) => [w.id, w])));
+      setDevelopers(developerRes);
       setSlaDrafts(
         Object.fromEntries(ticketRes.data.map((t) => [t.id, isoToLocalInput(t.sla_deadline)])),
       );
@@ -78,7 +82,21 @@ export default function TicketsInboxPage() {
     void loadTickets();
   }, [user, loadTickets]);
 
-  async function updateTicket(ticketId: string, body: { sla_deadline?: string }) {
+  function developerOptions(ticket: Ticket) {
+    const options = developers.map((d) => ({
+      value: d.developer_id,
+      label: d.developer_name,
+    }));
+    if (ticket.assigned_to && !options.some((o) => o.value === ticket.assigned_to)) {
+      options.unshift({
+        value: ticket.assigned_to,
+        label: ticket.assigned_to_name || "Developer",
+      });
+    }
+    return options;
+  }
+
+  async function updateTicket(ticketId: string, body: { sla_deadline?: string; assigned_to?: string }) {
     setActionError("");
     setUpdatingId(ticketId);
     try {
@@ -172,7 +190,20 @@ export default function TicketsInboxPage() {
                     <td style={{ maxWidth: 220 }} title={ticket.expectation ?? undefined}>
                       {ticket.expectation ? clipText(ticket.expectation, 120) : <span className="muted">-</span>}
                     </td>
-                    <td>{ticket.assigned_to_name || <span className="muted">Belum ada developer</span>}</td>
+                    <td>
+                      <Select
+                        value={ticket.assigned_to ?? ""}
+                        options={developerOptions(ticket)}
+                        placeholder="Belum ada developer"
+                        aria-label="Developer"
+                        disabled={busy || ticket.status === "resolved" || ticket.status === "closed"}
+                        style={{ minWidth: 180 }}
+                        onChange={(value) => {
+                          if (!value || value === ticket.assigned_to) return;
+                          void updateTicket(ticket.id, { assigned_to: value });
+                        }}
+                      />
+                    </td>
                     <td>
                       <div className="row-actions" style={{ justifyContent: "flex-start" }}>
                         <input
