@@ -251,7 +251,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
             ) : (
               <img src="/logo-egi.png" alt="EGResources" className="gallery-header-logo" />
             )}
-            <h1 className="page-title">{title}</h1>
+            {!isGallery ? <h1 className="page-title">{title}</h1> : null}
             {actions}
           </div>
           <div className="header-actions">
