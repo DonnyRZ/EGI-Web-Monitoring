@@ -45,15 +45,15 @@ Migration menggunakan `prisma migrate deploy`. Jangan memakai `db push`, down mi
 
 ## Backfill Project
 
-Jalankan dry-run dari source release sebelum apply. Backend image sudah menyediakan runtime `ts-node` untuk script backfill:
+Jalankan dry-run dari source release sebelum apply. Backend image menyediakan `tsx` pada runtime tooling untuk script backfill:
 
-    docker compose --env-file .env -f deploy/docker-compose.vps.yml run --rm --no-deps backend node -r /opt/egi-runtime/node_modules/ts-node/register apps/backend/scripts/project-backfill.ts
+    docker compose --env-file .env -f deploy/docker-compose.vps.yml run --rm --no-deps backend /opt/egi-runtime/node_modules/.bin/tsx apps/backend/scripts/project-backfill.ts
 
 Review hasilnya. Hentikan deployment jika terdapat assignment issue, inactive user, role mismatch, konflik project/status/ticket, jumlah Website tidak sesuai, atau `user_stories_to_create` bukan `0`.
 
 Jika report valid dan backup sudah diverifikasi, jalankan apply satu kali:
 
-    docker compose --env-file .env -f deploy/docker-compose.vps.yml run --rm --no-deps -e PROJECT_BACKFILL_APPLY=YES -e PROJECT_BACKFILL_BACKUP=VERIFIED backend node -r /opt/egi-runtime/node_modules/ts-node/register apps/backend/scripts/project-backfill.ts
+    docker compose --env-file .env -f deploy/docker-compose.vps.yml run --rm --no-deps -e PROJECT_BACKFILL_APPLY=YES -e PROJECT_BACKFILL_BACKUP=VERIFIED backend /opt/egi-runtime/node_modules/.bin/tsx apps/backend/scripts/project-backfill.ts
 
 Backfill berjalan dalam satu transaction. Jangan menjalankan seed bersamaan.
 
