@@ -6,6 +6,10 @@ x-logging: &egi-logging
     max-size: "50m"
     max-file: "10"
 
+x-app-build: &app-build
+  context: ..
+  dockerfile: deploy/Dockerfile.service
+
 x-database-environment: &egi-database-environment
   DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
 
@@ -17,7 +21,7 @@ x-redis-environment: &egi-redis-environment
 
 services:
   redis:
-    image: ${REDIS_IMAGE:?Set REDIS_IMAGE}
+    image: redis:7-alpine
     restart: unless-stopped
     logging: *egi-logging
     command: >-
@@ -40,7 +44,7 @@ services:
       start_period: 5s
 
   minio:
-    image: ${MINIO_IMAGE:?Set MINIO_IMAGE}
+    image: minio/minio:latest
     restart: unless-stopped
     logging: *egi-logging
     command: server /data --console-address ":9001"
@@ -54,56 +58,23 @@ services:
 
   backend-migrate:
     profiles: ["ops"]
-    image: ${MIGRATION_IMAGE:?Set MIGRATION_IMAGE}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.migration
     restart: "no"
     logging: *egi-logging
-    working_dir: /app
-    command:
-      - sh
-      - -c
-      - >-
-        install -d /tmp/egi-migration-tools;
-        cp /app/deploy/migration-tools/package*.json /tmp/egi-migration-tools/;
-        npm ci --prefix /tmp/egi-migration-tools --ignore-scripts --no-audit --no-fund;
-        exec /tmp/egi-migration-tools/node_modules/.bin/prisma migrate deploy
-        --schema /app/packages/database/prisma/schema.prisma
     environment:
       NODE_ENV: production
       <<: *egi-database-environment
-    volumes:
-      - ${DEPLOY_APP_DIR:?Set DEPLOY_APP_DIR}/packages/database:/app/packages/database:ro
-      - ${DEPLOY_APP_DIR:?Set DEPLOY_APP_DIR}/deploy/migration-tools:/app/deploy/migration-tools:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  backend-seed:
-    profiles: ["ops-seed"]
-    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
-    restart: "no"
-    logging: *egi-logging
-    command:
-      - sh
-      - -c
-      - >-
-        test -n "$$SEED_ADMIN_PASSWORD" ||
-        (echo "SEED_ADMIN_PASSWORD is required for an explicit seed run" >&2 && exit 64);
-        node -r /opt/egi-runtime/node_modules/ts-node/register packages/database/prisma/seed.ts
-    environment:
-      NODE_ENV: production
-      <<: *egi-database-environment
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
-      SEED_DEVELOPER_EMAIL: ${SEED_DEVELOPER_EMAIL:-}
-      SEED_DEVELOPER_PASSWORD: ${SEED_DEVELOPER_PASSWORD:-}
-      SEED_BOS_IT_EMAIL: ${SEED_BOS_IT_EMAIL:-}
-      SEED_BOS_IT_PASSWORD: ${SEED_BOS_IT_PASSWORD:-}
-      SEED_PIC_WEB_EMAIL: ${SEED_PIC_WEB_EMAIL:-}
-      SEED_PIC_WEB_PASSWORD: ${SEED_PIC_WEB_PASSWORD:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
   backend:
-    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    build:
+      <<: *app-build
+      args:
+        BASE_IMAGE: node:20-bookworm-slim
+        SERVICE: "@egi/backend"
     restart: unless-stopped
     logging: *egi-logging
     command: ["node", "apps/backend/dist/main.js"]
@@ -149,7 +120,12 @@ services:
       start_period: 15s
 
   frontend:
-    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/frontend:${IMAGE_TAG:?Set IMAGE_TAG}
+    build:
+      <<: *app-build
+      args:
+        BASE_IMAGE: node:20-bookworm-slim
+        SERVICE: "@egi/frontend"
+        NEXT_PUBLIC_API_URL: /api
     restart: unless-stopped
     logging: *egi-logging
     command: ["node", "node_modules/next/dist/bin/next", "start", "-p", "3010"]
@@ -168,10 +144,13 @@ services:
       start_period: 10s
 
   scheduler:
-    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/scheduler:${IMAGE_TAG:?Set IMAGE_TAG}
+    build:
+      <<: *app-build
+      args:
+        BASE_IMAGE: node:20-bookworm-slim
+        SERVICE: "@egi/scheduler"
     restart: unless-stopped
     logging: *egi-logging
-    command: ["node", "apps/scheduler/dist/main.js"]
     environment:
       NODE_ENV: production
       <<: [*egi-database-environment, *egi-redis-environment]
@@ -186,10 +165,13 @@ services:
         condition: service_healthy
 
   worker:
-    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/worker:${IMAGE_TAG:?Set IMAGE_TAG}
+    build:
+      <<: *app-build
+      args:
+        BASE_IMAGE: mcr.microsoft.com/playwright:v1.61.1-noble
+        SERVICE: "@egi/worker"
     restart: unless-stopped
     logging: *egi-logging
-    command: ["node", "apps/worker/dist/main.js"]
     environment:
       NODE_ENV: production
       <<: [*egi-database-environment, *egi-redis-environment]

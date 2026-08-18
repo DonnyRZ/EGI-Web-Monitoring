@@ -1,0 +1,13 @@
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+COPY deploy/migration-tools/package.json deploy/migration-tools/package-lock.json /app/deploy/migration-tools/
+RUN npm ci --prefix /app/deploy/migration-tools --ignore-scripts --no-audit --no-fund \
+ && rm -rf /root/.npm
+
+COPY packages/database/prisma /app/packages/database/prisma
+
+ENV NODE_ENV=production
+ENTRYPOINT ["/app/deploy/migration-tools/node_modules/.bin/prisma"]
+CMD ["migrate", "deploy", "--schema", "/app/packages/database/prisma/schema.prisma"]
