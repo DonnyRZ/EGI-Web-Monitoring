@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toWebsiteDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { assertSafeMonitoringUrl } from "../../common/monitoring-url";
-import { canAccessAllMonitoredResources } from "../../common/resource-access";
+import { canAccessAllMonitoredResources, websiteVisibilityScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 import { CreateWebsiteDto, UpdateWebsiteDto, WebsitesQueryDto } from "./websites.dto";
 
@@ -15,7 +15,13 @@ export class WebsitesService {
   async list(pagination: PaginationQueryDto, filters: WebsitesQueryDto, user: AuthUser) {
     const where: Prisma.WebsiteWhereInput = {};
     if (filters.is_active !== undefined) where.isActive = filters.is_active;
-    if (!canAccessAllMonitoredResources(user)) where.ownerId = user.id;
+    if (user.role === "pic_web" || user.role === "developer") {
+      Object.assign(where, websiteVisibilityScope(user));
+    } else if (!canAccessAllMonitoredResources(user)) {
+      // Keep the legacy end-user website lookup compatible with the public
+      // gallery while Project pages remain unavailable to end users.
+      where.ownerId = user.id;
+    }
 
     const [total, websites] = await this.prisma.$transaction([
       this.prisma.website.count({ where }),
@@ -38,11 +44,13 @@ export class WebsitesService {
     await this.assertOwnerExists(dto.owner_id);
     await this.assertDeveloperExists(dto.it_pic_id);
     await this.assertDeveloperExists(dto.backup_it_pic_id);
+    if (dto.project_id) await this.assertProjectExists(dto.project_id);
     const website = await this.prisma.website.create({
       data: {
         name: dto.name,
         domain: dto.domain,
         url: dto.url,
+        projectId: dto.project_id,
         ownerId: dto.owner_id,
         itPicId: dto.it_pic_id,
         backupItPicId: dto.backup_it_pic_id,
@@ -56,7 +64,11 @@ export class WebsitesService {
   async get(id: string, user: AuthUser) {
     const where: Prisma.WebsiteWhereInput = {
       id,
-      ...(canAccessAllMonitoredResources(user) ? {} : { ownerId: user.id }),
+      ...(user.role === "pic_web" || user.role === "developer"
+        ? websiteVisibilityScope(user)
+        : canAccessAllMonitoredResources(user)
+          ? {}
+          : { ownerId: user.id }),
     };
     const website = await this.prisma.website.findFirst({ where });
     if (!website) throw new NotFoundException("Website not found");
@@ -112,5 +124,13 @@ export class WebsitesService {
     if (ownerId === undefined || ownerId === null) return;
     const owner = await this.prisma.user.findUnique({ where: { id: ownerId } });
     if (!owner) throw new NotFoundException("Website owner not found");
+    if (owner.role !== UserRole.pic_web || !owner.isActive) {
+      throw new NotFoundException("Website owner must be an active PIC Web");
+    }
+  }
+
+  private async assertProjectExists(projectId: string) {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+    if (!project) throw new NotFoundException("Project not found");
   }
 }

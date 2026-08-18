@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { canManagePlatform, formatDateTime } from "@/lib/format";
 import type { Website } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 
 const emptyForm = {
   name: "",
@@ -19,6 +20,8 @@ const emptyForm = {
 };
 
 export default function AdminWebsitesPage() {
+  redirect("/projects");
+  return null;
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<Website[]>([]);
@@ -101,7 +104,7 @@ export default function AdminWebsitesPage() {
     }
   }
 
-  if (!user || !canManagePlatform(user.role)) {
+  if (!user || !canManagePlatform(user!.role)) {
     return (
       <AppShell title="Kelola Website">
         <LoadingState />

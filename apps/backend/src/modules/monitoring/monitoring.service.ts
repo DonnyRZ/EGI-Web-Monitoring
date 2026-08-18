@@ -5,7 +5,7 @@ import { paginatedMeta, toMonitoringResultDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { createScreenshotSignedUrl } from "../../common/s3";
 import { MonitoringHistoryQueryDto } from "./monitoring.dto";
-import { canAccessAllMonitoredResources, canOperateScopedResources, monitoringResultScope, websiteOwnerScope } from "../../common/resource-access";
+import { canOperateScopedResources, monitoringResultScope, websiteVisibilityScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 @Injectable()
@@ -21,7 +21,7 @@ export class MonitoringService {
   private async assertWebsite(websiteId: string, user: AuthUser) {
     this.assertOperational(user);
     const website = await this.prisma.website.findFirst({
-      where: { id: websiteId, ...websiteOwnerScope(user) },
+      where: { id: websiteId, ...websiteVisibilityScope(user) },
     });
     if (!website) throw new NotFoundException("Website not found");
   }

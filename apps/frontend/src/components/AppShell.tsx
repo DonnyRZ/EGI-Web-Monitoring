@@ -8,11 +8,13 @@ import {
   canManagePlatform,
   canViewDeveloperWorkload,
   canViewIncidents,
+  canViewProjectRegistry,
   canViewTasks,
+  canViewUserStories,
   initials,
   isEndUserPublicDashboard,
 } from "@/lib/format";
-import { incidentsApi, tasksApi } from "@/lib/api-services";
+import { incidentsApi, userStoriesApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
 import {
   IconAlert,
@@ -65,12 +67,10 @@ function loadMyOpenTasks() {
     return Promise.resolve(myOpenTasksCache);
   }
   if (!myOpenTasksRequest) {
-    myOpenTasksRequest = tasksApi
-      .list({ limit: 100 })
+    myOpenTasksRequest = userStoriesApi
+      .meWork()
       .then((res) => {
-        const count = res.data.filter(
-          (t) => t.status === "pending" || t.status === "in_progress",
-        ).length;
+        const count = res.summary.pending + res.summary.in_progress;
         myOpenTasksCache = count;
         myOpenTasksCachedAt = Date.now();
         return myOpenTasksCache;
@@ -141,12 +141,18 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     ...(canViewTasks(user.role)
       ? [
           {
-            href: "/tasks",
-            label: user.role === "developer" ? "To-Do List" : "Task Monitoring",
+            href: user.role === "developer" ? "/me/work" : "/tasks",
+            label: user.role === "developer" ? "My Work" : "Task Monitoring",
             icon: IconTasks,
             badge: user.role === "developer" && myOpenTasks > 0 ? myOpenTasks : undefined,
           },
         ]
+      : []),
+    ...(canViewProjectRegistry(user.role)
+      ? [{ href: "/projects", label: user.role === "superadmin" || user.role === "bos_it" ? "Kelola Project" : "Project Saya", icon: IconGlobe }]
+      : []),
+    ...(canViewUserStories(user.role)
+      ? [{ href: "/user-stories", label: "User Stories", icon: IconTasks }]
       : []),
     ...(user.role === "superadmin" || user.role === "bos_it"
       ? [{ href: "/tickets", label: "Tiket", icon: IconTasks }]
@@ -169,8 +175,6 @@ export function AppShell({ title, children, actions }: AppShellProps) {
       : []),
     ...(canManagePlatform(user.role)
       ? [
-          { href: "/admin/websites", label: "Kelola Website", icon: IconGlobe },
-          { href: "/admin/assignments", label: "PIC & Assignment", icon: IconUsers },
           { href: "/admin/users", label: "Users", icon: IconUsers },
         ]
       : []),

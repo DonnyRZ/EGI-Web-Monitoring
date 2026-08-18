@@ -27,6 +27,7 @@ export function toWebsiteDto(website: {
   name: string;
   domain: string;
   url: string;
+  projectId?: string | null;
   ownerId: string | null;
   itPicId: string | null;
   backupItPicId: string | null;
@@ -40,6 +41,7 @@ export function toWebsiteDto(website: {
     name: website.name,
     domain: website.domain,
     url: website.url,
+    project_id: website.projectId ?? null,
     owner_id: website.ownerId,
     it_pic_id: website.itPicId,
     backup_it_pic_id: website.backupItPicId,
@@ -108,6 +110,8 @@ export function toTicketDto(ticket: {
   id: string;
   incidentId: string | null;
   websiteId: string | null;
+  projectId?: string | null;
+  userStoryId?: string | null;
   createdBy: string | null;
   title: string;
   category: string | null;
@@ -127,6 +131,8 @@ export function toTicketDto(ticket: {
     id: ticket.id,
     incident_id: ticket.incidentId,
     website_id: ticket.websiteId,
+    project_id: ticket.projectId ?? null,
+    user_story_id: ticket.userStoryId ?? null,
     created_by: ticket.createdBy,
     title: ticket.title,
     category: ticket.category,

@@ -7,6 +7,10 @@ export type {
   NotificationChannel,
   NotificationStatus,
   TaskStatus,
+  ProjectStatus,
+  ProjectMemberType,
+  UserStoryStatus,
+  UserStoryPriority,
   UserRole,
 } from "@egi/shared-types";
 
@@ -17,6 +21,10 @@ import type {
   NotificationStatus,
   Severity,
   TaskStatus,
+  ProjectStatus,
+  ProjectMemberType,
+  UserStoryStatus,
+  UserStoryPriority,
   TicketStatus,
   TicketCategory,
   UserRole,
@@ -39,6 +47,7 @@ export interface Website {
   name: string;
   domain: string;
   url: string;
+  project_id?: string | null;
   owner_id: string | null;
   it_pic_id: string | null;
   backup_it_pic_id: string | null;
@@ -81,6 +90,8 @@ export interface Ticket {
   id: string;
   incident_id: string | null;
   website_id: string | null;
+  project_id: string | null;
+  user_story_id: string | null;
   created_by: string | null;
   title: string;
   category: TicketCategory | null;
@@ -113,6 +124,108 @@ export interface Task {
   ticket_attachment_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface UserSummary {
+  id: string;
+  name: string;
+  email?: string;
+  role?: UserRole;
+  is_active?: boolean;
+}
+
+export interface ProjectMember {
+  id: string;
+  user_id: string;
+  member_type: ProjectMemberType;
+  user: UserSummary;
+  active_workload?: number;
+  overdue_workload?: number;
+}
+
+export interface ProjectHealthSummary {
+  status: MonitoringStatus;
+  normal: number;
+  warning: number;
+  down: number;
+  unknown: number;
+}
+
+export interface ProjectListSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  pic_developer_id: string | null;
+  created_by_id: string | null;
+  created_at: string;
+  updated_at: string;
+  websites_count: number;
+  active_websites_count: number;
+  active_tickets_count: number;
+  active_stories_count: number;
+  overdue_count: number;
+  health: MonitoringStatus;
+  configuration_status: "ready" | "needs_setup";
+  pic_developer: UserSummary | null;
+  pic_web: UserSummary[];
+  developers: UserSummary[];
+}
+
+export interface Project extends ProjectListSummary {
+  websites: Website[];
+  health_summary: ProjectHealthSummary;
+  active_incidents_count: number;
+  untriaged_tickets_count: number;
+}
+
+export interface ProjectAssignments {
+  pic_web_ids: string[];
+  pic_developer_id: string | null;
+  developer_ids: string[];
+}
+
+export interface ProjectRosterCandidate extends UserSummary {
+  role: UserRole;
+  is_active: boolean;
+  active_workload: number;
+  overdue_workload: number;
+}
+
+export interface UserStory {
+  id: string;
+  project_id: string;
+  website_id: string | null;
+  title: string;
+  description: string | null;
+  acceptance_criteria: string | null;
+  priority: UserStoryPriority;
+  status: UserStoryStatus;
+  primary_developer_id: string | null;
+  due_date: string | null;
+  created_by_id: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  project?: Pick<Project, "id" | "name">;
+  website?: Pick<Website, "id" | "name" | "domain"> | null;
+  primary_developer: UserSummary | null;
+  collaborators: UserSummary[];
+  tickets: Pick<Ticket, "id" | "title" | "status">[];
+  is_overdue: boolean;
+}
+
+export interface WorkSummary {
+  pending: number;
+  in_progress: number;
+  overdue: number;
+  done: number;
+}
+
+export interface MyWorkResponse {
+  stories: UserStory[];
+  legacy_tasks: Task[];
+  summary: WorkSummary;
 }
 
 export interface Notification {

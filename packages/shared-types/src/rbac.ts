@@ -19,6 +19,25 @@ export const USER_ROLES = [
 /** Platform config: users + websites CRUD. */
 export const PLATFORM_ADMIN_ROLES = ["superadmin"] as const satisfies readonly UserRole[];
 
+/** Create/edit projects and manage project memberships. */
+export const PROJECT_ADMIN_ROLES = [
+  "superadmin",
+  "bos_it",
+] as const satisfies readonly UserRole[];
+
+/** See the complete project registry and all project-level work. */
+export const PROJECT_GLOBAL_VIEWER_ROLES = [
+  "superadmin",
+  "bos_it",
+] as const satisfies readonly UserRole[];
+
+/** Create stories and assign developers within an owned project. */
+export const USER_STORY_MANAGER_ROLES = [
+  "superadmin",
+  "bos_it",
+  "developer",
+] as const satisfies readonly UserRole[];
+
 /**
  * Read/inspect every monitored website, incident, ticket, and probe detail globally.
  * end_user gets a public gallery of active sites (excludes down / unknown / inactive).
@@ -42,6 +61,13 @@ export const TICKET_MANAGER_ROLES = [
 
 /** Auto-assignee candidates when an incident opens. */
 export const TICKET_ASSIGNEE_ROLES = [
+  "bos_it",
+  "developer",
+] as const satisfies readonly UserRole[];
+
+/** Create tasks: developers may create self-service to-dos; operations may delegate. */
+export const TASK_CREATOR_ROLES = [
+  "superadmin",
   "bos_it",
   "developer",
 ] as const satisfies readonly UserRole[];
@@ -78,6 +104,18 @@ export function canManagePlatform(role?: string | null): boolean {
   return roleIn(role, PLATFORM_ADMIN_ROLES);
 }
 
+export function canManageProjects(role?: string | null): boolean {
+  return roleIn(role, PROJECT_ADMIN_ROLES);
+}
+
+export function canViewProjectRegistry(role?: string | null): boolean {
+  return roleIn(role, PROJECT_GLOBAL_VIEWER_ROLES) || role === "developer" || role === "pic_web";
+}
+
+export function canManageUserStories(role?: string | null): boolean {
+  return roleIn(role, USER_STORY_MANAGER_ROLES);
+}
+
 export function canAccessAllMonitoredResources(role?: string | null): boolean {
   return roleIn(role, ALL_RESOURCE_ACCESS_ROLES);
 }
@@ -103,6 +141,10 @@ export function canViewTasks(role?: string | null): boolean {
   return canAccessAllMonitoredResources(role) || role === "pic_web";
 }
 
+export function canViewUserStories(role?: string | null): boolean {
+  return role === "superadmin" || role === "bos_it" || role === "developer";
+}
+
 export function canManageIncidents(role?: string | null): boolean {
   return roleIn(role, INCIDENT_MANAGER_ROLES);
 }
@@ -113,6 +155,10 @@ export function canManageTickets(role?: string | null): boolean {
 
 export function isTicketAssigneeCandidate(role?: string | null): boolean {
   return roleIn(role, TICKET_ASSIGNEE_ROLES);
+}
+
+export function canCreateTasks(role?: string | null): boolean {
+  return roleIn(role, TASK_CREATOR_ROLES);
 }
 
 /** Developer workload summary page (who's overloaded / overdue). */

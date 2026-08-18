@@ -4,8 +4,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Select } from "@/components/Select";
 import { ErrorBanner } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { tasksApi, usersApi } from "@/lib/api-services";
-import type { User } from "@/lib/types";
+import { tasksApi, workloadApi } from "@/lib/api-services";
+import type { DeveloperWorkload } from "@/lib/types";
 
 function defaultSlaLocalValue() {
   const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -26,7 +26,7 @@ interface DelegateTaskFormProps {
 
 export function DelegateTaskForm({ websiteId, websiteName }: DelegateTaskFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [developers, setDevelopers] = useState<User[]>([]);
+  const [developers, setDevelopers] = useState<DeveloperWorkload[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [instructionNotes, setInstructionNotes] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -41,10 +41,13 @@ export function DelegateTaskForm({ websiteId, websiteName }: DelegateTaskFormPro
     (async () => {
       setLoadingUsers(true);
       try {
-        const res = await usersApi.list({ role: "developer", is_active: true, limit: 100 });
+        // /users is intentionally superadmin-only. Workload is already
+        // available to Bos IT and returns the active developer roster needed
+        // for delegation without exposing user-management data.
+        const res = await workloadApi.developers();
         if (cancelled) return;
-        setDevelopers(res.data);
-        if (res.data.length === 1) setAssigneeId(res.data[0].id);
+        setDevelopers(res);
+        if (res.length === 1) setAssigneeId(res[0].developer_id);
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -65,15 +68,15 @@ export function DelegateTaskForm({ websiteId, websiteName }: DelegateTaskFormPro
   const assigneeOptions = useMemo(
     () =>
       developers.map((u) => ({
-        value: u.id,
-        label: `${u.name} (${u.email})`,
+        value: u.developer_id,
+        label: u.developer_name,
       })),
     [developers],
   );
 
   function resetForm() {
     setInstructionNotes("");
-    setAssigneeId(developers.length === 1 ? developers[0].id : "");
+    setAssigneeId(developers.length === 1 ? developers[0].developer_id : "");
     setSlaDeadline(defaultSlaLocalValue());
     setAttachmentName("");
     if (fileInputRef.current) fileInputRef.current.value = "";

@@ -14,6 +14,11 @@ export class CreateTicketDto {
   @IsUUID()
   website_id?: string;
 
+  @ApiPropertyOptional({ description: "Optional Project for a general/help-desk ticket." })
+  @IsOptional()
+  @IsUUID()
+  project_id?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -91,6 +96,11 @@ export class TicketsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   website_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  project_id?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

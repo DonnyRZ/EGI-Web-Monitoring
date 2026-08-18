@@ -1,8 +1,11 @@
-import { UserRole } from "@egi/database";
+import { Prisma, UserRole } from "@egi/database";
 import {
   ALL_RESOURCE_ACCESS_ROLES,
   INCIDENT_MANAGER_ROLES,
   PLATFORM_ADMIN_ROLES,
+  PROJECT_ADMIN_ROLES,
+  USER_STORY_MANAGER_ROLES,
+  TASK_CREATOR_ROLES,
   TICKET_MANAGER_ROLES,
   WORKLOAD_VIEWER_ROLES,
   canAccessAllMonitoredResources as roleCanAccessAllMonitoredResources,
@@ -16,11 +19,20 @@ function asPrismaRoles(roles: readonly string[]): UserRole[] {
 /** @Roles(...) — users + websites admin. */
 export const PLATFORM_ADMIN_ROLES_PRISMA = asPrismaRoles(PLATFORM_ADMIN_ROLES);
 
+/** Project registry and assignment administration. */
+export const PROJECT_ADMIN_ROLES_PRISMA = asPrismaRoles(PROJECT_ADMIN_ROLES);
+
+/** Story creation and assignment; developer is scoped per project in the service. */
+export const USER_STORY_MANAGER_ROLES_PRISMA = asPrismaRoles(USER_STORY_MANAGER_ROLES);
+
 /** @Roles(...) — mutate / close incidents. */
 export const INCIDENT_MANAGER_ROLES_PRISMA = asPrismaRoles(INCIDENT_MANAGER_ROLES);
 
 /** @Roles(...) — create / update tickets. */
 export const TICKET_MANAGER_ROLES_PRISMA = asPrismaRoles(TICKET_MANAGER_ROLES);
+
+/** @Roles(...) — create self-service or delegated developer tasks. */
+export const TASK_CREATOR_ROLES_PRISMA = asPrismaRoles(TASK_CREATOR_ROLES);
 
 /** @Roles(...) — view developer workload/overdue summary. */
 export const WORKLOAD_VIEWER_ROLES_PRISMA = asPrismaRoles(WORKLOAD_VIEWER_ROLES);
@@ -44,8 +56,60 @@ export function websiteOwnerScope(user: AuthUser): { ownerId?: string } {
   return user.role === "pic_web" ? { ownerId: user.id } : {};
 }
 
+/**
+ * Website visibility after the Project transition. The legacy predicates are
+ * intentionally retained only for websites that have not been backfilled yet.
+ */
+export function websiteVisibilityScope(user: AuthUser): Prisma.WebsiteWhereInput {
+  if (user.role === "superadmin" || user.role === "bos_it") return {};
+  if (user.role === "pic_web") {
+    return {
+      OR: [
+        { project: { members: { some: { userId: user.id, memberType: "pic_web" } } } },
+        { projectId: null, ownerId: user.id },
+      ],
+    };
+  }
+  if (user.role === "developer") {
+    return {
+      OR: [
+        { project: { picDeveloperId: user.id } },
+        { project: { members: { some: { userId: user.id, memberType: "developer" } } } },
+        { projectId: null, OR: [{ itPicId: user.id }, { backupItPicId: user.id }] },
+      ],
+    };
+  }
+  return { isActive: true };
+}
+
 export function monitoringResultScope(user: AuthUser) {
-  if (canAccessAllMonitoredResources(user)) return {};
-  if (user.role === "pic_web") return { website: { ownerId: user.id } };
-  return { website: { isActive: true } };
+  return { website: websiteVisibilityScope(user) };
+}
+
+/**
+ * Server-side project visibility. Query-string filters are applied on top of
+ * this predicate so a client cannot widen its scope by changing a project id.
+ */
+export function projectVisibilityWhere(user: AuthUser): Prisma.ProjectWhereInput {
+  if (user.role === "superadmin" || user.role === "bos_it") return {};
+  if (user.role === "pic_web") {
+    return { members: { some: { userId: user.id, memberType: "pic_web" } } };
+  }
+  if (user.role === "developer") {
+    return {
+      OR: [
+        { picDeveloperId: user.id },
+        { members: { some: { userId: user.id, memberType: "developer" } } },
+      ],
+    };
+  }
+  return { id: "00000000-0000-0000-0000-000000000000" };
+}
+
+export function canManageProjectConfiguration(user: AuthUser): boolean {
+  return user.role === "superadmin" || user.role === "bos_it";
+}
+
+export function canManageProjectStories(user: AuthUser): boolean {
+  return user.role === "superadmin" || user.role === "bos_it" || user.role === "developer";
 }

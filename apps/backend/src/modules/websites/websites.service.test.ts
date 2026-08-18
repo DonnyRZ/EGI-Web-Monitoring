@@ -38,3 +38,25 @@ test("website detail lookup cannot enumerate another owner's resource", async ()
   await fixture.service.get("site-1", owner);
   assert.deepEqual(fixture.calls[0]?.args, { where: { id: "site-1", ownerId: owner.id } });
 });
+
+test("website owner must be an active PIC Web", async () => {
+  const makeOwnerService = (record: { role: string; isActive: boolean }) =>
+    new WebsitesService({
+      user: { findUnique: async () => record },
+    } as never);
+  const assertOwnerExists = (service: WebsitesService, ownerId: string) =>
+    (service as unknown as { assertOwnerExists: (id: string) => Promise<void> })
+      .assertOwnerExists(ownerId);
+
+  await assert.rejects(
+    () => assertOwnerExists(makeOwnerService({ role: "developer", isActive: true }), "user-1"),
+    /active PIC Web/,
+  );
+  await assert.rejects(
+    () => assertOwnerExists(makeOwnerService({ role: "pic_web", isActive: false }), "user-1"),
+    /active PIC Web/,
+  );
+  await assert.doesNotReject(() =>
+    assertOwnerExists(makeOwnerService({ role: "pic_web", isActive: true }), "user-1"),
+  );
+});

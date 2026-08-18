@@ -32,6 +32,11 @@ export class CreateWebsiteDto {
   @IsUUID()
   owner_id?: string;
 
+  @ApiPropertyOptional({ description: "Optional Project during the transition." })
+  @IsOptional()
+  @IsUUID()
+  project_id?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()

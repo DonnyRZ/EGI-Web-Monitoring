@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { ErrorBanner, LoadingState } from "@/components/ui";
@@ -12,6 +13,8 @@ import { useAuth } from "@/lib/auth-context";
 import type { User, Website } from "@/lib/types";
 
 export default function AdminAssignmentsPage() {
+  redirect("/projects");
+  return null;
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [websites, setWebsites] = useState<Website[]>([]);
@@ -88,7 +91,7 @@ export default function AdminAssignmentsPage() {
     }
   }
 
-  if (!user || !canManagePlatform(user.role)) {
+  if (!user || !canManagePlatform(user!.role)) {
     return <AppShell title="PIC & Assignment"><LoadingState /></AppShell>;
   }
 

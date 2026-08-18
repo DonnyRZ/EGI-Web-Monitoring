@@ -8,11 +8,17 @@ import type {
   MonitoringResult,
   Notification,
   PaginatedMeta,
+  MyWorkResponse,
+  Project,
+  ProjectAssignments,
+  ProjectListSummary,
+  ProjectRosterCandidate,
   Severity,
   Task,
   Ticket,
   User,
   UserRole,
+  UserStory,
   Website,
   WebsiteDetailResponse,
 } from "./types";
@@ -103,6 +109,7 @@ export const ticketsApi = {
   list: (params: {
     incident_id?: string;
     website_id?: string;
+    project_id?: string;
     assigned_to?: string;
     status?: string;
     page?: number;
@@ -117,7 +124,8 @@ export const ticketsApi = {
   attachment: (id: string) =>
     apiFetch<{ url: string; expires_at: string }>(`/tickets/${id}/attachment`),
   create: (body: {
-    website_id: string;
+    website_id?: string;
+    project_id?: string;
     category: "website" | "help_desk" | "procurement";
     description: string;
     expectation: string;
@@ -131,6 +139,95 @@ export const ticketsApi = {
       assigned_to: string | null;
     }>,
   ) => apiFetch<Ticket>(`/tickets/${id}`, { method: "PATCH", body }),
+};
+
+export const projectsApi = {
+  list: (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: "draft" | "active" | "archived";
+    missing_pic_web?: boolean;
+    missing_pic_developer?: boolean;
+    missing_developer_team?: boolean;
+    has_active_tickets?: boolean;
+    has_overdue_work?: boolean;
+  } = {}) =>
+    apiFetch<{ data: ProjectListSummary[]; meta: PaginatedMeta }>(`/projects${qs(params)}`),
+  get: (id: string) => apiFetch<Project>(`/projects/${id}`),
+  create: (body: { name: string; description?: string; status?: "draft" | "active" | "archived" }) =>
+    apiFetch<Project>("/projects", { method: "POST", body }),
+  update: (
+    id: string,
+    body: Partial<{ name: string; description: string | null; status: "draft" | "active" | "archived" }>,
+  ) => apiFetch<Project>(`/projects/${id}`, { method: "PATCH", body }),
+  updateAssignments: (id: string, body: ProjectAssignments) =>
+    apiFetch<Project & { warnings?: string[] }>(`/projects/${id}/assignments`, { method: "PUT", body }),
+  updateWebsites: (id: string, website_ids: string[]) =>
+    apiFetch<Project>(`/projects/${id}/websites`, { method: "PUT", body: { website_ids } }),
+  addWebsite: (id: string, body: {
+    website_id?: string;
+    name?: string;
+    domain?: string;
+    url?: string;
+    monitoring_interval_minutes?: number;
+  }) => apiFetch<Project>(`/projects/${id}/websites`, { method: "POST", body }),
+  removeWebsite: (id: string, websiteId: string) =>
+    apiFetch<Project>(`/projects/${id}/websites/${websiteId}`, { method: "DELETE" }),
+  roster: (role: "pic_web" | "developer") =>
+    apiFetch<ProjectRosterCandidate[]>(`/projects/roster${qs({ role })}`),
+};
+
+type UserStoryListParams = {
+  page?: number;
+  limit?: number;
+  project_id?: string;
+  website_id?: string;
+  developer_id?: string;
+  status?: string;
+  priority?: string;
+  overdue?: boolean;
+  has_ticket?: boolean;
+  search?: string;
+};
+
+export const userStoriesApi = {
+  list: (params: UserStoryListParams = {}) => apiFetch<{ data: UserStory[]; meta: PaginatedMeta }>(`/user-stories${qs(params)}`),
+  listForProject: (projectId: string, params: Omit<UserStoryListParams, "project_id"> = {}) =>
+    apiFetch<{ data: UserStory[]; meta: PaginatedMeta }>(`/projects/${projectId}/user-stories${qs(params)}`),
+  get: (id: string) => apiFetch<UserStory>(`/user-stories/${id}`),
+  create: (projectId: string, body: {
+    title: string;
+    description?: string;
+    acceptance_criteria?: string;
+    website_id?: string | null;
+    priority?: string;
+    primary_developer_id?: string | null;
+    collaborator_ids?: string[];
+    due_date?: string | null;
+  }) => apiFetch<UserStory>(`/projects/${projectId}/user-stories`, { method: "POST", body }),
+  update: (id: string, body: Partial<{
+    title: string;
+    description: string | null;
+    acceptance_criteria: string | null;
+    website_id: string | null;
+    priority: string;
+    status: string;
+    primary_developer_id: string | null;
+    collaborator_ids: string[];
+    due_date: string | null;
+  }>) => apiFetch<UserStory>(`/user-stories/${id}`, { method: "PATCH", body }),
+  createFromTicket: (ticketId: string, body: {
+    title: string;
+    description?: string;
+    acceptance_criteria?: string;
+    website_id?: string | null;
+    priority?: string;
+    primary_developer_id?: string | null;
+    collaborator_ids?: string[];
+    due_date?: string | null;
+  }) => apiFetch<UserStory>(`/tickets/${ticketId}/create-story`, { method: "POST", body }),
+  meWork: () => apiFetch<MyWorkResponse>("/me/work"),
 };
 
 export const tasksApi = {
@@ -176,6 +273,7 @@ export const websitesApi = {
     name: string;
     domain: string;
     url: string;
+    project_id?: string | null;
     owner_id?: string | null;
     it_pic_id?: string | null;
     backup_it_pic_id?: string | null;

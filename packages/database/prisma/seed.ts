@@ -49,6 +49,8 @@ function domainFromUrl(url: string): string {
 
 const ADMIN_EMAIL = "egi.egiholding@gmail.com";
 const DEVELOPER_EMAIL = "donny@egiresources.com";
+const BOS_IT_EMAIL = "bos.it@egiresources.com";
+const PIC_WEB_EMAIL = "pic.web@egiresources.com";
 const GUEST_EMAIL = "guest@egiresources.com";
 const LEGACY_ADMIN_EMAIL = "admin@egi.co.id";
 
@@ -82,7 +84,7 @@ const websites = [
  * reverts on the next deploy.
  *
  * `isActive`/`role`/`name` ARE still forced on every re-seed, by design: this
- * is an intentional safety-net so the two bootstrap accounts can never be
+ * is an intentional safety-net so the bootstrap accounts can never be
  * accidentally locked out or demoted.
  */
 export function buildAdminUpsertData(env: NodeJS.ProcessEnv) {
@@ -147,9 +149,55 @@ export function buildDeveloperUpsertData(env: NodeJS.ProcessEnv) {
   };
 }
 
+export function buildBosItUpsertData(env: NodeJS.ProcessEnv) {
+  const email = env.SEED_BOS_IT_EMAIL ?? BOS_IT_EMAIL;
+  const password =
+    env.SEED_BOS_IT_PASSWORD ?? env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+  return {
+    email,
+    create: {
+      name: "Bos IT",
+      email,
+      passwordHash: hashPassword(password),
+      role: UserRole.bos_it,
+      emailVerifiedAt: new Date(),
+      isActive: true,
+    },
+    update: {
+      isActive: true,
+      role: UserRole.bos_it,
+      name: "Bos IT",
+    },
+  };
+}
+
+export function buildPicWebUpsertData(env: NodeJS.ProcessEnv) {
+  const email = env.SEED_PIC_WEB_EMAIL ?? PIC_WEB_EMAIL;
+  const password =
+    env.SEED_PIC_WEB_PASSWORD ?? env.SEED_ADMIN_PASSWORD ?? "Admin123!";
+  return {
+    email,
+    create: {
+      name: "PIC Web",
+      email,
+      passwordHash: hashPassword(password),
+      role: UserRole.pic_web,
+      emailVerifiedAt: new Date(),
+      isActive: true,
+    },
+    update: {
+      isActive: true,
+      role: UserRole.pic_web,
+      name: "PIC Web",
+    },
+  };
+}
+
 async function main() {
   const adminUpsertData = buildAdminUpsertData(process.env);
   const developerUpsertData = buildDeveloperUpsertData(process.env);
+  const bosItUpsertData = buildBosItUpsertData(process.env);
+  const picWebUpsertData = buildPicWebUpsertData(process.env);
   const guestUpsertData = buildGuestUpsertData(process.env);
 
   // Migrate the legacy dummy admin to the real address without creating a
@@ -188,6 +236,24 @@ async function main() {
     create: developerUpsertData.create,
   });
 
+  const bosItExisted = Boolean(
+    await prisma.user.findUnique({ where: { email: bosItUpsertData.email } }),
+  );
+  const bosIt = await prisma.user.upsert({
+    where: { email: bosItUpsertData.email },
+    update: bosItUpsertData.update,
+    create: bosItUpsertData.create,
+  });
+
+  const picWebExisted = Boolean(
+    await prisma.user.findUnique({ where: { email: picWebUpsertData.email } }),
+  );
+  const picWeb = await prisma.user.upsert({
+    where: { email: picWebUpsertData.email },
+    update: picWebUpsertData.update,
+    create: picWebUpsertData.create,
+  });
+
   const guestExisted = Boolean(
     await prisma.user.findUnique({ where: { email: guestUpsertData.email } }),
   );
@@ -203,6 +269,14 @@ async function main() {
     });
 
     if (existing) {
+      // Upgrade websites created by the old seed (admin-owned and without a
+      // developer assignment) while preserving any deliberate manual setup.
+      if (existing.ownerId === admin.id && !existing.itPicId && !existing.backupItPicId) {
+        await prisma.website.update({
+          where: { id: existing.id },
+          data: { ownerId: picWeb.id, itPicId: developer.id },
+        });
+      }
       continue;
     }
 
@@ -211,7 +285,8 @@ async function main() {
         name: site.name,
         domain: domainFromUrl(site.url),
         url: site.url,
-        ownerId: admin.id,
+        ownerId: picWeb.id,
+        itPicId: developer.id,
         monitoringIntervalMinutes: 5,
         isActive: true,
       },
@@ -223,6 +298,12 @@ async function main() {
   );
   console.log(
     `Developer: ${developer.email} (${developerExisted ? "existing, password untouched" : "created"})`,
+  );
+  console.log(
+    `Bos IT: ${bosIt.email} (${bosItExisted ? "existing, password untouched" : "created"})`,
+  );
+  console.log(
+    `PIC Web: ${picWeb.email} (${picWebExisted ? "existing, password untouched" : "created"})`,
   );
   console.log(
     `Guest: ${guest.email} (${guestExisted ? "existing, password untouched" : "created"})`,

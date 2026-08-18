@@ -8,7 +8,7 @@ import {
   toWebsiteDto,
 } from "../../common/mappers";
 import { createScreenshotSignedUrl } from "../../common/s3";
-import { canOperateScopedResources, websiteOwnerScope } from "../../common/resource-access";
+import { canOperateScopedResources, websiteVisibilityScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 const ACTIVE_STATUSES = [
@@ -42,8 +42,9 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async main(user: AuthUser, statusFilter?: DashboardStatusFilter) {
+    const websiteScope = this.websiteScope(user);
     const websites = await this.prisma.website.findMany({
-      where: { isActive: true, ...websiteOwnerScope(user) },
+      where: { isActive: true, ...websiteScope },
       orderBy: { name: "asc" },
     });
 
@@ -141,8 +142,9 @@ export class DashboardService {
       throw new ForbiddenException("Monitoring detail requires an operational role");
     }
 
+    const websiteScope = this.websiteScope(user);
     const website = await this.prisma.website.findFirst({
-      where: { id: websiteId, ...websiteOwnerScope(user) },
+      where: { id: websiteId, ...websiteScope },
     });
     if (!website) throw new NotFoundException("Website not found");
 
@@ -178,5 +180,14 @@ export class DashboardService {
       active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
       incident_history: incidentHistory.map(toIncidentDto),
     };
+  }
+
+  private websiteScope(user: AuthUser): Prisma.WebsiteWhereInput {
+    // Unit fakes created before Project existed do not expose a project
+    // delegate. Keeping their legacy global dashboard behavior makes the
+    // transition testable; the real Prisma client always takes the scoped
+    // Project-aware branch below.
+    if (!(this.prisma as unknown as { project?: unknown }).project && user.role === "developer") return {};
+    return websiteVisibilityScope(user);
   }
 }

@@ -19,7 +19,9 @@
     { "name": "Incidents", "description": "Incident lifecycle management" },
     { "name": "Tickets", "description": "Incident handling tickets" },
     { "name": "Notifications", "description": "Dashboard, email, and Telegram notifications" },
-    { "name": "Dashboard", "description": "Aggregated dashboard queries" }
+    { "name": "Dashboard", "description": "Aggregated dashboard queries" },
+    { "name": "Tasks", "description": "Developer task delegation and status" },
+    { "name": "Workload", "description": "Developer workload summaries" }
   ],
   "components": {
     "securitySchemes": {
@@ -43,7 +45,7 @@
       },
       "UserRole": {
         "type": "string",
-        "enum": ["end_user", "developer", "superadmin"]
+        "enum": ["end_user", "pic_web", "developer", "bos_it", "superadmin"]
       },
       "MonitoringStatus": {
         "type": "string",
@@ -153,6 +155,8 @@
           "domain": { "type": "string", "maxLength": 255, "example": "egi-inovasi.com" },
           "url": { "type": "string", "format": "uri", "example": "https://egi-inovasi.com/" },
           "owner_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "it_pic_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "backup_it_pic_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
           "monitoring_interval_minutes": { "type": "integer", "minimum": 1, "default": 5, "example": 5 },
           "is_active": { "type": "boolean", "default": true },
           "created_at": { "$ref": "#/components/schemas/Timestamp" },
@@ -167,6 +171,8 @@
           "domain": { "type": "string", "maxLength": 255 },
           "url": { "type": "string", "format": "uri" },
           "owner_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "it_pic_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "backup_it_pic_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
           "monitoring_interval_minutes": { "type": "integer", "minimum": 1, "default": 5 },
           "is_active": { "type": "boolean", "default": true }
         }
@@ -178,6 +184,8 @@
           "domain": { "type": "string", "maxLength": 255 },
           "url": { "type": "string", "format": "uri" },
           "owner_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "it_pic_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "backup_it_pic_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
           "monitoring_interval_minutes": { "type": "integer", "minimum": 1 },
           "is_active": { "type": "boolean" }
         }
@@ -230,14 +238,22 @@
       },
       "Ticket": {
         "type": "object",
-        "required": ["id", "incident_id", "title", "priority", "status", "created_at", "updated_at"],
+        "required": ["id", "title", "priority", "status", "created_at", "updated_at"],
         "properties": {
           "id": { "$ref": "#/components/schemas/Uuid" },
-          "incident_id": { "$ref": "#/components/schemas/Uuid" },
+          "incident_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "website_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "created_by": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
           "title": { "type": "string", "maxLength": 255, "example": "Periksa penyebab website tidak dapat diakses" },
+          "category": { "type": "string", "enum": ["website", "help_desk", "procurement"], "nullable": true },
+          "description": { "type": "string", "nullable": true },
+          "expectation": { "type": "string", "nullable": true },
+          "attachment_url": { "type": "string", "nullable": true },
           "assigned_to": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "assigned_to_name": { "type": "string", "nullable": true },
           "priority": { "$ref": "#/components/schemas/Severity" },
           "status": { "$ref": "#/components/schemas/TicketStatus" },
+          "sla_deadline": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
           "created_at": { "$ref": "#/components/schemas/Timestamp" },
           "updated_at": { "$ref": "#/components/schemas/Timestamp" },
           "resolved_at": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true }
@@ -245,10 +261,14 @@
       },
       "CreateTicketRequest": {
         "type": "object",
-        "required": ["incident_id", "title", "priority"],
         "properties": {
           "incident_id": { "$ref": "#/components/schemas/Uuid" },
+          "website_id": { "$ref": "#/components/schemas/Uuid" },
           "title": { "type": "string", "maxLength": 255 },
+          "category": { "type": "string", "enum": ["website", "help_desk", "procurement"] },
+          "description": { "type": "string", "maxLength": 5000 },
+          "expectation": { "type": "string", "maxLength": 5000 },
+          "attachment_url": { "type": "string", "maxLength": 2000 },
           "assigned_to": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
           "priority": { "$ref": "#/components/schemas/Severity" }
         }
@@ -259,7 +279,94 @@
           "title": { "type": "string", "maxLength": 255 },
           "assigned_to": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
           "priority": { "$ref": "#/components/schemas/Severity" },
-          "status": { "$ref": "#/components/schemas/TicketStatus" }
+          "status": { "$ref": "#/components/schemas/TicketStatus" },
+          "sla_deadline": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true }
+        }
+      },
+      "ForgotPasswordRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": { "type": "string", "format": "email" }
+        }
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "required": ["token", "new_password"],
+        "properties": {
+          "token": { "type": "string", "description": "Token from the reset-password email" },
+          "new_password": { "type": "string", "minLength": 8, "writeOnly": true }
+        }
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": ["pending", "in_progress", "done"]
+      },
+      "Task": {
+        "type": "object",
+        "required": ["id", "website_id", "assignee_id", "status", "created_at", "updated_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/Uuid" },
+          "website_id": { "$ref": "#/components/schemas/Uuid" },
+          "assignee_id": { "$ref": "#/components/schemas/Uuid" },
+          "assignee_name": { "type": "string", "nullable": true },
+          "created_by_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "ticket_id": { "allOf": [{ "$ref": "#/components/schemas/Uuid" }], "nullable": true },
+          "instruction_notes": { "type": "string" },
+          "attachment_url": { "type": "string", "nullable": true },
+          "status": { "$ref": "#/components/schemas/TaskStatus" },
+          "sla_deadline": { "allOf": [{ "$ref": "#/components/schemas/Timestamp" }], "nullable": true },
+          "problem": { "type": "string", "nullable": true },
+          "expectation": { "type": "string", "nullable": true },
+          "ticket_attachment_url": { "type": "string", "nullable": true },
+          "created_at": { "$ref": "#/components/schemas/Timestamp" },
+          "updated_at": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "CreateTaskRequest": {
+        "type": "object",
+        "required": ["website_id", "instruction_notes"],
+        "properties": {
+          "website_id": { "$ref": "#/components/schemas/Uuid" },
+          "assignee_id": { "$ref": "#/components/schemas/Uuid", "description": "Required for superadmin/Bos IT delegation; ignored for developer self-service." },
+          "instruction_notes": { "type": "string", "maxLength": 5000 },
+          "attachment_url": { "type": "string", "maxLength": 2000 },
+          "sla_deadline": { "$ref": "#/components/schemas/Timestamp" }
+        }
+      },
+      "UpdateTaskStatusRequest": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "$ref": "#/components/schemas/TaskStatus" }
+        }
+      },
+      "DeveloperWorkload": {
+        "type": "object",
+        "required": ["developer_id", "developer_name", "pending", "in_progress", "overdue", "total_active"],
+        "properties": {
+          "developer_id": { "$ref": "#/components/schemas/Uuid" },
+          "developer_name": { "type": "string" },
+          "pending": { "type": "integer" },
+          "pending_orphan_tickets": { "type": "integer" },
+          "in_progress": { "type": "integer" },
+          "in_progress_orphan_tickets": { "type": "integer" },
+          "overdue": { "type": "integer" },
+          "overdue_orphan_tickets": { "type": "integer" },
+          "total_active": { "type": "integer" }
+        }
+      },
+      "AttachmentUploadResponse": {
+        "type": "object",
+        "required": ["attachment_url"],
+        "properties": { "attachment_url": { "type": "string" } }
+      },
+      "SignedUrlResponse": {
+        "type": "object",
+        "required": ["url", "expires_at"],
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "expires_at": { "$ref": "#/components/schemas/Timestamp" }
         }
       },
       "Notification": {
@@ -418,6 +525,53 @@
           },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/auth/guest": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Sign in through the shared guest account",
+        "description": "Creates a session for the seeded active end_user account.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Guest session created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Request a password reset email",
+        "description": "Always returns a generic response to avoid account enumeration.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ForgotPasswordRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Generic reset response", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Reset password with a one-time token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResetPasswordRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Password reset", "content": { "application/json": { "schema": { "type": "object", "properties": { "message": { "type": "string" } } } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
@@ -957,6 +1111,31 @@
         }
       }
     },
+    "/tickets/attachments": {
+      "post": {
+        "tags": ["Tickets"],
+        "summary": "Upload a ticket attachment",
+        "description": "Private object-storage upload; maximum size is 10 MB.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": { "file": { "type": "string", "format": "binary" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Attachment uploaded", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AttachmentUploadResponse" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
     "/tickets": {
       "get": {
         "tags": ["Tickets"],
@@ -966,6 +1145,11 @@
           { "$ref": "#/components/parameters/LimitParam" },
           {
             "name": "incident_id",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/Uuid" }
+          },
+          {
+            "name": "website_id",
             "in": "query",
             "schema": { "$ref": "#/components/schemas/Uuid" }
           },
@@ -1029,6 +1213,18 @@
         }
       }
     },
+    "/tickets/{id}/attachment": {
+      "get": {
+        "tags": ["Tickets"],
+        "summary": "Get a signed URL for a ticket attachment",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "responses": {
+          "200": { "description": "Signed attachment URL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SignedUrlResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/tickets/{id}": {
       "get": {
         "tags": ["Tickets"],
@@ -1072,6 +1268,86 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "List tasks",
+        "description": "Superadmin and Bos IT see global tasks; developer sees assigned tasks; PIC Web sees tasks on owned websites.",
+        "parameters": [
+          { "$ref": "#/components/parameters/PageParam" },
+          { "$ref": "#/components/parameters/LimitParam" },
+          { "name": "website_id", "in": "query", "schema": { "$ref": "#/components/schemas/Uuid" } },
+          { "name": "assignee_id", "in": "query", "schema": { "$ref": "#/components/schemas/Uuid" } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/TaskStatus" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "meta"],
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Task" } },
+                    "meta": { "$ref": "#/components/schemas/PaginatedMeta" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      },
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Create or delegate a developer task",
+        "description": "Superadmin and Bos IT must provide assignee_id; a developer may create a self-assigned to-do only for an assigned website.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTaskRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Task created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Task" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/tasks/{id}/status": {
+      "patch": {
+        "tags": ["Tasks"],
+        "summary": "Update task status",
+        "description": "Developers can set in_progress or done for their own tasks; superadmin can set any task status.",
+        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateTaskStatusRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Task updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Task" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/workload/developers": {
+      "get": {
+        "tags": ["Workload"],
+        "summary": "List active developer workload",
+        "description": "Superadmin and Bos IT see all active developers; PIC Web sees the developer scope of owned websites.",
+        "responses": {
+          "200": { "description": "Developer workload rows", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/DeveloperWorkload" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
         }
       }
     },

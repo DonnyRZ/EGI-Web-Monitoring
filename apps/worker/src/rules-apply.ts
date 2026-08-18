@@ -4,6 +4,7 @@ import {
   NotificationStatus,
   PrismaClient,
   Severity,
+  TaskStatus,
   TicketStatus,
   UserRole,
 } from "@egi/database";
@@ -249,15 +250,29 @@ async function resolveIncidentFlow(
     },
   });
 
-  await prisma.ticket.updateMany({
-    where: {
-      incidentId,
-      status: { in: [TicketStatus.open, TicketStatus.in_progress] },
-    },
-    data: {
-      status: TicketStatus.resolved,
-      resolvedAt: new Date(),
-    },
+  const resolvedAt = new Date();
+  await prisma.$transaction(async (tx) => {
+    const activeTickets = await tx.ticket.findMany({
+      where: {
+        incidentId,
+        status: { in: [TicketStatus.open, TicketStatus.in_progress] },
+      },
+      select: { id: true },
+    });
+    if (activeTickets.length === 0) return;
+
+    const ticketIds = activeTickets.map((ticket) => ticket.id);
+    await tx.ticket.updateMany({
+      where: { id: { in: ticketIds } },
+      data: { status: TicketStatus.resolved, resolvedAt },
+    });
+    // Tickets created through the API may have a linked Task. Recovery is a
+    // ticket status transition too, so complete that task in the same unit of
+    // work instead of leaving the developer's queue stale.
+    await tx.task.updateMany({
+      where: { ticketId: { in: ticketIds } },
+      data: { status: TaskStatus.done },
+    });
   });
 
   log(

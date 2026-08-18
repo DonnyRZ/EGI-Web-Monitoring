@@ -67,6 +67,33 @@ enum TaskStatus {
   done
 }
 
+enum ProjectStatus {
+  draft
+  active
+  archived
+}
+
+enum ProjectMemberType {
+  pic_web
+  developer
+}
+
+enum UserStoryStatus {
+  backlog
+  ready
+  in_progress
+  review
+  done
+  blocked
+}
+
+enum UserStoryPriority {
+  critical
+  high
+  medium
+  low
+}
+
 model User {
   id               String    @id @default(uuid()) @db.Uuid
   name             String    @db.VarChar(150)
@@ -83,6 +110,12 @@ model User {
   ownedWebsites Website[]      @relation("WebsiteOwner")
   itWebsites Website[]          @relation("WebsiteItPic")
   backupItWebsites Website[]    @relation("WebsiteBackupItPic")
+  projectPicDeveloperProjects Project[] @relation("ProjectPicDeveloper")
+  createdProjects Project[]     @relation("ProjectCreator")
+  projectMemberships ProjectMember[]
+  primaryUserStories UserStory[] @relation("StoryPrimaryDeveloper")
+  createdUserStories UserStory[] @relation("StoryCreator")
+  storyCollaborations StoryCollaborator[]
   assignedTickets Ticket[]     @relation("TicketAssignee")
   createdTickets Ticket[]      @relation("TicketCreator")
   assignedTasks Task[]         @relation("TaskAssignee")
@@ -122,11 +155,50 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model Project {
+  id              String        @id @default(uuid()) @db.Uuid
+  name            String        @db.VarChar(150)
+  description     String?
+  status          ProjectStatus @default(draft)
+  picDeveloperId  String?       @map("pic_developer_id") @db.Uuid
+  createdById     String?       @map("created_by_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  picDeveloper User? @relation("ProjectPicDeveloper", fields: [picDeveloperId], references: [id], onDelete: SetNull)
+  createdBy    User? @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  websites     Website[]
+  members      ProjectMember[]
+  userStories  UserStory[]
+  tickets      Ticket[]
+
+  @@index([status])
+  @@index([picDeveloperId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id         String            @id @default(uuid()) @db.Uuid
+  projectId  String            @map("project_id") @db.Uuid
+  userId     String            @map("user_id") @db.Uuid
+  memberType ProjectMemberType @map("member_type")
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId, memberType])
+  @@map("project_members")
+}
+
 model Website {
   id                         String   @id @default(uuid()) @db.Uuid
   name                       String   @db.VarChar(150)
   domain                     String   @db.VarChar(255)
   url                        String
+  projectId                  String?  @map("project_id") @db.Uuid
   ownerId                    String?  @map("owner_id") @db.Uuid
   itPicId                    String?  @map("it_pic_id") @db.Uuid
   backupItPicId              String?  @map("backup_it_pic_id") @db.Uuid
@@ -135,6 +207,7 @@ model Website {
   createdAt                  DateTime @default(now()) @map("created_at")
   updatedAt                  DateTime @updatedAt @map("updated_at")
 
+  project            Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
   owner              User?              @relation("WebsiteOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   itPic              User?              @relation("WebsiteItPic", fields: [itPicId], references: [id], onDelete: SetNull)
   backupItPic        User?              @relation("WebsiteBackupItPic", fields: [backupItPicId], references: [id], onDelete: SetNull)
@@ -142,7 +215,9 @@ model Website {
   incidents          Incident[]
   tasks              Task[]
   tickets            Ticket[]
+  userStories        UserStory[]
 
+  @@index([projectId])
   @@index([isActive])
   @@map("websites")
 }
@@ -203,6 +278,8 @@ model Ticket {
   id           String         @id @default(uuid()) @db.Uuid
   incidentId   String?        @map("incident_id") @db.Uuid
   websiteId    String?        @map("website_id") @db.Uuid
+  projectId    String?        @map("project_id") @db.Uuid
+  userStoryId  String?        @map("user_story_id") @db.Uuid
   createdBy    String?        @map("created_by") @db.Uuid
   title        String         @db.VarChar(255)
   category     TicketCategory?
@@ -219,17 +296,66 @@ model Ticket {
 
   incident     Incident?      @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   website      Website?       @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  project      Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userStory    UserStory?     @relation(fields: [userStoryId], references: [id], onDelete: SetNull)
   creator      User?          @relation("TicketCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   assignee     User?          @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
   task         Task?
 
   @@index([incidentId])
   @@index([websiteId])
+  @@index([projectId])
+  @@index([userStoryId])
   @@index([createdBy])
   @@index([assignedTo])
   @@index([status])
   @@index([slaDeadline])
   @@map("tickets")
+}
+
+model UserStory {
+  id                   String            @id @default(uuid()) @db.Uuid
+  projectId            String            @map("project_id") @db.Uuid
+  websiteId            String?           @map("website_id") @db.Uuid
+  title                String            @db.VarChar(255)
+  description          String?
+  acceptanceCriteria   String?           @map("acceptance_criteria")
+  priority             UserStoryPriority @default(medium)
+  status               UserStoryStatus   @default(backlog)
+  primaryDeveloperId   String?           @map("primary_developer_id") @db.Uuid
+  dueDate              DateTime?         @map("due_date")
+  createdById          String?           @map("created_by_id") @db.Uuid
+  completedAt          DateTime?         @map("completed_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  website          Website?         @relation(fields: [websiteId], references: [id], onDelete: SetNull)
+  primaryDeveloper User?            @relation("StoryPrimaryDeveloper", fields: [primaryDeveloperId], references: [id], onDelete: SetNull)
+  createdBy        User?            @relation("StoryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  collaborators    StoryCollaborator[]
+  tickets          Ticket[]
+
+  @@index([projectId])
+  @@index([websiteId])
+  @@index([primaryDeveloperId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("user_stories")
+}
+
+model StoryCollaborator {
+  id        String   @id @default(uuid()) @db.Uuid
+  storyId   String   @map("story_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  story UserStory @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([userId])
+  @@map("story_collaborators")
 }
 
 model Notification {

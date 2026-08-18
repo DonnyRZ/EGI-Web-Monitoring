@@ -15,7 +15,7 @@ import { UserRole } from "@egi/database";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
-import { PLATFORM_ADMIN_ROLES_PRISMA } from "../../common/resource-access";
+import { TASK_CREATOR_ROLES_PRISMA } from "../../common/resource-access";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 import { CreateTaskDto, TasksQueryDto, UpdateTaskStatusDto } from "./tasks.dto";
 import { TasksService } from "./tasks.service";
@@ -29,7 +29,7 @@ export class TasksController {
 
   @Post()
   @HttpCode(201)
-  @Roles(...PLATFORM_ADMIN_ROLES_PRISMA, UserRole.developer)
+  @Roles(...TASK_CREATOR_ROLES_PRISMA)
   create(@Body() dto: CreateTaskDto, @CurrentUser() user: AuthUser) {
     return this.tasksService.create(dto, user);
   }

@@ -6,6 +6,7 @@ import { TicketsService } from "./tickets.service";
 const developer = { id: "dev-1", email: "dev@example.test" };
 const bosItUsers = [{ email: "boss1@example.test" }, { email: "boss2@example.test" }];
 const creator = { id: "creator-1", email: "creator@example.test", role: "superadmin" };
+const developerUser = { id: developer.id, email: developer.email, role: UserRole.developer };
 
 function makeFakePrisma(website: { itPicId: string | null; backupItPicId: string | null }) {
   const notifications: Array<Record<string, unknown>> = [];
@@ -211,4 +212,174 @@ test("create() without an assignee sends no notification", async () => {
 
   assert.equal(tasks.length, 0);
   assert.equal(notifications.length, 0);
+});
+
+test("developer ticket list stays scoped even with incident and assignee filters", async () => {
+  let capturedWhere: Record<string, unknown> | undefined;
+  const prisma = {
+    ticket: {
+      count: async ({ where }: { where: Record<string, unknown> }) => {
+        capturedWhere = where;
+        return 0;
+      },
+      findMany: async () => [],
+    },
+    $transaction: async (operations: Promise<unknown>[]) => Promise.all(operations),
+  };
+  const service = new TicketsService(prisma as never);
+
+  await service.list(
+    { page: 1, limit: 20 },
+    {
+      page: 1,
+      limit: 20,
+      incident_id: "incident-1",
+      assigned_to: "another-developer",
+    },
+    developerUser,
+  );
+
+  assert.equal(capturedWhere?.incidentId, "incident-1");
+  assert.equal(capturedWhere?.assignedTo, "another-developer");
+  assert.deepEqual(capturedWhere?.OR, [
+    { assignedTo: developer.id },
+    { project: { picDeveloperId: developer.id } },
+    {
+      userStory: {
+        OR: [
+          { primaryDeveloperId: developer.id },
+          { collaborators: { some: { userId: developer.id } } },
+        ],
+      },
+    },
+  ]);
+});
+
+test("developer ticket detail is scoped to the authenticated assignee", async () => {
+  let capturedWhere: Record<string, unknown> | undefined;
+  const ticket = {
+    id: "ticket-1",
+    incidentId: null,
+    websiteId: "web-1",
+    createdBy: "creator-1",
+    title: "Tiket",
+    category: TicketCategory.website,
+    description: "Masalah",
+    expectation: "Selesai",
+    attachmentUrl: null,
+    assignedTo: developer.id,
+    priority: "medium",
+    status: TicketStatus.open,
+    slaDeadline: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    resolvedAt: null,
+    assignee: { id: developer.id, name: "Developer" },
+  };
+  const prisma = {
+    ticket: {
+      findFirst: async ({ where }: { where: Record<string, unknown> }) => {
+        capturedWhere = where;
+        return ticket;
+      },
+    },
+  };
+  const service = new TicketsService(prisma as never);
+
+  await service.get(ticket.id, developerUser);
+
+  assert.equal(capturedWhere?.id, ticket.id);
+  assert.equal(capturedWhere?.assignedTo, undefined);
+  assert.deepEqual(capturedWhere?.OR, [
+    { assignedTo: developer.id },
+    { project: { picDeveloperId: developer.id } },
+    {
+      userStory: {
+        OR: [
+          { primaryDeveloperId: developer.id },
+          { collaborators: { some: { userId: developer.id } } },
+        ],
+      },
+    },
+  ]);
+});
+
+test("PIC Web cannot create an incident ticket for another website", async () => {
+  const picWeb = { id: "pic-1", email: "pic@example.test", role: UserRole.pic_web };
+  const prisma = {
+    incident: {
+      findUnique: async () => ({ id: "incident-1", websiteId: "web-2" }),
+    },
+    website: {
+      findUnique: async () => ({
+        id: "web-2",
+        name: "Situs milik orang lain",
+        ownerId: "other-pic",
+        itPicId: null,
+        backupItPicId: null,
+      }),
+    },
+  };
+  const service = new TicketsService(prisma as never);
+
+  await assert.rejects(
+    () => service.create({ incident_id: "incident-1", title: "Tidak boleh" }, picWeb),
+    /assigned websites/,
+  );
+});
+
+test("PIC Web incident-only ticket inherits and validates its website", async () => {
+  const picWeb = { id: "pic-1", email: "pic@example.test", role: UserRole.pic_web };
+  let createdData: Record<string, unknown> | undefined;
+  const prisma = {
+    incident: {
+      findUnique: async () => ({ id: "incident-1", websiteId: "web-1" }),
+    },
+    website: {
+      findUnique: async () => ({
+        id: "web-1",
+        name: "Situs PIC",
+        ownerId: picWeb.id,
+        itPicId: null,
+        backupItPicId: null,
+      }),
+    },
+    ticket: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        createdData = data;
+        return {
+          id: "ticket-1",
+          ...data,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          resolvedAt: null,
+          assignee: null,
+        };
+      },
+    },
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
+  };
+  const service = new TicketsService(prisma as never);
+
+  await service.create({ incident_id: "incident-1", title: "Boleh" }, picWeb);
+
+  assert.equal(createdData?.websiteId, "web-1");
+});
+
+test("ticket status changes synchronize the linked task status", async () => {
+  const { prisma, taskUpdates } = makeUpdatePrisma({ assignedTo: previousDev.id });
+  const service = new TicketsService(prisma as never);
+
+  await service.update("ticket-1", { status: TicketStatus.in_progress }, developerUser);
+
+  assert.equal(taskUpdates[0]?.status, "in_progress");
+});
+
+test("resolved ticket status completes the linked task", async () => {
+  const { prisma, taskUpdates } = makeUpdatePrisma({ assignedTo: previousDev.id });
+  const service = new TicketsService(prisma as never);
+
+  await service.update("ticket-1", { status: TicketStatus.resolved }, developerUser);
+
+  assert.equal(taskUpdates[0]?.status, "done");
 });

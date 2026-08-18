@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAdminUpsertData, buildDeveloperUpsertData, buildGuestUpsertData } from "./seed";
+import {
+  buildAdminUpsertData,
+  buildBosItUpsertData,
+  buildDeveloperUpsertData,
+  buildGuestUpsertData,
+  buildPicWebUpsertData,
+} from "./seed";
 
 const envWith = (overrides: NodeJS.ProcessEnv) => ({ ...overrides }) as NodeJS.ProcessEnv;
 
@@ -25,6 +31,24 @@ test("developer upsert never sets passwordHash on update, regardless of env", ()
     const data = buildDeveloperUpsertData(env);
     assert.equal("passwordHash" in data.update, false);
   }
+});
+
+test("Bos IT and PIC Web upserts never reset passwords on re-seed", () => {
+  const bosIt = buildBosItUpsertData(
+    envWith({ SEED_BOS_IT_EMAIL: "bos@example.com", SEED_BOS_IT_PASSWORD: "StrongPassword1!" }),
+  );
+  const picWeb = buildPicWebUpsertData(
+    envWith({ SEED_PIC_WEB_EMAIL: "pic@example.com", SEED_PIC_WEB_PASSWORD: "StrongPassword1!" }),
+  );
+
+  assert.equal(bosIt.email, "bos@example.com");
+  assert.equal(bosIt.create.role, "bos_it");
+  assert.equal(bosIt.update.role, "bos_it");
+  assert.equal("passwordHash" in bosIt.update, false);
+  assert.equal(picWeb.email, "pic@example.com");
+  assert.equal(picWeb.create.role, "pic_web");
+  assert.equal(picWeb.update.role, "pic_web");
+  assert.equal("passwordHash" in picWeb.update, false);
 });
 
 test("admin create sets a passwordHash derived from SEED_ADMIN_PASSWORD when provided", () => {
@@ -59,12 +83,18 @@ test("email defaults can be overridden via env", () => {
 test("update payloads still force isActive and role as a lockout safety-net", () => {
   const admin = buildAdminUpsertData(envWith({}));
   const developer = buildDeveloperUpsertData(envWith({}));
+  const bosIt = buildBosItUpsertData(envWith({}));
+  const picWeb = buildPicWebUpsertData(envWith({}));
   const guest = buildGuestUpsertData(envWith({}));
 
   assert.equal(admin.update.isActive, true);
   assert.equal(admin.update.role, "superadmin");
   assert.equal(developer.update.isActive, true);
   assert.equal(developer.update.role, "developer");
+  assert.equal(bosIt.update.isActive, true);
+  assert.equal(bosIt.update.role, "bos_it");
+  assert.equal(picWeb.update.isActive, true);
+  assert.equal(picWeb.update.role, "pic_web");
   assert.equal(guest.update.isActive, true);
   assert.equal(guest.update.role, "end_user");
   assert.equal("passwordHash" in guest.update, false);

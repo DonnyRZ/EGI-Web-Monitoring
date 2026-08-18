@@ -7,6 +7,9 @@ import {
   PLATFORM_ADMIN_ROLES,
   TICKET_ASSIGNEE_ROLES,
   TICKET_MANAGER_ROLES,
+  TASK_CREATOR_ROLES,
+  PROJECT_ADMIN_ROLES,
+  USER_STORY_MANAGER_ROLES,
   USER_ROLES,
   canAccessAllMonitoredResources,
   canInspectMonitoringDetails,
@@ -21,6 +24,11 @@ import {
   roleLabel,
   canViewTasks,
   canViewDeveloperWorkload,
+  canCreateTasks,
+  canManageProjects,
+  canViewProjectRegistry,
+  canManageUserStories,
+  canViewUserStories,
 } from "./rbac";
 
 test("USER_ROLES lists the current role model", () => {
@@ -61,6 +69,14 @@ test("incident mutate is superadmin only; tickets include operational roles", ()
   assert.equal(canManageTickets("developer"), true);
 });
 
+test("task creation includes Bos IT delegation and developer self-service", () => {
+  assert.deepEqual([...TASK_CREATOR_ROLES], ["superadmin", "bos_it", "developer"]);
+  assert.equal(canCreateTasks("superadmin"), true);
+  assert.equal(canCreateTasks("bos_it"), true);
+  assert.equal(canCreateTasks("developer"), true);
+  assert.equal(canCreateTasks("pic_web"), false);
+});
+
 test("worker assignee and notification role sets", () => {
   assert.deepEqual([...TICKET_ASSIGNEE_ROLES], ["bos_it", "developer"]);
   assert.deepEqual([...LIFECYCLE_NOTIFICATION_ROLES], ["superadmin", "bos_it", "developer"]);
@@ -81,4 +97,16 @@ test("roleLabel covers every USER_ROLES entry", () => {
   for (const role of USER_ROLES) {
     assert.ok(roleLabel(role).length > 0);
   }
+});
+
+test("project and user story capability sets keep pic_developer project-scoped", () => {
+  assert.deepEqual([...PROJECT_ADMIN_ROLES], ["superadmin", "bos_it"]);
+  assert.deepEqual([...USER_STORY_MANAGER_ROLES], ["superadmin", "bos_it", "developer"]);
+  assert.equal(canManageProjects("developer"), false);
+  assert.equal(canManageProjects("bos_it"), true);
+  assert.equal(canViewProjectRegistry("pic_web"), true);
+  assert.equal(canViewProjectRegistry("end_user"), false);
+  assert.equal(canManageUserStories("developer"), true);
+  assert.equal(canViewUserStories("developer"), true);
+  assert.equal(canViewUserStories("pic_web"), false);
 });

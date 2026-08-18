@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { DelegateTaskForm } from "@/components/DelegateTaskForm";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { IconExternal } from "@/components/icons";
 import {
@@ -44,6 +45,7 @@ export default function WebsiteDetailPage() {
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const [myTasksLoading, setMyTasksLoading] = useState(false);
   const isDeveloper = user?.role === "developer";
+  const canDelegateTasks = canManagePlatform(user?.role) || user?.role === "bos_it";
 
   useEffect(() => {
     if (!authLoading && user && opensWebsiteExternallyFromDashboard(user.role)) {
@@ -243,6 +245,10 @@ export default function WebsiteDetailPage() {
                 </div>
               </div>
             </div>
+          ) : null}
+
+          {canDelegateTasks ? (
+            <DelegateTaskForm websiteId={data.website.id} websiteName={data.website.name} />
           ) : null}
 
           {isDeveloper ? (

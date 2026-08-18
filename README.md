@@ -41,7 +41,11 @@ npm run build -w @egi/shared-types -w @egi/queue -w @egi/monitoring-rules
 npm run playwright:install -w @egi/worker
 ```
 
-Seed login: `egi.egiholding@gmail.com` / `Admin123!` (bcrypt; re-seed keeps the existing password).
+Seed logins default to admin `egi.egiholding@gmail.com`, Bos IT `bos.it@egiresources.com`,
+PIC Web `pic.web@egiresources.com`, and developer `donny@egiresources.com`, all using
+`Admin123!` unless overridden by the corresponding `SEED_*_PASSWORD` variables. The
+13 seeded websites are owned by PIC Web and assigned to the seeded developer; re-seed
+keeps existing passwords and preserves deliberate manual assignments.
 
 ### Run processes
 
@@ -103,7 +107,7 @@ certificate configuration before public exposure.
 | `npm run infra:up` | Start Postgres (5433), Redis, MinIO |
 | `npm run infra:down` | Stop infra containers |
 | `npm run db:migrate` | Apply Prisma migrations |
-| `npm run db:seed` | Seed admin + 13 EGI websites (upserts bcrypt admin password) |
+| `npm run db:seed` | Seed admin, Bos IT, PIC Web, developer, guest, and 13 EGI websites |
 | `npm run build:database` | Generate Prisma client + build `@egi/database` |
 | `npm run build` | Build database then all packages/apps |
 | `npm run dev:backend` | NestJS API + Swagger |

@@ -16,24 +16,65 @@ export type NotificationStatus = "pending" | "sent" | "failed";
 
 export type TaskStatus = "pending" | "in_progress" | "done";
 
+export type ProjectStatus = "draft" | "active" | "archived";
+
+export type ProjectMemberType = "pic_web" | "developer";
+
+export type UserStoryStatus =
+  | "backlog"
+  | "ready"
+  | "in_progress"
+  | "review"
+  | "done"
+  | "blocked";
+
+export type UserStoryPriority = "critical" | "high" | "medium" | "low";
+
+export interface ProjectListSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  pic_developer_id: string | null;
+  created_by_id: string | null;
+  created_at: string;
+  updated_at: string;
+  websites_count: number;
+  active_websites_count: number;
+  active_tickets_count: number;
+  active_stories_count: number;
+  overdue_count: number;
+  health: MonitoringStatus;
+  configuration_status: "ready" | "needs_setup";
+}
+
 export type { UserRole } from "./rbac";
 export {
   USER_ROLES,
   PLATFORM_ADMIN_ROLES,
+  PROJECT_ADMIN_ROLES,
+  PROJECT_GLOBAL_VIEWER_ROLES,
+  USER_STORY_MANAGER_ROLES,
   ALL_RESOURCE_ACCESS_ROLES,
   INCIDENT_MANAGER_ROLES,
   TICKET_MANAGER_ROLES,
   TICKET_ASSIGNEE_ROLES,
+  TASK_CREATOR_ROLES,
   LIFECYCLE_NOTIFICATION_ROLES,
   WORKLOAD_VIEWER_ROLES,
   canManagePlatform,
+  canManageProjects,
+  canViewProjectRegistry,
+  canManageUserStories,
   canAccessAllMonitoredResources,
   canInspectMonitoringDetails,
   canViewIncidents,
   canViewTasks,
+  canViewUserStories,
   canManageIncidents,
   canManageTickets,
   isTicketAssigneeCandidate,
+  canCreateTasks,
   receivesLifecycleNotifications,
   isEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard,

@@ -2,14 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { TaskStatus, TicketStatus, UserRole } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { AuthUser } from "../../common/current-user.decorator";
+import { websiteVisibilityScope } from "../../common/resource-access";
 
 /**
- * A ticket that gets a website + assignee at creation time auto-spawns a
- * linked Task in the same transaction (see TicketsService.create), and the
- * developer works that Task, not the ticket directly. Counting both would
- * double-count the same unit of work. Only tickets with NO linked task
- * (e.g. help_desk/procurement categories without a website) are genuinely
- * standalone and counted here as "orphan tickets".
+ * Legacy tickets may have a linked Task; counting both would double-count the
+ * same unit of work. Project-based tickets use User Stories and therefore
+ * remain visible as intake until a PIC Developer converts them. Only tickets
+ * with NO linked Task are counted here as standalone/orphan tickets.
  *
  * PIC Web only sees developers who are IT PIC / backup PIC of websites they
  * own, and only work items on those websites.
@@ -38,7 +37,10 @@ export class WorkloadService {
       return [];
     }
 
-    const [developers, orphanTickets, tasks] = await Promise.all([
+    const storyDelegate = (this.prisma as unknown as {
+      userStory?: { findMany: (args: unknown) => Promise<unknown[]> };
+    }).userStory;
+    const [developers, orphanTickets, tasks, stories] = await Promise.all([
       this.prisma.user.findMany({
         where: {
           role: UserRole.developer,
@@ -64,6 +66,20 @@ export class WorkloadService {
         },
         select: { assigneeId: true, status: true, slaDeadline: true },
       }),
+      storyDelegate
+        ? storyDelegate.findMany({
+            where: {
+              status: { not: "done" },
+              ...(scoped?.projectIds.length ? { projectId: { in: scoped.projectIds } } : {}),
+            },
+            select: {
+              status: true,
+              dueDate: true,
+              primaryDeveloperId: true,
+              collaborators: { select: { userId: true } },
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const rows = new Map<string, DeveloperWorkloadRow>();
@@ -108,6 +124,24 @@ export class WorkloadService {
       row.total_active += 1;
     }
 
+    for (const story of stories as Array<{
+      status: string;
+      dueDate: Date | null;
+      primaryDeveloperId: string | null;
+      collaborators: Array<{ userId: string }>;
+    }>) {
+      const assignees = [story.primaryDeveloperId, ...story.collaborators.map((row) => row.userId)]
+        .filter((id): id is string => Boolean(id));
+      for (const assigneeId of new Set(assignees)) {
+        const row = rows.get(assigneeId);
+        if (!row) continue;
+        if (story.status === "backlog" || story.status === "ready") row.pending += 1;
+        else row.in_progress += 1;
+        if (story.dueDate && story.dueDate.getTime() < now) row.overdue += 1;
+        row.total_active += 1;
+      }
+    }
+
     return Array.from(rows.values()).sort((a, b) => {
       const overdueDiff = b.overdue - a.overdue;
       if (overdueDiff !== 0) return overdueDiff;
@@ -118,14 +152,38 @@ export class WorkloadService {
   private async picWebScope(user: AuthUser) {
     if (user.role !== UserRole.pic_web) return null;
     const sites = await this.prisma.website.findMany({
-      where: { ownerId: user.id },
-      select: { id: true, itPicId: true, backupItPicId: true },
+      where: (this.prisma as unknown as { project?: unknown }).project
+        ? websiteVisibilityScope(user)
+        : { ownerId: user.id },
+      select: {
+        id: true,
+        projectId: true,
+        itPicId: true,
+        backupItPicId: true,
+        project: {
+          select: {
+            picDeveloperId: true,
+            members: { where: { memberType: "developer" }, select: { userId: true } },
+          },
+        },
+      },
     });
     const developerIds = [
       ...new Set(
-        sites.flatMap((s) => [s.itPicId, s.backupItPicId]).filter((id): id is string => Boolean(id)),
+        sites
+          .flatMap((s) => [
+            s.itPicId,
+            s.backupItPicId,
+            s.project?.picDeveloperId,
+            ...(s.project?.members.map((member) => member.userId) ?? []),
+          ])
+          .filter((id): id is string => Boolean(id)),
       ),
     ];
-    return { websiteIds: sites.map((s) => s.id), developerIds };
+    return {
+      websiteIds: sites.map((s) => s.id),
+      projectIds: sites.map((s) => s.projectId).filter((id): id is string => Boolean(id)),
+      developerIds,
+    };
   }
 }

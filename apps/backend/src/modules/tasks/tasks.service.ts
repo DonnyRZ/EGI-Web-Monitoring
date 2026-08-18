@@ -29,7 +29,18 @@ export class TasksService {
   async create(dto: CreateTaskDto, user: AuthUser) {
     const website = await this.prisma.website.findUnique({
       where: { id: dto.website_id },
-      select: { id: true, itPicId: true, backupItPicId: true },
+      select: {
+        id: true,
+        projectId: true,
+        itPicId: true,
+        backupItPicId: true,
+        project: {
+          select: {
+            picDeveloperId: true,
+            members: { where: { memberType: "developer" }, select: { userId: true } },
+          },
+        },
+      },
     });
     if (!website) throw new NotFoundException("Website not found");
 
@@ -37,7 +48,9 @@ export class TasksService {
     if (user.role === UserRole.developer) {
       // Self-service to-do: developers may only add work for sites they actually own,
       // and always assign it to themselves regardless of what the client sent.
-      if (website.itPicId !== user.id && website.backupItPicId !== user.id) {
+      const projectMember = website.project?.members.some((member) => member.userId === user.id);
+      const isProjectPic = website.project?.picDeveloperId === user.id;
+      if (!projectMember && !isProjectPic && website.itPicId !== user.id && website.backupItPicId !== user.id) {
         throw new ForbiddenException(
           "You may only add to-dos for websites where you are the IT PIC or backup",
         );
@@ -86,6 +99,8 @@ export class TasksService {
     } else if (user.role === UserRole.developer) {
       where.assigneeId = user.id;
     } else if (user.role === UserRole.pic_web) {
+      // Legacy Tasks retain their historical Website-owner scope. New
+      // Project-based work is surfaced through User Stories instead.
       where.website = { ownerId: user.id };
       if (filters.assignee_id) where.assigneeId = filters.assignee_id;
     } else {

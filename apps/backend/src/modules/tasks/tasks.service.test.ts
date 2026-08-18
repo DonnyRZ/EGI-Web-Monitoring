@@ -7,6 +7,7 @@ import type { AuthUser } from "../../common/current-user.decorator";
 const developer: AuthUser = { id: "dev-1", email: "dev@example.test", role: UserRole.developer };
 const otherDeveloper = { id: "dev-2", role: UserRole.developer, isActive: true };
 const superadmin: AuthUser = { id: "admin-1", email: "admin@example.test", role: UserRole.superadmin };
+const bosIt: AuthUser = { id: "bos-1", email: "bos@example.test", role: UserRole.bos_it };
 
 function makeFakePrisma(website: { itPicId: string | null; backupItPicId: string | null }) {
   const createdTasks: Array<Record<string, unknown>> = [];
@@ -90,6 +91,20 @@ test("superadmin delegates a task with an explicit assignee, keeping creator dis
   assert.equal(result.assignee_id, otherDeveloper.id);
   assert.equal(result.created_by_id, superadmin.id);
   assert.notEqual(result.assignee_id, result.created_by_id);
+});
+
+test("Bos IT delegates a task with an explicit developer assignee", async () => {
+  const { prisma, createdTasks } = makeFakePrisma({ itPicId: null, backupItPicId: null });
+  const service = new TasksService(prisma as never);
+
+  const result = await service.create(
+    { website_id: "web-1", assignee_id: otherDeveloper.id, instruction_notes: "Tolong perbaiki" },
+    bosIt,
+  );
+
+  assert.equal(createdTasks.length, 1);
+  assert.equal(result.assignee_id, otherDeveloper.id);
+  assert.equal(result.created_by_id, bosIt.id);
 });
 
 test("superadmin must provide an assignee_id when delegating", async () => {

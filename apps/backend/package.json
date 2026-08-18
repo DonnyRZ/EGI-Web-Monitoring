@@ -20,6 +20,7 @@
     "test:workload": "tsx --test src/modules/workload/workload.service.test.ts",
     "test:dashboard": "tsx --test src/modules/dashboard/dashboard.service.test.ts",
     "remediate:test-data": "node scripts/remediate-test-data.mjs",
+    "project-backfill:dry-run": "tsx scripts/project-backfill.ts",
     "lint": "echo \"@egi/backend: no lint configured yet\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

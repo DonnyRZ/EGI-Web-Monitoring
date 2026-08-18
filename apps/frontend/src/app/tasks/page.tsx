@@ -9,16 +9,17 @@ import { IconPlus } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { tasksApi, ticketsApi, usersApi, websitesApi } from "@/lib/api-services";
+import { tasksApi, ticketsApi, websitesApi, workloadApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   canViewTasks,
   clipText,
   formatDateTime,
+  initials,
   overdueLabel,
   taskStatusLabel,
 } from "@/lib/format";
-import type { Task, TaskStatus, User, Website } from "@/lib/types";
+import type { DeveloperWorkload, Task, TaskStatus, Website } from "@/lib/types";
 
 function isOverdue(task: Task) {
   if (task.status === "done" || !task.sla_deadline) return false;
@@ -40,6 +41,7 @@ export default function TasksPage() {
   const router = useRouter();
   const isReadOnlyViewer =
     user?.role === "superadmin" || user?.role === "bos_it" || user?.role === "pic_web";
+  const isHighLevelViewer = user?.role === "superadmin" || user?.role === "pic_web";
   const [items, setItems] = useState<Task[]>([]);
   const [websites, setWebsites] = useState<Record<string, Website>>({});
   const [loading, setLoading] = useState(true);
@@ -48,12 +50,18 @@ export default function TasksPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [tab, setTab] = useState<TaskTab>("all");
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [developers, setDevelopers] = useState<User[]>([]);
+  const [developers, setDevelopers] = useState<DeveloperWorkload[]>([]);
   const [assigneeFilter, setAssigneeFilter] = useState("");
 
   useEffect(() => {
     if (!authLoading && user && !canViewTasks(user.role)) {
       router.replace("/dashboard");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!authLoading && user?.role === "developer") {
+      router.replace("/me/work");
     }
   }, [authLoading, user, router]);
 
@@ -85,10 +93,10 @@ export default function TasksPage() {
   }, [user, loadTasks]);
 
   useEffect(() => {
-    if (!user || !isReadOnlyViewer || user.role === "pic_web") return;
-    usersApi
-      .list({ role: "developer", is_active: true, limit: 100 })
-      .then((res) => setDevelopers(res.data))
+    if (!user || !isReadOnlyViewer) return;
+    workloadApi
+      .developers()
+      .then((res) => setDevelopers(res))
       .catch(() => setDevelopers([]));
   }, [user, isReadOnlyViewer]);
 
@@ -116,9 +124,9 @@ export default function TasksPage() {
     }
   }
 
-  if (!user || !canViewTasks(user.role)) {
+  if (!user || user.role === "developer" || !canViewTasks(user.role)) {
     return (
-      <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
+      <AppShell title={user?.role === "developer" ? "My Work" : isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
         <LoadingState />
       </AppShell>
     );
@@ -137,6 +145,21 @@ export default function TasksPage() {
     return true;
   });
 
+  if (isHighLevelViewer) {
+    return (
+      <AppShell title="Task Monitoring">
+        <HighLevelTaskMonitoring
+          userRole={user.role}
+          items={items}
+          websites={websites}
+          developers={developers}
+          loading={loading}
+          error={error}
+        />
+      </AppShell>
+    );
+  }
+
   const developerOptions = [
     { value: "", label: "Semua developer" },
     ...(user.role === "pic_web"
@@ -148,7 +171,7 @@ export default function TasksPage() {
             return acc;
           }, new Map<string, string>()),
         ).map(([id, name]) => ({ value: id, label: name }))
-      : developers.map((d) => ({ value: d.id, label: d.name }))),
+      : developers.map((d) => ({ value: d.developer_id, label: d.developer_name }))),
   ];
 
   const emptyTabCopy: Record<TaskTab, { title: string; description: string }> = {
@@ -405,4 +428,48 @@ export default function TasksPage() {
       ) : null}
     </AppShell>
   );
+}
+
+function HighLevelTaskMonitoring({
+  userRole,
+  items,
+  websites,
+  developers,
+  loading,
+  error,
+}: {
+  userRole: string;
+  items: Task[];
+  websites: Record<string, Website>;
+  developers: DeveloperWorkload[];
+  loading: boolean;
+  error: string;
+}) {
+  const [ticketCount, setTicketCount] = useState(0);
+  useEffect(() => {
+    ticketsApi.list({ limit: 100, status: "open" }).then((res) => setTicketCount(res.meta.total)).catch(() => undefined);
+  }, []);
+  const pending = items.filter((task) => task.status === "pending").length;
+  const inProgress = items.filter((task) => task.status === "in_progress").length;
+  const overdue = items.filter((task) => isOverdue(task)).length;
+  const grouped = Object.values(websites).reduce((groups, website) => {
+    const key = website.project_id || website.id;
+    const current = groups.get(key) ?? { name: website.project_id ? `Project ${website.project_id.slice(0, 8)}` : website.name, websites: 0, pending: 0, inProgress: 0, overdue: 0 };
+    current.websites += 1;
+    const siteTasks = items.filter((task) => task.website_id === website.id);
+    current.pending += siteTasks.filter((task) => task.status === "pending").length;
+    current.inProgress += siteTasks.filter((task) => task.status === "in_progress").length;
+    current.overdue += siteTasks.filter((task) => isOverdue(task)).length;
+    groups.set(key, current);
+    return groups;
+  }, new Map<string, { name: string; websites: number; pending: number; inProgress: number; overdue: number }>());
+  return <>
+    <div className="page-toolbar"><p className="page-toolbar-desc muted">Ringkasan high-level per Project dan status intake. Detail instruksi teknis tetap berada di Project / User Stories.</p><span className="high-level-view-label">High-level view</span></div>
+    {error ? <ErrorBanner message={error} /> : null}
+    {loading ? <LoadingState label="Memuat ringkasan pekerjaan…" /> : <>
+      <div className="metrics-row high-level-metrics"><div className="metric"><div className="metric-label">Pending</div><div className="metric-value">{pending}</div></div><div className="metric"><div className="metric-label">In progress</div><div className="metric-value">{inProgress}</div></div><div className="metric"><div className="metric-label">Overdue</div><div className="metric-value" style={overdue > 0 ? { color: "var(--danger)" } : undefined}>{overdue}</div></div><div className="metric"><div className="metric-label">Tiket belum ditriase</div><div className="metric-value">{ticketCount}</div></div></div>
+      <section className="panel"><div className="panel-heading-row"><div><span className="eyebrow">Portfolio pulse</span><h3 className="panel-title">Pekerjaan per Project</h3></div><span className="muted">{userRole === "pic_web" ? "Scope Project Anda" : "Semua Project"}</span></div>{grouped.size === 0 ? <EmptyState title="Belum ada pekerjaan aktif" description="Ringkasan pekerjaan akan muncul setelah ada story atau legacy task." /> : <div className="high-level-project-list">{[...grouped.values()].map((group, index) => <div key={`${group.name}-${index}`} className="high-level-project-row"><div><strong>{group.name}</strong><span className="muted">{group.websites} website</span></div><div className="high-level-project-stats"><span>{group.pending} pending</span><span>{group.inProgress} in progress</span>{group.overdue ? <span className="text-danger">{group.overdue} overdue</span> : null}</div></div>)}</div>}</section>
+      {developers.length > 0 ? <section className="panel"><div className="panel-heading-row"><div><span className="eyebrow">Capacity</span><h3 className="panel-title">Workload agregat</h3></div><span className="muted">Tanpa detail instruksi teknis</span></div><div className="high-level-developer-grid">{developers.map((developer) => <div key={developer.developer_id} className="high-level-developer"><span className="member-avatar">{initials(developer.developer_name)}</span><div><strong>{developer.developer_name}</strong><span className="muted">{developer.total_active} pekerjaan aktif</span></div><span className={developer.overdue > 0 ? "text-danger" : "muted"}>{developer.overdue} overdue</span></div>)}</div></section> : null}
+    </>}
+  </>;
 }

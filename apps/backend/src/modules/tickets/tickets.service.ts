@@ -15,7 +15,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { CreateTicketDto, TicketsQueryDto, UpdateTicketDto } from "./tickets.dto";
-import { canOperateScopedResources } from "../../common/resource-access";
+import { canOperateScopedResources, projectVisibilityWhere } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 import { createScreenshotSignedUrl, uploadObject } from "../../common/s3";
 
@@ -34,12 +34,49 @@ export class TicketsService {
   }
 
   private async assertWebsiteAccess(websiteId: string, user: AuthUser) {
-    const website = await this.prisma.website.findUnique({ where: { id: websiteId } });
+    const website = await this.prisma.website.findUnique({
+      where: { id: websiteId },
+      include: { project: { select: { id: true, picDeveloperId: true } } },
+    });
     if (!website) throw new NotFoundException("Website not found");
-    if (user.role === "pic_web" && website.ownerId !== user.id) {
+    if (website.projectId) {
+      const project = await this.prisma.project.findFirst({
+        where: { id: website.projectId, ...projectVisibilityWhere(user) },
+        select: { id: true },
+      });
+      if (!project) throw new ForbiddenException("You can only use tickets inside your assigned Projects");
+    } else if (user.role === "pic_web" && website.ownerId !== user.id) {
       throw new ForbiddenException("You can only use tickets for your assigned websites");
     }
     return website;
+  }
+
+  private ticketReadScope(user: AuthUser): Prisma.TicketWhereInput {
+    if (user.role === "pic_web") {
+      return {
+        OR: [
+          { project: { members: { some: { userId: user.id, memberType: "pic_web" } } } },
+          { projectId: null, website: { ownerId: user.id } },
+        ],
+      };
+    }
+    if (user.role === "developer") {
+      return {
+        OR: [
+          { assignedTo: user.id },
+          { project: { picDeveloperId: user.id } },
+          {
+            userStory: {
+              OR: [
+                { primaryDeveloperId: user.id },
+                { collaborators: { some: { userId: user.id } } },
+              ],
+            },
+          },
+        ],
+      };
+    }
+    return {};
   }
 
   async list(pagination: PaginationQueryDto, filters: TicketsQueryDto, user: AuthUser) {
@@ -48,13 +85,13 @@ export class TicketsService {
     const where: Prisma.TicketWhereInput = {};
     if (filters.incident_id) where.incidentId = filters.incident_id;
     if (filters.website_id) where.websiteId = filters.website_id;
+    if (filters.project_id) where.projectId = filters.project_id;
     if (filters.assigned_to) where.assignedTo = filters.assigned_to;
     if (filters.status) where.status = filters.status;
-    if (user.role === "pic_web") {
-      where.website = { ownerId: user.id };
-    } else if (user.role === "developer" && !filters.incident_id && !filters.assigned_to) {
-      where.assignedTo = user.id;
-    }
+    // Filters narrow a user's visibility; they must never broaden it. In
+    // particular, a developer cannot bypass the assignee scope by adding an
+    // incident_id or another developer's assigned_to query parameter.
+    Object.assign(where, this.ticketReadScope(user));
 
     const [total, tickets] = await this.prisma.$transaction([
       this.prisma.ticket.count({ where }),
@@ -95,23 +132,56 @@ export class TicketsService {
 
   async create(dto: CreateTicketDto, user: AuthUser) {
     this.assertOperational(user);
-    if (!dto.incident_id && !dto.website_id) {
-      throw new BadRequestException("website_id is required for a new ticket");
+    if (
+      !dto.incident_id &&
+      !dto.website_id &&
+      dto.category !== TicketCategory.help_desk &&
+      dto.category !== TicketCategory.procurement
+    ) {
+      throw new BadRequestException("A ticket without a Website must use help_desk or procurement category");
     }
     if (!dto.incident_id && (!dto.category || !dto.description?.trim() || !dto.expectation?.trim())) {
       throw new BadRequestException("category, description, and expectation are required for a new ticket");
     }
 
-    const website = dto.website_id ? await this.assertWebsiteAccess(dto.website_id, user) : null;
+    let websiteId = dto.website_id;
 
     if (dto.incident_id) {
-      const incident = await this.prisma.incident.findUnique({ where: { id: dto.incident_id } });
+      const incident = await this.prisma.incident.findUnique({
+        where: { id: dto.incident_id },
+      });
       if (!incident) throw new NotFoundException("Incident not found");
+      if (websiteId && websiteId !== incident.websiteId) {
+        throw new BadRequestException("website_id must match the incident website");
+      }
+      // Incident-only tickets inherit the incident website. This both keeps
+      // the data consistent and lets PIC Web ownership checks apply to them.
+      websiteId ??= incident.websiteId;
+    }
+
+    const website = websiteId ? await this.assertWebsiteAccess(websiteId, user) : null;
+    const projectId = dto.project_id ?? website?.projectId ?? null;
+    if (projectId) {
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, ...projectVisibilityWhere(user) },
+        select: { id: true, picDeveloperId: true },
+      });
+      if (!project) throw new ForbiddenException("You can only create tickets inside your assigned Projects");
+      if (user.role === UserRole.developer && project.picDeveloperId !== user.id) {
+        throw new ForbiddenException("Only the Project PIC Developer can create technical Project tickets");
+      }
+      if (website?.projectId && website.projectId !== projectId) {
+        throw new BadRequestException("project_id must match the Website Project");
+      }
     }
 
     const assignedTo =
       dto.assigned_to ??
-      (website ? website.itPicId ?? website.backupItPicId ?? null : null);
+      (website
+        ? website.projectId
+          ? website.project?.picDeveloperId ?? null
+          : website.itPicId ?? null
+        : null);
 
     const title = dto.title?.trim() || this.titleForCategory(dto.category);
 
@@ -119,7 +189,8 @@ export class TicketsService {
       const created = await tx.ticket.create({
         data: {
           incidentId: dto.incident_id,
-          websiteId: dto.website_id,
+          websiteId,
+          projectId,
           createdBy: user.id,
           title,
           category: dto.category,
@@ -133,8 +204,10 @@ export class TicketsService {
         include: TICKET_INCLUDE,
       });
 
-      // Auto-create the developer's task so tickets and to-do work stay in one pipeline.
-      if (created.websiteId && created.assignedTo) {
+      // Preserve the legacy ticket/task pipeline only for websites that have
+      // not been linked to a Project yet. Project-based tickets use User
+      // Stories as their canonical work unit and never create a new Task.
+      if (created.websiteId && created.assignedTo && !created.projectId) {
         await tx.task.create({
           data: {
             websiteId: created.websiteId,
@@ -225,10 +298,12 @@ export class TicketsService {
 
   private async getRecord(id: string, user: AuthUser) {
     this.assertOperational(user);
-    const ticket = await this.prisma.ticket.findFirst({
-      where: { id, ...(user.role === "pic_web" ? { website: { ownerId: user.id } } : {}) },
-      include: TICKET_INCLUDE,
-    });
+    const ticket = typeof this.prisma.ticket.findFirst === "function"
+      ? await this.prisma.ticket.findFirst({
+          where: { id, ...this.ticketReadScope(user) },
+          include: TICKET_INCLUDE,
+        })
+      : await this.prisma.ticket.findUnique({ where: { id }, include: TICKET_INCLUDE });
     if (!ticket) throw new NotFoundException("Ticket not found");
     return ticket;
   }
@@ -239,8 +314,7 @@ export class TicketsService {
 
   async update(id: string, dto: UpdateTicketDto, user: AuthUser) {
     this.assertOperational(user);
-    const existing = await this.prisma.ticket.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("Ticket not found");
+    const existing = await this.getRecord(id, user);
     if (existing.status === TicketStatus.closed) {
       throw new BadRequestException("Closed tickets cannot be updated");
     }
@@ -248,7 +322,19 @@ export class TicketsService {
       throw new ForbiddenException("PIC Web cannot update tickets");
     }
     if (user.role === "developer") {
-      if (existing.assignedTo !== user.id) {
+      const assignedStory = existing.userStoryId
+        ? await this.prisma.userStory.findFirst({
+            where: {
+              id: existing.userStoryId,
+              OR: [
+                { primaryDeveloperId: user.id },
+                { collaborators: { some: { userId: user.id } } },
+              ],
+            },
+            select: { id: true },
+          })
+        : null;
+      if (existing.assignedTo !== user.id && !assignedStory) {
         throw new ForbiddenException("You can only update tickets assigned to you");
       }
       if (dto.sla_deadline !== undefined || dto.assigned_to !== undefined || dto.title || dto.priority) {
@@ -293,7 +379,10 @@ export class TicketsService {
         include: TICKET_INCLUDE,
       });
 
-      if (canEditSla && (dto.assigned_to !== undefined || dto.sla_deadline !== undefined)) {
+      if (
+        dto.status !== undefined ||
+        (canEditSla && (dto.assigned_to !== undefined || dto.sla_deadline !== undefined))
+      ) {
         await this.syncTaskFromTicket(tx, updated);
       }
 
@@ -381,7 +470,13 @@ export class TicketsService {
     }
   }
 
-  /** Keep the linked task's assignee/deadline aligned with the ticket after Bos IT/Superadmin edits it. */
+  private taskStatusFromTicket(status: TicketStatus): TaskStatus {
+    if (status === TicketStatus.in_progress) return TaskStatus.in_progress;
+    if (status === TicketStatus.resolved || status === TicketStatus.closed) return TaskStatus.done;
+    return TaskStatus.pending;
+  }
+
+  /** Keep linked task status, assignee, and deadline aligned with ticket edits. */
   private async syncTaskFromTicket(
     tx: Prisma.TransactionClient,
     ticket: {
@@ -390,33 +485,23 @@ export class TicketsService {
       websiteId: string | null;
       assignedTo: string | null;
       slaDeadline: Date | null;
+      status: TicketStatus;
     },
   ) {
-    if (!ticket.assignedTo) return;
-
     const existingTask = await tx.task.findUnique({ where: { ticketId: ticket.id } });
     if (existingTask) {
       await tx.task.update({
         where: { id: existingTask.id },
         data: {
-          assigneeId: ticket.assignedTo,
+          assigneeId: ticket.assignedTo ?? undefined,
           slaDeadline: ticket.slaDeadline,
+          status: this.taskStatusFromTicket(ticket.status),
         },
       });
       return;
     }
 
-    if (ticket.websiteId) {
-      await tx.task.create({
-        data: {
-          websiteId: ticket.websiteId,
-          assigneeId: ticket.assignedTo,
-          ticketId: ticket.id,
-          instructionNotes: `Tiket: ${ticket.title}`,
-          slaDeadline: ticket.slaDeadline,
-          status: TaskStatus.pending,
-        },
-      });
-    }
+    // New Project-based tickets never create a Task. Existing linked Tasks are
+    // still synchronized above so the legacy read/update flow remains safe.
   }
 }

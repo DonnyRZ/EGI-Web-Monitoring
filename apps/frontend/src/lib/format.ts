@@ -1,6 +1,9 @@
 import {
   canManageIncidents as sharedCanManageIncidents,
   canManagePlatform as sharedCanManagePlatform,
+  canManageProjects as sharedCanManageProjects,
+  canViewProjectRegistry as sharedCanViewProjectRegistry,
+  canViewUserStories as sharedCanViewUserStories,
   canViewDeveloperWorkload as sharedCanViewDeveloperWorkload,
   canViewIncidents as sharedCanViewIncidents,
   canViewTasks as sharedCanViewTasks,
@@ -19,6 +22,9 @@ import type {
 // Re-assign (not `export { ... }`) so Next/webpack resolves CJS named exports from @egi/shared-types.
 export const canManageIncidents = sharedCanManageIncidents;
 export const canManagePlatform = sharedCanManagePlatform;
+export const canManageProjects = sharedCanManageProjects;
+export const canViewProjectRegistry = sharedCanViewProjectRegistry;
+export const canViewUserStories = sharedCanViewUserStories;
 export const canViewIncidents = sharedCanViewIncidents;
 export const canViewTasks = sharedCanViewTasks;
 export const canViewDeveloperWorkload = sharedCanViewDeveloperWorkload;
