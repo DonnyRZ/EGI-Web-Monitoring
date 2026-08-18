@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "tsx": "4.20.3"
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3"
   }
 }

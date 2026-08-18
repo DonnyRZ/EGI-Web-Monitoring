@@ -87,7 +87,7 @@ services:
       - >-
         test -n "$$SEED_ADMIN_PASSWORD" ||
         (echo "SEED_ADMIN_PASSWORD is required for an explicit seed run" >&2 && exit 64);
-        /opt/egi-runtime/node_modules/.bin/tsx packages/database/prisma/seed.ts
+        node -r /opt/egi-runtime/node_modules/ts-node/register packages/database/prisma/seed.ts
     environment:
       NODE_ENV: production
       <<: *egi-database-environment
