@@ -39,13 +39,23 @@ RUN case "${BASE_IMAGE}" in node:*) \
    esac
 COPY --from=build /app /app
 
-# Prisma 6 pins a vulnerable deepmerge-ts 7.x copy through its CLI config.
-# The root build dependency supplies the compatible 8.x release; remove only
-# Prisma's nested copy so migration and runtime resolve the patched package.
-RUN rm -rf /app/node_modules/@prisma/config/node_modules/deepmerge-ts \
- && node -e "const v=require('/app/node_modules/deepmerge-ts/package.json').version; if (v !== '8.0.1') { throw new Error('deepmerge-ts 8.0.1 is required in the image') }" \
+ARG SERVICE
+
+# Keep application images production-only. Prisma Client remains a runtime
+# dependency, while the CLI is installed from the locked, isolated toolchain
+# only for the backend migration/seed profile.
+RUN npm prune --omit=dev --ignore-scripts --no-audit --no-fund \
+ && rm -rf /app/node_modules/prisma /app/node_modules/@prisma/config \
+ && find /app/node_modules -type d -name deepmerge-ts -prune -exec rm -rf '{}' + \
  && node -e "require('/app/node_modules/@prisma/client')"
 
-ARG SERVICE
+RUN if [ "${SERVICE}" = "@egi/backend" ]; then \
+      install -d -m 755 /opt/egi-migration; \
+      cp /app/deploy/migration-tools/package*.json /opt/egi-migration/; \
+      npm ci --prefix /opt/egi-migration --omit=dev --ignore-scripts --no-audit --no-fund; \
+      test "$(node -p "require('/opt/egi-migration/node_modules/deepmerge-ts/package.json').version")" = "8.0.1"; \
+      /opt/egi-migration/node_modules/.bin/prisma --version; \
+    fi
+
 ENV EGI_SERVICE=${SERVICE}
 CMD ["sh", "-c", "npm run start:prod -w ${EGI_SERVICE}"]

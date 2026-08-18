@@ -57,7 +57,7 @@ services:
     image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: "no"
     logging: *egi-logging
-    command: ["npm", "run", "prisma:migrate", "-w", "@egi/database"]
+    command: ["/opt/egi-migration/node_modules/.bin/prisma", "migrate", "deploy", "--schema", "packages/database/prisma/schema.prisma"]
     environment:
       NODE_ENV: production
       <<: *egi-database-environment
@@ -75,7 +75,7 @@ services:
       - >-
         test -n "$$SEED_ADMIN_PASSWORD" ||
         (echo "SEED_ADMIN_PASSWORD is required for an explicit seed run" >&2 && exit 64);
-        npm run prisma:seed -w @egi/database
+        /opt/egi-migration/node_modules/.bin/tsx packages/database/prisma/seed.ts
     environment:
       NODE_ENV: production
       <<: *egi-database-environment

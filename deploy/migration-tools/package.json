@@ -1,0 +1,16 @@
+{
+  "name": "@egi/migration-tools",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.1"
+  },
+  "dependencies": {
+    "deepmerge-ts": "8.0.1",
+    "prisma": "6.19.3",
+    "tsx": "4.20.3"
+  }
+}

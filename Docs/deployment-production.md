@@ -79,12 +79,12 @@ The wrapper can then toggle the exact flag with maintenance-on and maintenance-o
 7. Run Deploy production with operation=migrate, the four exact digests, and backup_verified=YES. This invokes prisma migrate deploy from the approved backend image only. It does not seed and does not start the application.
 8. Run the backfill dry-run from the exact backend image. The command is read-only and writes a JSON report to the protected state directory:
 
-       IMAGE_TAG=<full-commit-sha> docker compose --env-file /var/www/egi-web-monitoring/.env -f /var/www/egi-web-monitoring/deploy/docker-compose.vps.yml run --rm --no-deps --volume /var/lib/egi-web-monitoring:/var/lib/egi-web-monitoring -e PROJECT_BACKFILL_REPORT_FILE=/var/lib/egi-web-monitoring/backfill-<full-commit-sha>.json backend npx tsx apps/backend/scripts/project-backfill.ts
+       IMAGE_TAG=<full-commit-sha> docker compose --env-file /var/www/egi-web-monitoring/.env -f /var/www/egi-web-monitoring/deploy/docker-compose.vps.yml run --rm --no-deps --volume /var/lib/egi-web-monitoring:/var/lib/egi-web-monitoring -e PROJECT_BACKFILL_REPORT_FILE=/var/lib/egi-web-monitoring/backfill-<full-commit-sha>.json backend /opt/egi-migration/node_modules/.bin/tsx apps/backend/scripts/project-backfill.ts
 
    Review the JSON report. It must have no assignment issues, no project-name conflicts, no ticket/project conflicts, the expected website/project counts, and user_stories_to_create equal to 0. Save the report with the release SHA and backup ID.
 9. If the report is approved, run the transaction once with explicit guards:
 
-       IMAGE_TAG=<full-commit-sha> docker compose --env-file /var/www/egi-web-monitoring/.env -f /var/www/egi-web-monitoring/deploy/docker-compose.vps.yml run --rm --no-deps --volume /var/lib/egi-web-monitoring:/var/lib/egi-web-monitoring -e PROJECT_BACKFILL_APPLY=YES -e PROJECT_BACKFILL_BACKUP=VERIFIED -e PROJECT_BACKFILL_REPORT_FILE=/var/lib/egi-web-monitoring/backfill-<full-commit-sha>-apply.json backend npx tsx apps/backend/scripts/project-backfill.ts
+       IMAGE_TAG=<full-commit-sha> docker compose --env-file /var/www/egi-web-monitoring/.env -f /var/www/egi-web-monitoring/deploy/docker-compose.vps.yml run --rm --no-deps --volume /var/lib/egi-web-monitoring:/var/lib/egi-web-monitoring -e PROJECT_BACKFILL_APPLY=YES -e PROJECT_BACKFILL_BACKUP=VERIFIED -e PROJECT_BACKFILL_REPORT_FILE=/var/lib/egi-web-monitoring/backfill-<full-commit-sha>-apply.json backend /opt/egi-migration/node_modules/.bin/tsx apps/backend/scripts/project-backfill.ts
 
    Do not run prisma seed with the backfill. The normal Compose service has no migration or seed startup command.
 10. Validate read-only invariants: every existing Website has a Project, active/inactive status mapping is correct, legacy assignment columns are unchanged, invalid users were not assigned, ticket/task counts did not decrease, and no historical User Story was generated.
