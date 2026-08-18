@@ -128,7 +128,7 @@ services:
         NEXT_PUBLIC_API_URL: /api
     restart: unless-stopped
     logging: *egi-logging
-    command: ["node", "node_modules/next/dist/bin/next", "start", "-p", "3010"]
+    command: ["sh", "-c", "cd apps/frontend && exec node ../../node_modules/next/dist/bin/next start -p 3010"]
     environment:
       NODE_ENV: production
     ports:

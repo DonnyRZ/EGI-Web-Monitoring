@@ -2,6 +2,10 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY deploy/migration-tools/package.json deploy/migration-tools/package-lock.json /app/deploy/migration-tools/
 RUN npm ci --prefix /app/deploy/migration-tools --ignore-scripts --no-audit --no-fund \
  && rm -rf /root/.npm
