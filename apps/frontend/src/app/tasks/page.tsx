@@ -132,29 +132,64 @@ export default function TasksPage() {
   }
 
   return (
-    <AppShell title="Task Monitoring" actions={canCreateTaskIntake(user.role) ? <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>Buat Task</button> : null}>
+    <AppShell title="Task Monitoring">
       <section className="project-page-intro">
         <div>
           <span className="eyebrow">Satu pusat pekerjaan</span>
-          <h2>Task Monitoring</h2>
           <p className="muted">
             {technicalView
               ? "Pantau Task dan rincian pekerjaan teknisnya, lengkap dengan Project, developer, deadline, dan blocker."
               : "Lihat apa yang sedang berjalan, apa yang terlambat, dan apa yang membutuhkan perhatian Anda. Detail teknis tetap diringkas."}
           </p>
         </div>
-        {canCreateTaskIntake(user.role) ? <button type="button" className="btn btn-primary mobile-only-task-cta" onClick={() => setCreateOpen(true)}>Buat Task</button> : null}
+        {canCreateTaskIntake(user.role) ? <button type="button" className="btn btn-primary task-page-cta" onClick={() => setCreateOpen(true)}>Buat Task</button> : null}
       </section>
 
-      <section className="task-monitoring-filters panel" aria-label="Filter Task Monitoring">
-        <input className="text-input project-search" placeholder="Cari Task, Project, atau Website…" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Cari Task" />
-        <Select value={projectId} onChange={(value) => { setProjectId(value); setWebsiteId(""); setDeveloperId(""); }} options={[{ value: "", label: user.role === "developer" ? "Semua Project Saya" : "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
-        <Select value={websiteId} onChange={setWebsiteId} options={[{ value: "", label: "Semua Website" }, ...visibleWebsites.map((website) => ({ value: website.id, label: website.name }))]} aria-label="Filter Website" />
-        {showDeveloperFilter ? <Select value={developerId} onChange={setDeveloperId} options={[{ value: "", label: "Semua developer" }, ...visibleDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" /> : null}
-        <Select value={status} onChange={setStatus} options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter status Task" />
-        <Select value={priority} onChange={setPriority} options={[{ value: "", label: "Semua priority" }, ...Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter priority Task" />
-        <button type="button" className={`filter-toggle ${needsActionOnly ? "active" : ""}`} onClick={() => setNeedsActionOnly((value) => !value)}>Perlu perhatian</button>
-        <button type="button" className={`filter-toggle ${overdueOnly ? "active" : ""}`} onClick={() => setOverdueOnly((value) => !value)}>Terlambat</button>
+      <section className="task-filter-panel panel" aria-label="Filter Task Monitoring">
+        <div className="filter-panel-header">
+          <div>
+            <span className="eyebrow">Filter workspace</span>
+            <h3 className="panel-title">Temukan Task yang perlu Anda lihat</h3>
+          </div>
+          <button
+            type="button"
+            className="text-link filter-reset"
+            onClick={() => {
+              setProjectId("");
+              setWebsiteId("");
+              setDeveloperId("");
+              setStatus("");
+              setPriority("");
+              setSearch("");
+              setOverdueOnly(false);
+              setNeedsActionOnly(false);
+            }}
+          >
+            Reset filter
+          </button>
+        </div>
+        <div className="task-monitoring-filters">
+          <div className="filter-field filter-field-search">
+            <label htmlFor="task-search">Cari</label>
+            <input id="task-search" className="text-input project-search" placeholder="Judul Task, Project, atau Website" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </div>
+          <div className="filter-field">
+            <span className="filter-field-label">Project</span>
+            <Select value={projectId} onChange={(value) => { setProjectId(value); setWebsiteId(""); setDeveloperId(""); }} options={[{ value: "", label: user.role === "developer" ? "Semua Project Saya" : "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
+          </div>
+          <div className="filter-field">
+            <span className="filter-field-label">Website</span>
+            <Select value={websiteId} onChange={setWebsiteId} options={[{ value: "", label: "Semua Website" }, ...visibleWebsites.map((website) => ({ value: website.id, label: website.name }))]} aria-label="Filter Website" />
+          </div>
+          {showDeveloperFilter ? <div className="filter-field"><span className="filter-field-label">Developer</span><Select value={developerId} onChange={setDeveloperId} options={[{ value: "", label: "Semua developer" }, ...visibleDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" /></div> : null}
+          <div className="filter-field"><span className="filter-field-label">Status</span><Select value={status} onChange={setStatus} options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter status Task" /></div>
+          <div className="filter-field"><span className="filter-field-label">Priority</span><Select value={priority} onChange={setPriority} options={[{ value: "", label: "Semua priority" }, ...Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter priority Task" /></div>
+        </div>
+        <div className="filter-quick-actions">
+          <span className="filter-quick-label">Tampilkan cepat</span>
+          <button type="button" className={`filter-toggle ${needsActionOnly ? "active" : ""}`} aria-pressed={needsActionOnly} onClick={() => setNeedsActionOnly((value) => !value)}>Perlu perhatian <span>{summary.needs_action}</span></button>
+          <button type="button" className={`filter-toggle ${overdueOnly ? "active" : ""}`} aria-pressed={overdueOnly} onClick={() => setOverdueOnly((value) => !value)}>Terlambat <span>{summary.overdue}</span></button>
+        </div>
       </section>
 
       <section className="task-summary-grid" aria-label="Ringkasan Task">
@@ -177,6 +212,7 @@ export default function TasksPage() {
                 <div><span className="eyebrow">Project</span><h3 className="panel-title">{group.name}</h3></div>
                 <span className="muted">{group.rows.length} Task</span>
               </div>
+              <div className="task-list-header" aria-hidden="true"><span>Task</span><span>Status</span><span>Penanggung jawab</span><span>Deadline</span></div>
               <div className="task-monitoring-list">
                 {group.rows.map((row) => <TaskRow key={row.id} row={row} technicalView={technicalView} onOpen={() => setSelected(row)} />)}
               </div>

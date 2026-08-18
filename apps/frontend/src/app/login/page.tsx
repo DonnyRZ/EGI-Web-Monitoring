@@ -62,8 +62,9 @@ export default function LoginPage() {
         <div className="login-brand">
           <img src="/logo-egi.png" alt="EGResources" />
           <div>
+            <span className="eyebrow">EGI operations platform</span>
             <h1>Hello IT</h1>
-            <p>Masuk untuk memantau website EGI</p>
+            <p>Masuk untuk memantau website, Project, dan pekerjaan tim EGI.</p>
           </div>
         </div>
 
@@ -104,7 +105,7 @@ export default function LoginPage() {
         <div className="login-links">
           <Link href="/forgot-password">Lupa password?</Link>
           <button type="button" className="link-button" onClick={() => void onGuest()} disabled={submitting}>
-            login as guest
+            Masuk sebagai tamu
           </button>
         </div>
       </div>

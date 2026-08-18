@@ -116,14 +116,18 @@ export default function AdminUsersPage() {
 
   return (
     <AppShell title="Users">
-      <div className="page-toolbar">
-        <p className="page-toolbar-desc muted">
-          Kelola akun dan role internal platform.
-        </p>
-        <button type="button" className="btn btn-sm btn-neutral" onClick={openCreate}>
-          Tambah User
-        </button>
-      </div>
+      <section className="page-intro">
+        <div>
+          <span className="eyebrow">Platform administration</span>
+          <p className="muted">Kelola akun, role global, dan status akses internal platform.</p>
+        </div>
+        <div className="page-intro-actions">
+          <span className="dashboard-count-card"><strong>{loading ? "—" : items.length}</strong><span>akun terdaftar</span></span>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            Tambah User
+          </button>
+        </div>
+      </section>
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading ? <LoadingState /> : null}

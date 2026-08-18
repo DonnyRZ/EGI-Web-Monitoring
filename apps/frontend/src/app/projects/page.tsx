@@ -138,7 +138,6 @@ export default function ProjectsPage() {
       <section className="project-page-intro">
         <div>
           <span className="eyebrow">Workspace</span>
-          <h2>{title}</h2>
           <p className="muted">{technicalView ? "Satu ruang kerja untuk website, tanggung jawab, Task, dan pekerjaan teknis." : "Satu ruang kerja untuk website, PIC, Task, dan status pekerjaan."}</p>
         </div>
         {canManageProjects(user.role) ? (
@@ -148,35 +147,40 @@ export default function ProjectsPage() {
         ) : null}
       </section>
 
-      <section className="project-toolbar panel" aria-label="Filter Project">
-        <div className="project-search-wrap">
-          <label className="sr-only" htmlFor="project-search">Cari Project</label>
-          <input
-            id="project-search"
-            className="text-input project-search"
-            placeholder="Cari nama Project atau domain…"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+      <section className="project-filter-panel panel" aria-label="Filter Project">
+        <div className="filter-panel-header">
+          <div>
+            <span className="eyebrow">Project registry</span>
+            <h3 className="panel-title">Cari dan saring Project</h3>
+          </div>
+          <button
+            type="button"
+            className="text-link filter-reset"
+            onClick={() => {
+              setSearch("");
+              setStatus("");
+              setFilters({});
+            }}
+          >
+            Reset filter
+          </button>
         </div>
-        <Select
-          value={status}
-          onChange={(value) => setStatus(value as ProjectStatus | "")}
-          options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]}
-          aria-label="Filter status Project"
-          className="project-status-filter"
-        />
-        <button
-          type="button"
-          className={`filter-toggle ${activeFilters.length > 0 ? "active" : ""}`}
-          aria-expanded={activeFilters.length > 0}
-          onClick={() => {
-            if (activeFilters.length > 0) setFilters({});
-            else setFilters({ missing_pic_web: true });
-          }}
-        >
-          {activeFilters.length > 0 ? `${activeFilters.length} filter aktif` : "Filter konfigurasi"}
-        </button>
+        <div className="project-toolbar">
+          <div className="project-search-wrap filter-field filter-field-search">
+            <label htmlFor="project-search">Cari</label>
+            <input id="project-search" className="text-input project-search" placeholder="Nama Project atau domain" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </div>
+          <div className="filter-field">
+            <span className="filter-field-label">Status</span>
+            <Select value={status} onChange={(value) => setStatus(value as ProjectStatus | "")} options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter status Project" className="project-status-filter" />
+          </div>
+          <div className="filter-field filter-field-action">
+            <span className="filter-field-label">Konfigurasi</span>
+            <button type="button" className={`filter-toggle ${activeFilters.length > 0 ? "active" : ""}`} aria-expanded={activeFilters.length > 0} onClick={() => { if (activeFilters.length > 0) setFilters({}); else setFilters({ missing_pic_web: true }); }}>
+              {activeFilters.length > 0 ? `${activeFilters.length} filter aktif` : "Tampilkan filter"}
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="project-filter-chips" aria-label="Filter konfigurasi tambahan">

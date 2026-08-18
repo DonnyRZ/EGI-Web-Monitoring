@@ -124,6 +124,20 @@ export default function IncidentsPage() {
 
   return (
     <AppShell title="Incidents">
+      <section className="page-intro">
+        <div>
+          <span className="eyebrow">Operational health</span>
+          <p className="muted">
+            {isPicWeb
+              ? "Incident dari website yang menjadi tanggung jawab Anda."
+              : "Pantau gangguan yang terdeteksi monitoring dan tindak lanjutnya."}
+          </p>
+        </div>
+        <div className="dashboard-count-card incident-count-card">
+          <strong>{loading ? "—" : displayItems.length}</strong>
+          <span>{tab === "active" ? "incident aktif" : "incident ditemukan"}</span>
+        </div>
+      </section>
       <div className="page-tabs" role="tablist" aria-label="Tampilan incident">
         <button
           type="button"
@@ -145,12 +159,14 @@ export default function IncidentsPage() {
         </button>
       </div>
 
-      <p className="muted" style={{ marginTop: 0, marginBottom: 16, fontSize: "0.92rem" }}>
-        {isPicWeb
-          ? "Incident dari website yang menjadi tanggung jawab Anda."
-          : "Daftar incident dari hasil monitoring website EGI."}
-      </p>
-
+      <section className="incident-filter-panel panel">
+        <div className="filter-panel-header">
+          <div>
+            <span className="eyebrow">Filter view</span>
+            <h3 className="panel-title">Saring incident</h3>
+          </div>
+          <button type="button" className="text-link filter-reset" onClick={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}>Reset filter</button>
+        </div>
       <div className="toolbar">
         {isDeveloper ? (
           <button
@@ -196,6 +212,7 @@ export default function IncidentsPage() {
           ]}
         />
       </div>
+      </section>
 
       {error ? <ErrorBanner message={error} /> : null}
       {websitesError ? <ErrorBanner message={websitesError} /> : null}

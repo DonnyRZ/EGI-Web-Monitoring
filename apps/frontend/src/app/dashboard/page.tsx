@@ -9,7 +9,7 @@ import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { dashboardApi, tasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { formatRelative, isEndUserPublicDashboard, opensWebsiteExternallyFromDashboard } from "@/lib/format";
+import { formatRelative, isEndUserPublicDashboard, opensWebsiteExternallyFromDashboard, statusLabel } from "@/lib/format";
 import type { DashboardWebsiteCard } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
@@ -84,22 +84,41 @@ export default function DashboardPage() {
 
   return (
     <AppShell title="Dashboard">
+      <section className={`dashboard-intro ${isGallery ? "gallery-intro" : ""}`}>
+        <div>
+          <span className="eyebrow">{isGallery ? "Live monitoring" : "Operations overview"}</span>
+          <p className="muted">
+            {isGallery
+              ? "Pantau kesehatan website EGI dari satu gallery yang mudah dipindai."
+              : "Ringkasan kesehatan website dan akses cepat ke detail monitoring."}
+          </p>
+        </div>
+        <div className="dashboard-count-card">
+          <strong>{loading ? "—" : filtered.length}</strong>
+          <span>{statusFilter === "my_tasks" ? "website dengan tugas saya" : "website ditampilkan"}</span>
+        </div>
+      </section>
+
       {!isGallery ? (
-      <div className="toolbar">
-        <Select
-          value={statusFilter}
-          onChange={(v) => setStatusFilter(v as StatusFilter)}
-          aria-label="Filter status"
-          options={[
-            { value: "active", label: "Aktif" },
-            { value: "down", label: "Down" },
-            ...(isDeveloper ? [{ value: "my_tasks", label: "Tugas Saya" }] : []),
-          ]}
-        />
-        <span className="muted" style={{ fontSize: "0.9rem" }}>
-          {statusFilter === "my_tasks" && !myTaskWebsiteIds ? "Memuat…" : `${filtered.length} website`}
-        </span>
-      </div>
+        <section className="dashboard-toolbar panel" aria-label="Filter dashboard">
+          <div className="toolbar-label">
+            <span className="eyebrow">Tampilan</span>
+            <strong>Health overview</strong>
+          </div>
+          <Select
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as StatusFilter)}
+            aria-label="Filter status"
+            options={[
+              { value: "active", label: "Website aktif" },
+              { value: "down", label: "Website down" },
+              ...(isDeveloper ? [{ value: "my_tasks", label: "Website dengan tugas saya" }] : []),
+            ]}
+          />
+          <span className="toolbar-result">
+            {statusFilter === "my_tasks" && !myTaskWebsiteIds ? "Memuat…" : `${filtered.length} website`}
+          </span>
+        </section>
       ) : null}
 
       {error ? <ErrorBanner message={error} /> : null}
@@ -124,6 +143,7 @@ export default function DashboardPage() {
           {filtered.map((card) => {
             const isPic = isDeveloper && card.website.it_pic_id === user?.id;
             const isBackupPic = isDeveloper && !isPic && card.website.backup_it_pic_id === user?.id;
+            const monitoringStatus = card.latest_result?.status ?? "unknown";
             const body = (
               <>
                 <div className="website-card-shot">
@@ -147,23 +167,27 @@ export default function DashboardPage() {
                     ) : null}
                   </div>
                   <div className="website-card-meta">
-                    <span>
+                    <span className={`project-health ${monitoringStatus}`}>
+                      <span className={`project-health-dot ${monitoringStatus}`} />
+                      {statusLabel(monitoringStatus)}
+                    </span>
+                    <span className="website-card-checked">
                       {card.latest_result
                         ? formatRelative(card.latest_result.checked_at)
                         : "Belum pernah dicek"}
                     </span>
                     {card.active_incident ? (
-                      <span className="priority-tag high" style={{ fontSize: "0.78rem" }}>
+                      <span className="priority-tag high">
                         Incident aktif
                       </span>
                     ) : null}
                     {isPic ? (
-                      <span className="priority-tag" style={{ fontSize: "0.78rem" }}>
+                      <span className="priority-tag">
                         Anda PIC
                       </span>
                     ) : null}
                     {isBackupPic ? (
-                      <span className="priority-tag" style={{ fontSize: "0.78rem" }}>
+                      <span className="priority-tag">
                         Anda backup PIC
                       </span>
                     ) : null}

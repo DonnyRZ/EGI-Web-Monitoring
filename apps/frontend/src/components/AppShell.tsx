@@ -12,6 +12,7 @@ import {
   canViewUserStories,
   initials,
   isEndUserPublicDashboard,
+  roleLabel,
 } from "@/lib/format";
 import { incidentsApi, projectsApi, userStoriesApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
@@ -28,7 +29,6 @@ import {
 interface AppShellProps {
   title: string;
   children: ReactNode;
-  actions?: ReactNode;
 }
 
 let activeIncidentsCache = 0;
@@ -81,7 +81,7 @@ function loadMyOpenTasks() {
   return myOpenTasksRequest;
 }
 
-export function AppShell({ title, children, actions }: AppShellProps) {
+export function AppShell({ title, children }: AppShellProps) {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -191,6 +191,23 @@ export function AppShell({ title, children, actions }: AppShellProps) {
       : []),
   ];
 
+  const navSections = [
+    {
+      label: "Workspace",
+      items: nav.filter((item) =>
+        ["/dashboard", "/tasks", "/me/work", "/projects"].includes(item.href),
+      ),
+    },
+    {
+      label: "Delivery",
+      items: nav.filter((item) => ["/user-stories", "/incidents"].includes(item.href)),
+    },
+    {
+      label: "Administration",
+      items: nav.filter((item) => item.href === "/admin/users"),
+    },
+  ].filter((section) => section.items.length > 0);
+
   async function onLogout() {
     await logout();
     router.replace("/login");
@@ -218,26 +235,31 @@ export function AppShell({ title, children, actions }: AppShellProps) {
         </div>
 
         <nav className="sidebar-nav">
-          {nav.map((item) => {
-            const active =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`nav-item ${active ? "active" : ""}`}
-              >
-                <span className="nav-icon" aria-hidden>
-                  <Icon />
-                </span>
-                <span>{item.label}</span>
-                {"badge" in item && item.badge ? (
-                  <span className="nav-badge">{item.badge > 99 ? "99+" : item.badge}</span>
-                ) : null}
-              </Link>
-            );
-          })}
+          {navSections.map((section) => (
+            <div className="nav-section" key={section.label}>
+              <span className="nav-section-label">{section.label}</span>
+              {section.items.map((item) => {
+                const active =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-item ${active ? "active" : ""}`}
+                  >
+                    <span className="nav-icon" aria-hidden>
+                      <Icon />
+                    </span>
+                    <span>{item.label}</span>
+                    {"badge" in item && item.badge ? (
+                      <span className="nav-badge">{item.badge > 99 ? "99+" : item.badge}</span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
@@ -267,7 +289,12 @@ export function AppShell({ title, children, actions }: AppShellProps) {
               <img src="/logo-egi.png" alt="EGResources" className="gallery-header-logo" />
             )}
             {!isGallery ? <h1 className="page-title">{title}</h1> : null}
-            {actions}
+            {isGallery ? (
+              <div className="gallery-header-copy">
+                <strong>Website Monitoring</strong>
+                <span>Live health gallery</span>
+              </div>
+            ) : null}
           </div>
           <div className="header-actions">
             {isGallery ? (
@@ -278,6 +305,10 @@ export function AppShell({ title, children, actions }: AppShellProps) {
               <>
                 <NotificationBell />
                 <div className="user-menu" title={user.email}>
+                  <div className="user-menu-copy">
+                    <strong>{user.name}</strong>
+                    <span>{roleLabel(user.role)}</span>
+                  </div>
                   <span className="avatar">{initials(user.name)}</span>
                 </div>
               </>
