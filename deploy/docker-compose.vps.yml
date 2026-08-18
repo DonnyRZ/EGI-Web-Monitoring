@@ -54,13 +54,25 @@ services:
 
   backend-migrate:
     profiles: ["ops"]
-    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    image: ${MIGRATION_IMAGE:?Set MIGRATION_IMAGE}
     restart: "no"
     logging: *egi-logging
-    command: ["/opt/egi-migration/node_modules/.bin/prisma", "migrate", "deploy", "--schema", "packages/database/prisma/schema.prisma"]
+    working_dir: /app
+    command:
+      - sh
+      - -c
+      - >-
+        install -d /tmp/egi-migration-tools;
+        cp /app/deploy/migration-tools/package*.json /tmp/egi-migration-tools/;
+        npm ci --prefix /tmp/egi-migration-tools --ignore-scripts --no-audit --no-fund;
+        exec /tmp/egi-migration-tools/node_modules/.bin/prisma migrate deploy
+        --schema /app/packages/database/prisma/schema.prisma
     environment:
       NODE_ENV: production
       <<: *egi-database-environment
+    volumes:
+      - ${DEPLOY_APP_DIR:?Set DEPLOY_APP_DIR}/packages/database:/app/packages/database:ro
+      - ${DEPLOY_APP_DIR:?Set DEPLOY_APP_DIR}/deploy/migration-tools:/app/deploy/migration-tools:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -75,7 +87,7 @@ services:
       - >-
         test -n "$$SEED_ADMIN_PASSWORD" ||
         (echo "SEED_ADMIN_PASSWORD is required for an explicit seed run" >&2 && exit 64);
-        /opt/egi-migration/node_modules/.bin/tsx packages/database/prisma/seed.ts
+        /opt/egi-runtime/node_modules/.bin/tsx packages/database/prisma/seed.ts
     environment:
       NODE_ENV: production
       <<: *egi-database-environment

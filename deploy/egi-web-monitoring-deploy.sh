@@ -73,15 +73,25 @@ export_release() {
 }
 
 validate_pinned_infrastructure() {
-  local redis_image minio_image
+  local redis_image minio_image migration_image deploy_app_dir
   redis_image="$(read_env_value REDIS_IMAGE)"
   minio_image="$(read_env_value MINIO_IMAGE)"
+  migration_image="$(read_env_value MIGRATION_IMAGE)"
+  deploy_app_dir="$(read_env_value DEPLOY_APP_DIR)"
   [[ "$redis_image" =~ @sha256:[0-9a-f]{64}$ ]] || {
     echo "REDIS_IMAGE must include an immutable sha256 digest." >&2
     exit 96
   }
   [[ "$minio_image" =~ @sha256:[0-9a-f]{64}$ ]] || {
     echo "MINIO_IMAGE must include an immutable sha256 digest." >&2
+    exit 96
+  }
+  [[ "$migration_image" =~ @sha256:[0-9a-f]{64}$ ]] || {
+    echo "MIGRATION_IMAGE must include an immutable sha256 digest." >&2
+    exit 96
+  }
+  [[ "$deploy_app_dir" == "$app_dir" ]] || {
+    echo "DEPLOY_APP_DIR must point to the expected application directory." >&2
     exit 96
   }
 }
@@ -97,6 +107,16 @@ verify_image_digest() {
   repo_digests="$(docker image inspect "$image_ref" --format '{{range .RepoDigests}}{{println .}}{{end}}')"
   grep -Fq "@$expected" <<< "$repo_digests" || {
     echo "Digest mismatch for $service; refusing rollout." >&2
+    exit 97
+  }
+}
+
+verify_pinned_image() {
+  local image="$1" expected repo_digests
+  expected="${image##*@}"
+  repo_digests="$(docker image inspect "$image" --format '{{range .RepoDigests}}{{println .}}{{end}}')"
+  grep -Fq "@$expected" <<< "$repo_digests" || {
+    echo "Pinned image digest mismatch for $image; refusing operation." >&2
     exit 97
   }
 }
@@ -200,14 +220,15 @@ rollout() {
 }
 
 run_migration() {
+  local release_tag="$1"
   validate_release_args "$@"
   validate_pinned_infrastructure
-  export_release "$@"
   validate_compose
-  compose pull backend > /dev/null
-  verify_image_digest backend "$BACKEND_IMAGE_DIGEST"
+  migration_image="$(read_env_value MIGRATION_IMAGE)"
+  compose pull backend-migrate > /dev/null
+  verify_pinned_image "$migration_image"
   compose --profile ops run --rm backend-migrate
-  echo "Prisma migration completed for $IMAGE_TAG"
+  echo "Prisma migration completed for $release_tag"
 }
 
 preflight() {

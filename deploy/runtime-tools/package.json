@@ -1,0 +1,11 @@
+{
+  "name": "@egi/runtime-tools",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "tsx": "4.20.3"
+  }
+}
