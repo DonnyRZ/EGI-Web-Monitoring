@@ -1,13 +1,15 @@
-ARG BASE_IMAGE=node:20-bookworm-slim
+# CI must always provide an immutable image reference containing @sha256:.
+ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS build
 
 WORKDIR /app
 ARG BASE_IMAGE
-RUN if [ "${BASE_IMAGE}" = "node:20-bookworm-slim" ]; then \
+RUN case "${BASE_IMAGE}" in node:*) \
       apt-get update \
       && apt-get install -y --no-install-recommends openssl ca-certificates \
       && rm -rf /var/lib/apt/lists/*; \
-    fi
+    ;; \
+   esac
 COPY . .
 
 RUN npm ci --ignore-scripts
@@ -26,11 +28,12 @@ FROM ${BASE_IMAGE} AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ARG BASE_IMAGE
-RUN if [ "${BASE_IMAGE}" = "node:20-bookworm-slim" ]; then \
+RUN case "${BASE_IMAGE}" in node:*) \
       apt-get update \
       && apt-get install -y --no-install-recommends openssl ca-certificates \
       && rm -rf /var/lib/apt/lists/*; \
-    fi
+    ;; \
+   esac
 COPY --from=build /app /app
 
 ARG SERVICE

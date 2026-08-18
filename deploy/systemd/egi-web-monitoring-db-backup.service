@@ -5,6 +5,8 @@ Requires=postgresql@16-main.service
 
 [Service]
 Type=oneshot
+EnvironmentFile=-/etc/egi-web-monitoring/backup.env
+UMask=0077
 ExecStart=/usr/local/sbin/egi-web-monitoring-db-backup
 ProtectSystem=full
 PrivateTmp=true

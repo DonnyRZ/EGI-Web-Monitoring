@@ -1,4 +1,5 @@
 import { PrismaClient, ProjectStatus, ProjectMemberType, UserRole } from "@egi/database";
+import { writeFileSync } from "node:fs";
 
 /**
  * Project migration preflight/backfill.
@@ -31,6 +32,13 @@ type AssignmentIssue = {
   field: "owner_id" | "it_pic_id" | "backup_it_pic_id";
   user_id: string;
   reason: string;
+};
+
+type TicketProjectConflict = {
+  ticket_id: string;
+  website_id: string;
+  website_project_id: string;
+  ticket_project_id: string;
 };
 
 async function assertSchemaReady() {
@@ -86,6 +94,38 @@ async function main() {
   const issues: AssignmentIssue[] = [];
   const projectsToCreate = websites.filter((website) => !website.projectId);
   const alreadyLinked = websites.length - projectsToCreate.length;
+  const [existingProjects, ticketProjectConflicts] = await Promise.all([
+    prisma.project.findMany({ select: { id: true, name: true, status: true } }),
+    prisma.$queryRaw<TicketProjectConflict[]>`
+      SELECT
+        t.id AS ticket_id,
+        t.website_id,
+        w.project_id AS website_project_id,
+        t.project_id AS ticket_project_id
+      FROM tickets t
+      INNER JOIN websites w ON w.id = t.website_id
+      WHERE t.project_id IS NOT NULL
+        AND w.project_id IS NOT NULL
+        AND t.project_id <> w.project_id
+    `,
+  ]);
+  const projectNameConflicts = projectsToCreate.flatMap((website) =>
+    existingProjects
+      .filter((project) => project.name === website.name)
+      .map((project) => ({
+        website: website.name,
+        existing_project_id: project.id,
+        reason: "an unlinked website has the same name as an existing project",
+      })),
+  );
+  const projectStatusConflicts = websites.flatMap((website) => {
+    if (!website.projectId) return [];
+    const project = existingProjects.find((candidate) => candidate.id === website.projectId);
+    const expectedStatus = website.isActive ? ProjectStatus.active : ProjectStatus.archived;
+    return project && project.status !== expectedStatus
+      ? [{ website: website.name, project_id: project.id, expected_status: expectedStatus, actual_status: project.status }]
+      : [];
+  });
   const mappings = websites.map((website) => {
     const owner = website.ownerId ? usersById.get(website.ownerId) : null;
     const itPic = website.itPicId ? usersById.get(website.itPicId) : null;
@@ -129,7 +169,14 @@ async function main() {
     general_tickets_without_project: generalTicketCount,
     legacy_tasks_to_preserve: taskCount,
     user_stories_to_create: 0,
+    project_name_conflicts: projectNameConflicts,
+    project_status_conflicts: projectStatusConflicts,
+    ticket_project_conflicts: ticketProjectConflicts,
   };
+  const reportFile = process.env.PROJECT_BACKFILL_REPORT_FILE;
+  if (reportFile) {
+    writeFileSync(reportFile, JSON.stringify(report, null, 2) + "\n", { mode: 0o600 });
+  }
   console.log(JSON.stringify(report, null, 2));
 
   if (!apply) {
@@ -138,6 +185,15 @@ async function main() {
   }
   if (issues.length > 0) {
     throw new Error("Refusing to apply because invalid legacy assignments need review");
+  }
+  if (projectNameConflicts.length > 0) {
+    throw new Error("Refusing to apply because existing project-name conflicts need review");
+  }
+  if (projectStatusConflicts.length > 0) {
+    throw new Error("Refusing to apply because linked project statuses need review");
+  }
+  if (ticketProjectConflicts.length > 0) {
+    throw new Error("Refusing to apply because ticket/project links are inconsistent");
   }
 
   await prisma.$transaction(async (tx) => {

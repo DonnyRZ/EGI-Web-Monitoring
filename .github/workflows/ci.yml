@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: egi-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Validate, test, and build
+    runs-on: ubuntu-24.04
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/egi_monitoring_test?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters
+      JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema packages/database/prisma/schema.prisma
+
+      - name: Typecheck all workspaces
+        run: npm run typecheck
+
+      - name: Run database and backend tests
+        run: |
+          npm run test:seed -w @egi/database
+          npm run test:health -w @egi/backend
+          npm run test:auth -w @egi/backend
+          npm run test:auth-cookie -w @egi/backend
+          npm run test:resource-access -w @egi/backend
+          npm run test:tickets -w @egi/backend
+          npm run test:tasks -w @egi/backend
+          npm run test:workload -w @egi/backend
+          npm run test:dashboard -w @egi/backend
+          npm run test:lifecycle -w @egi/backend
+          npm run test:url-safety -w @egi/backend
+          npm run test:runtime-config -w @egi/backend
+
+      - name: Run scheduler and worker unit tests
+        run: |
+          npm run test -w @egi/scheduler
+          npm run test -w @egi/worker
+
+      - name: Build all workspaces
+        run: npm run build
+
+      - name: Validate VPS Compose contract
+        run: |
+          docker compose --env-file deploy/env.ci.example -f deploy/docker-compose.vps.yml config --quiet
+          docker compose --profile ops --profile ops-seed --env-file deploy/env.ci.example -f deploy/docker-compose.vps.yml config --quiet
+
+  containers:
+    name: Build, scan, and attest ${{ matrix.service }}
+    needs: checks
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: backend
+            workspace: "@egi/backend"
+            base: node
+          - service: frontend
+            workspace: "@egi/frontend"
+            base: node
+          - service: scheduler
+            workspace: "@egi/scheduler"
+            base: node
+          - service: worker
+            workspace: "@egi/worker"
+            base: playwright
+    env:
+      NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE_DIGEST }}
+      PLAYWRIGHT_BASE_IMAGE: ${{ vars.PLAYWRIGHT_BASE_IMAGE_DIGEST }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Require verified immutable base image refs
+        run: |
+          test -n "$NODE_BASE_IMAGE" || { echo "NODE_BASE_IMAGE_DIGEST repository variable is required"; exit 1; }
+          test -n "$PLAYWRIGHT_BASE_IMAGE" || { echo "PLAYWRIGHT_BASE_IMAGE_DIGEST repository variable is required"; exit 1; }
+          [[ "$NODE_BASE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || { echo "Node base image must include sha256 digest"; exit 1; }
+          [[ "$PLAYWRIGHT_BASE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || { echo "Playwright base image must include sha256 digest"; exit 1; }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute lowercase image prefix
+        id: image
+        shell: bash
+        run: echo "prefix=ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build immutable service image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.service
+          build-args: |
+            BASE_IMAGE=${{ matrix.base == 'node' && env.NODE_BASE_IMAGE || env.PLAYWRIGHT_BASE_IMAGE }}
+            SERVICE=${{ matrix.workspace }}
+            NEXT_PUBLIC_API_URL=/api
+          tags: ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          provenance: true
+          sbom: true
+
+      - name: Scan image for high and critical vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0.17.0
+        with:
+          image: ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.service }}.spdx.json
+
+      - name: Record image digest
+        shell: bash
+        run: |
+          mkdir -p deployment-artifacts
+          printf '%s@%s\n' \
+            "${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}" \
+            "${{ steps.build.outputs.digest }}" \
+            > "deployment-artifacts/${{ matrix.service }}.txt"
+
+      - name: Upload SBOM and deployment metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ matrix.service }}-${{ github.sha }}
+          path: |
+            sbom-${{ matrix.service }}.spdx.json
+            deployment-artifacts/${{ matrix.service }}.txt
+          if-no-files-found: error
+          retention-days: 30

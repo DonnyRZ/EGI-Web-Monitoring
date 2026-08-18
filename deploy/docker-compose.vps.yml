@@ -6,13 +6,18 @@ x-logging: &egi-logging
     max-size: "50m"
     max-file: "10"
 
-x-app-build: &app-build
-  context: ..
-  dockerfile: deploy/Dockerfile.service
+x-database-environment: &egi-database-environment
+  DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
+
+x-redis-environment: &egi-redis-environment
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  REDIS_DB: ${REDIS_DB:-0}
 
 services:
   redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:?Set REDIS_IMAGE}
     restart: unless-stopped
     logging: *egi-logging
     command: >-
@@ -22,9 +27,20 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     volumes:
       - egi_vps_redis:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          if [ -n "$$REDIS_PASSWORD" ]; then
+          redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG;
+          else redis-cli ping | grep -q PONG; fi
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
 
   minio:
-    image: minio/minio:latest
+    image: ${MINIO_IMAGE:?Set MINIO_IMAGE}
     restart: unless-stopped
     logging: *egi-logging
     command: server /data --console-address ":9001"
@@ -36,27 +52,54 @@ services:
     volumes:
       - egi_vps_minio:/data
 
+  backend-migrate:
+    profiles: ["ops"]
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: "no"
+    logging: *egi-logging
+    command: ["npm", "run", "prisma:migrate", "-w", "@egi/database"]
+    environment:
+      NODE_ENV: production
+      <<: *egi-database-environment
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  backend-seed:
+    profiles: ["ops-seed"]
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: "no"
+    logging: *egi-logging
+    command:
+      - sh
+      - -c
+      - >-
+        test -n "$$SEED_ADMIN_PASSWORD" ||
+        (echo "SEED_ADMIN_PASSWORD is required for an explicit seed run" >&2 && exit 64);
+        npm run prisma:seed -w @egi/database
+    environment:
+      NODE_ENV: production
+      <<: *egi-database-environment
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_DEVELOPER_EMAIL: ${SEED_DEVELOPER_EMAIL:-}
+      SEED_DEVELOPER_PASSWORD: ${SEED_DEVELOPER_PASSWORD:-}
+      SEED_BOS_IT_EMAIL: ${SEED_BOS_IT_EMAIL:-}
+      SEED_BOS_IT_PASSWORD: ${SEED_BOS_IT_PASSWORD:-}
+      SEED_PIC_WEB_EMAIL: ${SEED_PIC_WEB_EMAIL:-}
+      SEED_PIC_WEB_PASSWORD: ${SEED_PIC_WEB_PASSWORD:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   backend:
-    build:
-      <<: *app-build
-      args:
-        BASE_IMAGE: node:20-bookworm-slim
-        SERVICE: "@egi/backend"
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/backend:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     logging: *egi-logging
-    command: >-
-      sh -c 'npm run prisma:migrate -w @egi/database
-      && npm run prisma:seed -w @egi/database
-      && npm run start:prod -w @egi/backend'
+    command: ["npm", "run", "start:prod", "-w", "@egi/backend"]
     environment:
       NODE_ENV: production
       BACKEND_PORT: 3001
       API_PREFIX: api
-      DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_DB: ${REDIS_DB:-0}
+      <<: [*egi-database-environment, *egi-redis-environment]
       S3_ENDPOINT: http://minio:9000
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-}
       S3_REGION: ${S3_REGION:-us-east-1}
@@ -72,30 +115,29 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS}
       PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
       ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-egi.egiholding@gmail.com}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     ports:
       - "127.0.0.1:31011:3001"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       redis:
-        condition: service_started
+        condition: service_healthy
       minio:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.status < 500 ? 0 : 1)).catch(()=>process.exit(1))\""]
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3001/api/health/ready')
+          .then(r=>process.exit(r.status === 200 ? 0 : 1))
+          .catch(()=>process.exit(1))"
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 15s
 
   frontend:
-    build:
-      <<: *app-build
-      args:
-        BASE_IMAGE: node:20-bookworm-slim
-        SERVICE: "@egi/frontend"
-        NEXT_PUBLIC_API_URL: /api
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/frontend:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     logging: *egi-logging
     command: ["npm", "run", "start", "-w", "@egi/frontend"]
@@ -111,22 +153,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 10s
 
   scheduler:
-    build:
-      <<: *app-build
-      args:
-        BASE_IMAGE: node:20-bookworm-slim
-        SERVICE: "@egi/scheduler"
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/scheduler:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     logging: *egi-logging
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_DB: ${REDIS_DB:-0}
+      <<: [*egi-database-environment, *egi-redis-environment]
       SCHEDULER_TICK_SECONDS: ${SCHEDULER_TICK_SECONDS:-15}
       MONITORING_INTERVAL_MINUTES: ${MONITORING_INTERVAL_MINUTES:-5}
     extra_hosts:
@@ -135,23 +170,15 @@ services:
       backend:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   worker:
-    build:
-      <<: *app-build
-      args:
-        BASE_IMAGE: mcr.microsoft.com/playwright:v1.61.1-noble
-        SERVICE: "@egi/worker"
+    image: ${IMAGE_REGISTRY:?Set IMAGE_REGISTRY}/worker:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     logging: *egi-logging
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${DB_USER:?Set DB_USER}:${DB_PASSWORD:?Set DB_PASSWORD}@${DB_HOST:-host.docker.internal}:${DB_PORT:-5432}/${DB_NAME:-egi_monitoring}?schema=public
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_DB: ${REDIS_DB:-0}
+      <<: [*egi-database-environment, *egi-redis-environment]
       S3_ENDPOINT: http://minio:9000
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
@@ -179,7 +206,7 @@ services:
       backend:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       minio:
         condition: service_started
 

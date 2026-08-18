@@ -100,6 +100,8 @@ frontend/backend services. Validate it with `nginx -t`, replace the upstream
 hosts with `127.0.0.1` when the apps run directly on the VPS, and add the TLS
 certificate configuration before public exposure.
 
+For the controlled Docker/Compose production path, use [Docs/deployment-production.md](Docs/deployment-production.md). It requires immutable image digests, a verified local/offsite PostgreSQL backup, explicit migration/backfill gates, and a protected GitHub production environment.
+
 ## Scripts
 
 | Command | Description |
