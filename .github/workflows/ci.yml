@@ -39,6 +39,9 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate --schema packages/database/prisma/schema.prisma
 
+      - name: Build workspace dependencies for typecheck
+        run: npm run build:workspace-dependencies
+
       - name: Typecheck all workspaces
         run: npm run typecheck
 
