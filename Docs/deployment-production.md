@@ -8,10 +8,12 @@ The deployment unit is the full commit SHA plus four image digests. The release 
 
 ### GitHub
 
-Create a protected GitHub Environment named production with at least one required reviewer. Configure these repository variables with verified immutable image references:
+Create a protected GitHub Environment named production with at least one required reviewer. Configure these repository variables with verified immutable image references so they remain the controlled rotation point:
 
     NODE_BASE_IMAGE_DIGEST=node:20-bookworm-slim@sha256:<64-hex-digest>
     PLAYWRIGHT_BASE_IMAGE_DIGEST=mcr.microsoft.com/playwright:v1.61.1-noble@sha256:<64-hex-digest>
+
+The CI workflow also contains audited immutable fallback digests for these exact documented tags. A missing variable therefore cannot silently select a mutable tag, while explicit repository variables remain available for controlled rotation.
 
 Protect main and require the CI checks, including the workspace validation job and all four container matrix jobs, before merge.
 

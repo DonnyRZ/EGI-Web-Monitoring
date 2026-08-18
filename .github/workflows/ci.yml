@@ -94,8 +94,10 @@ jobs:
             workspace: "@egi/worker"
             base: playwright
     env:
-      NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE_DIGEST }}
-      PLAYWRIGHT_BASE_IMAGE: ${{ vars.PLAYWRIGHT_BASE_IMAGE_DIGEST }}
+      # Repository variables remain the rotation point; these audited immutable
+      # fallbacks prevent a missing variable from selecting a mutable tag.
+      NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE_DIGEST || 'node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0' }}
+      PLAYWRIGHT_BASE_IMAGE: ${{ vars.PLAYWRIGHT_BASE_IMAGE_DIGEST || 'mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48' }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
