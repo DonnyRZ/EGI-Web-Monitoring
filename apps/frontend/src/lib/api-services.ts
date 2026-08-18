@@ -15,6 +15,9 @@ import type {
   ProjectRosterCandidate,
   Severity,
   Task,
+  TaskMonitoringFilters,
+  TaskMonitoringRow,
+  TaskMonitoringSummary,
   Ticket,
   User,
   UserRole,
@@ -126,10 +129,12 @@ export const ticketsApi = {
   create: (body: {
     website_id?: string;
     project_id?: string;
+    title?: string;
     category: "website" | "help_desk" | "procurement";
     description: string;
     expectation: string;
     attachment_url?: string;
+    priority?: Severity;
   }) => apiFetch<Ticket>("/tickets", { method: "POST", body }),
   update: (
     id: string,
@@ -248,6 +253,30 @@ export const tasksApi = {
   }) => apiFetch<Task>("/tasks", { method: "POST", body }),
   updateStatus: (id: string, status: string) =>
     apiFetch<Task>(`/tasks/${id}/status`, { method: "PATCH", body: { status } }),
+};
+
+export const taskMonitoringApi = {
+  list: (params: {
+    page?: number;
+    limit?: number;
+    project_id?: string;
+    website_id?: string;
+    developer_id?: string;
+    status?: string;
+    priority?: string;
+    overdue?: boolean;
+    needs_action?: boolean;
+    search?: string;
+  } = {}) => apiFetch<{
+    data: TaskMonitoringRow[];
+    summary: TaskMonitoringSummary;
+    meta: PaginatedMeta;
+  }>(`/task-monitoring${qs(params)}`),
+  filters: () => apiFetch<TaskMonitoringFilters>("/task-monitoring/filters"),
+  get: (id: string, source?: "task" | "legacy_task") =>
+    apiFetch<TaskMonitoringRow>(`/task-monitoring/${id}${qs({ source })}`),
+  updateStatus: (id: string, status: string | null) =>
+    apiFetch<TaskMonitoringRow>(`/task-monitoring/${id}/status`, { method: "PATCH", body: { status } }),
 };
 
 export const workloadApi = {

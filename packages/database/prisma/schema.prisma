@@ -94,6 +94,14 @@ enum UserStoryPriority {
   low
 }
 
+enum TaskBusinessStatus {
+  new
+  in_progress
+  waiting_pic
+  blocked
+  done
+}
+
 model User {
   id               String    @id @default(uuid()) @db.Uuid
   name             String    @db.VarChar(150)
@@ -118,6 +126,7 @@ model User {
   storyCollaborations StoryCollaborator[]
   assignedTickets Ticket[]     @relation("TicketAssignee")
   createdTickets Ticket[]      @relation("TicketCreator")
+  taskStatusOverrides Ticket[] @relation("TicketStatusOverrideActor")
   assignedTasks Task[]         @relation("TaskAssignee")
   createdTasks Task[]         @relation("TaskCreator")
   notifications Notification[]
@@ -280,6 +289,9 @@ model Ticket {
   websiteId    String?        @map("website_id") @db.Uuid
   projectId    String?        @map("project_id") @db.Uuid
   userStoryId  String?        @map("user_story_id") @db.Uuid
+  taskStatusOverride TaskBusinessStatus? @map("task_status_override")
+  taskStatusOverrideBy String? @map("task_status_override_by") @db.Uuid
+  taskStatusOverrideAt DateTime? @map("task_status_override_at")
   createdBy    String?        @map("created_by") @db.Uuid
   title        String         @db.VarChar(255)
   category     TicketCategory?
@@ -298,6 +310,8 @@ model Ticket {
   website      Website?       @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   project      Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   userStory    UserStory?     @relation(fields: [userStoryId], references: [id], onDelete: SetNull)
+  statusOverrideActor User?    @relation("TicketStatusOverrideActor", fields: [taskStatusOverrideBy], references: [id], onDelete: SetNull)
+  storyLinks   TicketUserStoryLink[]
   creator      User?          @relation("TicketCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   assignee     User?          @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
   task         Task?
@@ -335,6 +349,7 @@ model UserStory {
   createdBy        User?            @relation("StoryCreator", fields: [createdById], references: [id], onDelete: SetNull)
   collaborators    StoryCollaborator[]
   tickets          Ticket[]
+  ticketLinks      TicketUserStoryLink[]
 
   @@index([projectId])
   @@index([websiteId])
@@ -342,6 +357,20 @@ model UserStory {
   @@index([status])
   @@index([dueDate])
   @@map("user_stories")
+}
+
+model TicketUserStoryLink {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  userStoryId String  @map("user_story_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket   Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userStory UserStory @relation(fields: [userStoryId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userStoryId])
+  @@index([userStoryId])
+  @@map("ticket_user_story_links")
 }
 
 model StoryCollaborator {

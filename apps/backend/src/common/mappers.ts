@@ -126,13 +126,20 @@ export function toTicketDto(ticket: {
   updatedAt: Date;
   resolvedAt: Date | null;
   assignee?: { id: string; name: string } | null;
+  storyLinks?: Array<{ userStoryId: string }>;
 }) {
+  const userStoryIds = [
+    ...(ticket.userStoryId ? [ticket.userStoryId] : []),
+    ...(ticket.storyLinks?.map((link) => link.userStoryId) ?? []),
+  ].filter((id, index, all) => all.indexOf(id) === index);
   return {
     id: ticket.id,
     incident_id: ticket.incidentId,
     website_id: ticket.websiteId,
     project_id: ticket.projectId ?? null,
     user_story_id: ticket.userStoryId ?? null,
+    user_story_ids: userStoryIds,
+    user_story_count: userStoryIds.length,
     created_by: ticket.createdBy,
     title: ticket.title,
     category: ticket.category,

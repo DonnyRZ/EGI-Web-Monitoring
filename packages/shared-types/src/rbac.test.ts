@@ -29,6 +29,8 @@ import {
   canViewProjectRegistry,
   canManageUserStories,
   canViewUserStories,
+  canCreateTaskIntake,
+  canViewTaskMonitoring,
 } from "./rbac";
 
 test("USER_ROLES lists the current role model", () => {
@@ -109,4 +111,17 @@ test("project and user story capability sets keep pic_developer project-scoped",
   assert.equal(canManageUserStories("developer"), true);
   assert.equal(canViewUserStories("developer"), true);
   assert.equal(canViewUserStories("pic_web"), false);
+});
+
+test("business Task intake and unified monitoring have the intended role split", () => {
+  assert.equal(canCreateTaskIntake("superadmin"), true);
+  assert.equal(canCreateTaskIntake("bos_it"), true);
+  assert.equal(canCreateTaskIntake("pic_web"), true);
+  assert.equal(canCreateTaskIntake("developer"), false);
+  assert.equal(canCreateTaskIntake("end_user"), false);
+
+  for (const role of ["superadmin", "bos_it", "pic_web", "developer"]) {
+    assert.equal(canViewTaskMonitoring(role), true);
+  }
+  assert.equal(canViewTaskMonitoring("end_user"), false);
 });

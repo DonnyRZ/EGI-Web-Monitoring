@@ -29,7 +29,7 @@ const FILTER_LABELS: Record<ConfigFilter, string> = {
   missing_pic_web: "Belum ada PIC Web",
   missing_pic_developer: "Belum ada PIC Developer",
   missing_developer_team: "Belum ada developer team",
-  has_active_tickets: "Ada tiket aktif",
+  has_active_tickets: "Ada Task aktif",
   has_overdue_work: "Ada pekerjaan overdue",
 };
 
@@ -131,6 +131,7 @@ export default function ProjectsPage() {
   }
 
   const title = canManageProjects(user.role) ? "Kelola Project" : "Project Saya";
+  const technicalView = user.role === "bos_it" || user.role === "developer";
 
   return (
     <AppShell title={title}>
@@ -138,7 +139,7 @@ export default function ProjectsPage() {
         <div>
           <span className="eyebrow">Workspace</span>
           <h2>{title}</h2>
-          <p className="muted">Satu ruang kerja untuk website, tanggung jawab, tiket, dan pekerjaan teknis.</p>
+          <p className="muted">{technicalView ? "Satu ruang kerja untuk website, tanggung jawab, Task, dan pekerjaan teknis." : "Satu ruang kerja untuk website, PIC, Task, dan status pekerjaan."}</p>
         </div>
         {canManageProjects(user.role) ? (
           <button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>
@@ -231,8 +232,8 @@ export default function ProjectsPage() {
                     <td><MemberStack members={project.pic_developer ? [project.pic_developer] : []} empty="Opsional" /></td>
                     <td>
                       <div className="project-work-cell">
-                        <strong>{project.active_stories_count}</strong><span> story aktif</span>
-                        {project.active_tickets_count > 0 ? <small>{project.active_tickets_count} tiket aktif</small> : null}
+                        <strong>{technicalView ? project.active_stories_count : project.active_tickets_count}</strong><span>{technicalView ? " pekerjaan teknis aktif" : " Task aktif"}</span>
+                        {technicalView && project.active_tickets_count > 0 ? <small>{project.active_tickets_count} Task intake</small> : null}
                         {project.overdue_count > 0 ? <small className="text-danger">{project.overdue_count} overdue</small> : null}
                       </div>
                     </td>
@@ -249,7 +250,7 @@ export default function ProjectsPage() {
                 <div className="project-card-top"><span className={`project-status-pill ${project.status}`}>{STATUS_LABELS[project.status]}</span><span className={healthClass(project.health)}><span className="project-health-dot" />{healthLabel(project.health)}</span></div>
                 <h3>{project.name}</h3>
                 <p>{project.websites_count ? `${project.websites_count} website` : "Draft — belum ada website"}</p>
-                <div className="project-card-stats"><span>{project.active_stories_count} story aktif</span><span>{project.active_tickets_count} tiket</span>{project.overdue_count ? <span className="text-danger">{project.overdue_count} overdue</span> : null}</div>
+                <div className="project-card-stats"><span>{technicalView ? `${project.active_stories_count} pekerjaan teknis aktif` : `${project.active_tickets_count} Task aktif`}</span>{technicalView && project.active_tickets_count > 0 ? <span>{project.active_tickets_count} Task intake</span> : null}{project.overdue_count ? <span className="text-danger">{project.overdue_count} overdue</span> : null}</div>
                 <div className="project-card-footer"><MemberStack members={project.pic_web} empty="Belum ada PIC Web" /><span className={`configuration-pill ${project.configuration_status}`}>{project.configuration_status === "ready" ? "Siap" : "Perlu setup"}</span></div>
               </Link>
             ))}

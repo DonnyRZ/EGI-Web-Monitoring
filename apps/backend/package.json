@@ -18,6 +18,7 @@
     "test:tickets": "tsx --test src/modules/tickets/tickets.service.test.ts",
     "test:tasks": "tsx --test src/modules/tasks/tasks.service.test.ts",
     "test:workload": "tsx --test src/modules/workload/workload.service.test.ts",
+    "test:task-monitoring": "tsx --test src/modules/task-monitoring/task-monitoring.rollup.test.ts",
     "test:dashboard": "tsx --test src/modules/dashboard/dashboard.service.test.ts",
     "test:health": "tsx --test src/health.controller.test.ts",
     "remediate:test-data": "node scripts/remediate-test-data.mjs",

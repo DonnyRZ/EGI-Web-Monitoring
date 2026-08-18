@@ -72,6 +72,13 @@ export const TASK_CREATOR_ROLES = [
   "developer",
 ] as const satisfies readonly UserRole[];
 
+/** Create a business Task/intake. Developer work starts from User Stories. */
+export const TASK_INTAKE_CREATOR_ROLES = [
+  "superadmin",
+  "bos_it",
+  "pic_web",
+] as const satisfies readonly UserRole[];
+
 /**
  * View the developer workload/overdue summary (read-only).
  * PIC Web is included but scoped server-side to developers of their own websites.
@@ -142,7 +149,7 @@ export function canViewTasks(role?: string | null): boolean {
 }
 
 export function canViewUserStories(role?: string | null): boolean {
-  return role === "superadmin" || role === "bos_it" || role === "developer";
+  return role === "bos_it" || role === "developer";
 }
 
 export function canManageIncidents(role?: string | null): boolean {
@@ -159,6 +166,15 @@ export function isTicketAssigneeCandidate(role?: string | null): boolean {
 
 export function canCreateTasks(role?: string | null): boolean {
   return roleIn(role, TASK_CREATOR_ROLES);
+}
+
+export function canCreateTaskIntake(role?: string | null): boolean {
+  return roleIn(role, TASK_INTAKE_CREATOR_ROLES);
+}
+
+/** Unified Task Monitoring is the operational workspace; developers are scoped server-side. */
+export function canViewTaskMonitoring(role?: string | null): boolean {
+  return role === "superadmin" || role === "bos_it" || role === "pic_web" || role === "developer";
 }
 
 /** Developer workload summary page (who's overloaded / overdue). */

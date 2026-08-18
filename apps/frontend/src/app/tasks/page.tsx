@@ -2,474 +2,241 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { AddPersonalTaskModal } from "@/components/AddPersonalTaskModal";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { IconPlus } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { tasksApi, ticketsApi, websitesApi, workloadApi } from "@/lib/api-services";
+import { taskMonitoringApi, ticketsApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import {
-  canViewTasks,
-  clipText,
-  formatDateTime,
-  initials,
-  overdueLabel,
-  taskStatusLabel,
-} from "@/lib/format";
-import type { DeveloperWorkload, Task, TaskStatus, Website } from "@/lib/types";
+import { canCreateTaskIntake, canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
+import type {
+  Severity,
+  TaskBusinessStatus,
+  TaskMonitoringFilters,
+  TaskMonitoringRow,
+  TaskMonitoringSummary,
+} from "@/lib/types";
 
-function isOverdue(task: Task) {
-  if (task.status === "done" || !task.sla_deadline) return false;
-  const deadline = new Date(task.sla_deadline).getTime();
-  return Number.isFinite(deadline) && deadline < Date.now();
-}
+const STATUS_LABELS: Record<TaskBusinessStatus, string> = {
+  new: "Baru",
+  in_progress: "Sedang ditangani",
+  waiting_pic: "Menunggu PIC teknis",
+  blocked: "Terblokir",
+  done: "Selesai",
+};
 
-type TaskTab = "all" | "pending" | "in_progress" | "overdue";
+const PRIORITY_LABELS: Record<Severity, string> = {
+  critical: "Kritis",
+  high: "Tinggi",
+  medium: "Sedang",
+  low: "Rendah",
+};
 
-const TAB_LABELS: Record<TaskTab, string> = {
-  all: "Semua",
-  pending: "Pending",
-  in_progress: "Dikerjakan",
-  overdue: "Overdue",
+const EMPTY_SUMMARY: TaskMonitoringSummary = {
+  total: 0,
+  needs_action: 0,
+  new: 0,
+  in_progress: 0,
+  waiting_pic: 0,
+  blocked: 0,
+  overdue: 0,
+  done: 0,
 };
 
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const isReadOnlyViewer =
-    user?.role === "superadmin" || user?.role === "bos_it" || user?.role === "pic_web";
-  const isHighLevelViewer = user?.role === "superadmin" || user?.role === "pic_web";
-  const [items, setItems] = useState<Task[]>([]);
-  const [websites, setWebsites] = useState<Record<string, Website>>({});
+  const [rows, setRows] = useState<TaskMonitoringRow[]>([]);
+  const [summary, setSummary] = useState<TaskMonitoringSummary>(EMPTY_SUMMARY);
+  const [filters, setFilters] = useState<TaskMonitoringFilters>({ projects: [], websites: [], developers: [] });
+  const [projectId, setProjectId] = useState("");
+  const [websiteId, setWebsiteId] = useState("");
+  const [developerId, setDeveloperId] = useState("");
+  const [status, setStatus] = useState("");
+  const [priority, setPriority] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [needsActionOnly, setNeedsActionOnly] = useState(false);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [tab, setTab] = useState<TaskTab>("all");
-  const [addModalOpen, setAddModalOpen] = useState(false);
-  const [developers, setDevelopers] = useState<DeveloperWorkload[]>([]);
-  const [assigneeFilter, setAssigneeFilter] = useState("");
+  const [selected, setSelected] = useState<TaskMonitoringRow | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const technicalView = user?.role === "bos_it" || user?.role === "developer";
+  const showDeveloperFilter = user?.role === "bos_it" || user?.role === "developer";
 
   useEffect(() => {
-    if (!authLoading && user && !canViewTasks(user.role)) {
-      router.replace("/dashboard");
-    }
+    if (!authLoading && user && !canViewTaskMonitoring(user.role)) router.replace("/dashboard");
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (!authLoading && user?.role === "developer") {
-      router.replace("/me/work");
-    }
-  }, [authLoading, user, router]);
-
-  const loadTasks = useCallback(async (opts?: { quiet?: boolean }) => {
-    if (!opts?.quiet) {
-      setLoading(true);
-      setError("");
-    }
-    try {
-      const [tasksRes, websitesRes] = await Promise.all([
-        tasksApi.list({ limit: 100 }),
-        websitesApi.list({ limit: 100 }).catch(() => ({ data: [] as Website[] })),
-      ]);
-      setItems(tasksRes.data);
-      setWebsites(Object.fromEntries(websitesRes.data.map((w) => [w.id, w])));
-      if (opts?.quiet) setError("");
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Gagal memuat daftar tugas";
-      if (opts?.quiet) setActionError(message);
-      else setError(message);
-    } finally {
-      if (!opts?.quiet) setLoading(false);
-    }
-  }, []);
+    if (!user || !canViewTaskMonitoring(user.role)) return;
+    taskMonitoringApi.filters().then(setFilters).catch(() => undefined);
+  }, [user]);
 
   useEffect(() => {
-    if (!user || !canViewTasks(user.role)) return;
-    void loadTasks();
-  }, [user, loadTasks]);
+    if (!user || !canViewTaskMonitoring(user.role)) return;
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    const timer = window.setTimeout(() => {
+      taskMonitoringApi.list({
+        limit: 100,
+        project_id: projectId || undefined,
+        website_id: websiteId || undefined,
+        developer_id: showDeveloperFilter ? developerId || undefined : undefined,
+        status: status || undefined,
+        priority: priority || undefined,
+        overdue: overdueOnly || undefined,
+        needs_action: needsActionOnly || undefined,
+        search: search.trim() || undefined,
+      }).then((response) => {
+        if (cancelled) return;
+        setRows(response.data);
+        setSummary(response.summary);
+        setSelected((current) => current ? response.data.find((row) => row.id === current.id) ?? null : null);
+      }).catch((err) => {
+        if (!cancelled) setError(err instanceof ApiError ? err.message : "Gagal memuat Task Monitoring");
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [user, projectId, websiteId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter]);
 
-  useEffect(() => {
-    if (!user || !isReadOnlyViewer) return;
-    workloadApi
-      .developers()
-      .then((res) => setDevelopers(res))
-      .catch(() => setDevelopers([]));
-  }, [user, isReadOnlyViewer]);
-
-  async function updateStatus(taskId: string, status: TaskStatus) {
-    setActionError("");
-    setUpdatingId(taskId);
-    try {
-      const updated = await tasksApi.updateStatus(taskId, status);
-      setItems((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Gagal memperbarui status tugas");
-      await loadTasks({ quiet: true });
-    } finally {
-      setUpdatingId(null);
+  const visibleWebsites = useMemo(
+    () => filters.websites.filter((website) => !projectId || website.project_id === projectId),
+    [filters.websites, projectId],
+  );
+  const visibleDevelopers = useMemo(
+    () => filters.developers.filter((developer) => !projectId || developer.project_ids.includes(projectId)),
+    [filters.developers, projectId],
+  );
+  const groupedRows = useMemo(() => {
+    const groups = new Map<string, { name: string; rows: TaskMonitoringRow[] }>();
+    for (const row of rows) {
+      const key = row.project?.id ?? "general";
+      const group = groups.get(key) ?? { name: row.project?.name ?? "General / tanpa Project", rows: [] };
+      group.rows.push(row);
+      groups.set(key, group);
     }
+    return [...groups.values()];
+  }, [rows]);
+
+  if (!user || !canViewTaskMonitoring(user.role)) {
+    return <AppShell title="Task Monitoring"><LoadingState /></AppShell>;
   }
-
-  async function openAttachment(ticketId: string) {
-    setActionError("");
-    try {
-      const signed = await ticketsApi.attachment(ticketId);
-      window.open(signed.url, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Gagal membuka lampiran");
-    }
-  }
-
-  if (!user || user.role === "developer" || !canViewTasks(user.role)) {
-    return (
-      <AppShell title={user?.role === "developer" ? "My Work" : isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
-        <LoadingState />
-      </AppShell>
-    );
-  }
-
-  const scopedItems = assigneeFilter ? items.filter((t) => t.assignee_id === assigneeFilter) : items;
-
-  const pendingCount = scopedItems.filter((t) => t.status === "pending").length;
-  const inProgressCount = scopedItems.filter((t) => t.status === "in_progress").length;
-  const overdueCount = scopedItems.filter((t) => isOverdue(t)).length;
-
-  const filteredItems = scopedItems.filter((task) => {
-    if (tab === "pending") return task.status === "pending";
-    if (tab === "in_progress") return task.status === "in_progress";
-    if (tab === "overdue") return isOverdue(task);
-    return true;
-  });
-
-  if (isHighLevelViewer) {
-    return (
-      <AppShell title="Task Monitoring">
-        <HighLevelTaskMonitoring
-          userRole={user.role}
-          items={items}
-          websites={websites}
-          developers={developers}
-          loading={loading}
-          error={error}
-        />
-      </AppShell>
-    );
-  }
-
-  const developerOptions = [
-    { value: "", label: "Semua developer" },
-    ...(user.role === "pic_web"
-      ? Array.from(
-          items.reduce((acc, task) => {
-            if (task.assignee_id && !acc.has(task.assignee_id)) {
-              acc.set(task.assignee_id, task.assignee_name ?? "Tanpa nama");
-            }
-            return acc;
-          }, new Map<string, string>()),
-        ).map(([id, name]) => ({ value: id, label: name }))
-      : developers.map((d) => ({ value: d.developer_id, label: d.developer_name }))),
-  ];
-
-  const emptyTabCopy: Record<TaskTab, { title: string; description: string }> = {
-    all: {
-      title: "Belum ada tugas",
-      description: "Tugas yang ditugaskan ke Anda akan muncul di sini.",
-    },
-    pending: {
-      title: "Tidak ada tugas pending",
-      description: "Semua tugas sudah mulai dikerjakan atau selesai.",
-    },
-    in_progress: {
-      title: "Tidak ada yang sedang dikerjakan",
-      description: "Belum ada tugas yang berstatus dikerjakan.",
-    },
-    overdue: {
-      title: "Tidak ada yang lewat deadline",
-      description: "Semua tugas masih dalam batas SLA. Kerja bagus!",
-    },
-  };
 
   return (
-    <AppShell title={isReadOnlyViewer ? "Task Monitoring" : "To-Do List"}>
-      <div className="page-toolbar">
-        <p className="page-toolbar-desc muted">
-          {user.role === "pic_web"
-            ? "Pantau progress task pada website Anda — tiket yang Anda kirim dan to-do developer terkait."
-            : isReadOnlyViewer
-            ? "Pantau progress task, SLA, dan status pekerjaan developer — baik dari tiket PIC Web, delegasi Superadmin, maupun to-do manual."
-            : "Tugas dari tiket PIC Web dan delegasi Superadmin. Deadline boleh kosong sampai Bos IT mengisinya — tetap boleh dikerjakan."}
-        </p>
-        {isReadOnlyViewer ? (
-          <Select
-            value={assigneeFilter}
-            onChange={setAssigneeFilter}
-            options={developerOptions}
-            style={{ minWidth: 200 }}
-            aria-label="Filter berdasarkan developer"
-          />
-        ) : null}
-      </div>
-
-      {!loading && scopedItems.length > 0 ? (
-        <div className="metrics-row" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <div className="metric">
-            <div className="metric-label">Pending</div>
-            <div className="metric-value">{pendingCount}</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Dikerjakan</div>
-            <div className="metric-value">{inProgressCount}</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Overdue</div>
-            <div className="metric-value" style={overdueCount > 0 ? { color: "var(--danger)" } : undefined}>
-              {overdueCount}
-            </div>
-          </div>
+    <AppShell title="Task Monitoring" actions={canCreateTaskIntake(user.role) ? <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>Buat Task</button> : null}>
+      <section className="project-page-intro">
+        <div>
+          <span className="eyebrow">Satu pusat pekerjaan</span>
+          <h2>Task Monitoring</h2>
+          <p className="muted">
+            {technicalView
+              ? "Pantau Task dan rincian pekerjaan teknisnya, lengkap dengan Project, developer, deadline, dan blocker."
+              : "Lihat apa yang sedang berjalan, apa yang terlambat, dan apa yang membutuhkan perhatian Anda. Detail teknis tetap diringkas."}
+          </p>
         </div>
-      ) : null}
+        {canCreateTaskIntake(user.role) ? <button type="button" className="btn btn-primary mobile-only-task-cta" onClick={() => setCreateOpen(true)}>Buat Task</button> : null}
+      </section>
 
-      {!loading && (scopedItems.length > 0 || !isReadOnlyViewer) ? (
-        <div className="page-tabs">
-          <div className="page-tabs-list" role="tablist" aria-label="Filter tugas">
-            {scopedItems.length > 0
-              ? (Object.keys(TAB_LABELS) as TaskTab[]).map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`page-tab ${tab === key ? "active" : ""}`}
-                    role="tab"
-                    aria-selected={tab === key}
-                    onClick={() => setTab(key)}
-                  >
-                    {TAB_LABELS[key]}
-                    {key === "overdue" && overdueCount > 0 ? ` (${overdueCount})` : ""}
-                  </button>
-                ))
-              : null}
-          </div>
-          {!isReadOnlyViewer ? (
-            <button
-              type="button"
-              className="page-tabs-add"
-              onClick={() => setAddModalOpen(true)}
-              aria-label="Tambah To-Do"
-              title="Tambah To-Do"
-            >
-              <IconPlus />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <section className="task-monitoring-filters panel" aria-label="Filter Task Monitoring">
+        <input className="text-input project-search" placeholder="Cari Task, Project, atau Website…" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Cari Task" />
+        <Select value={projectId} onChange={(value) => { setProjectId(value); setWebsiteId(""); setDeveloperId(""); }} options={[{ value: "", label: user.role === "developer" ? "Semua Project Saya" : "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
+        <Select value={websiteId} onChange={setWebsiteId} options={[{ value: "", label: "Semua Website" }, ...visibleWebsites.map((website) => ({ value: website.id, label: website.name }))]} aria-label="Filter Website" />
+        {showDeveloperFilter ? <Select value={developerId} onChange={setDeveloperId} options={[{ value: "", label: "Semua developer" }, ...visibleDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" /> : null}
+        <Select value={status} onChange={setStatus} options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter status Task" />
+        <Select value={priority} onChange={setPriority} options={[{ value: "", label: "Semua priority" }, ...Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter priority Task" />
+        <button type="button" className={`filter-toggle ${needsActionOnly ? "active" : ""}`} onClick={() => setNeedsActionOnly((value) => !value)}>Perlu perhatian</button>
+        <button type="button" className={`filter-toggle ${overdueOnly ? "active" : ""}`} onClick={() => setOverdueOnly((value) => !value)}>Terlambat</button>
+      </section>
+
+      <section className="task-summary-grid" aria-label="Ringkasan Task">
+        <SummaryCard label="Perlu perhatian" value={summary.needs_action} tone="attention" />
+        <SummaryCard label="Baru" value={summary.new} />
+        <SummaryCard label="Sedang ditangani" value={summary.in_progress} />
+        <SummaryCard label="Menunggu PIC teknis" value={summary.waiting_pic} tone="warning" />
+        <SummaryCard label="Terlambat" value={summary.overdue} tone="danger" />
+        <SummaryCard label="Selesai" value={summary.done} tone="success" />
+      </section>
 
       {error ? <ErrorBanner message={error} /> : null}
-      {actionError ? <ErrorBanner message={actionError} /> : null}
-      {loading ? <LoadingState /> : null}
-
-      {!loading && !error && items.length === 0 ? (
-        <EmptyState
-          title="Belum ada tugas"
-          description={
-            user.role === "pic_web"
-              ? "Belum ada tugas pada website Anda."
-              : "Tugas yang ditugaskan ke Anda akan muncul di sini."
-          }
-        />
-      ) : null}
-
-      {!loading && items.length > 0 && filteredItems.length === 0 ? (
-        <EmptyState
-          title={emptyTabCopy[tab].title}
-          description={emptyTabCopy[tab].description}
-        />
-      ) : null}
-
-      {!loading && filteredItems.length > 0 ? (
-        <div className="panel table-wrap" style={{ padding: 0 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Website</th>
-                {isReadOnlyViewer ? <th>Developer</th> : null}
-                <th>Task</th>
-                <th>SLA</th>
-                <th>Status</th>
-                <th>{isReadOnlyViewer ? "Lampiran" : "Aksi"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map((task) => {
-                const site = websites[task.website_id];
-                const busy = updatingId === task.id;
-                const overdue = isOverdue(task);
-                const sourceTag = task.ticket_id
-                  ? { cls: "ticket", label: "Tiket PIC" }
-                  : task.created_by_id && task.created_by_id === task.assignee_id
-                    ? { cls: "manual", label: "Manual" }
-                    : { cls: "delegation", label: "Delegasi" };
-                return (
-                  <tr key={task.id} className={overdue ? "task-row-overdue" : undefined}>
-                    <td>
-                      {site ? (
-                        <Link href={`/websites/${task.website_id}`} className="list-title">
-                          {site.name}
-                        </Link>
-                      ) : (
-                        <span className="muted">{clipText(task.website_id, 12)}</span>
-                      )}
-                      {site ? (
-                        <div className="muted" style={{ fontSize: "0.8rem" }}>
-                          {site.domain}
-                        </div>
-                      ) : null}
-                      <div>
-                        <span className={`task-source-tag ${sourceTag.cls}`}>{sourceTag.label}</span>
-                      </div>
-                    </td>
-                    {isReadOnlyViewer ? <td>{task.assignee_name ?? "-"}</td> : null}
-                    <td style={{ maxWidth: 320 }}>
-                      {task.ticket_id ? (
-                        <ul className="task-points">
-                          {task.problem ? (
-                            <li title={task.problem}>{clipText(task.problem, 140)}</li>
-                          ) : null}
-                          {task.expectation ? (
-                            <li title={task.expectation}>{clipText(task.expectation, 140)}</li>
-                          ) : null}
-                          {!task.problem && !task.expectation ? (
-                            <span className="muted">-</span>
-                          ) : null}
-                        </ul>
-                      ) : (
-                        <div title={task.instruction_notes}>
-                          {clipText(task.instruction_notes, 180)}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {task.sla_deadline ? (
-                        <span className={overdue ? "task-sla-overdue" : undefined}>
-                          {formatDateTime(task.sla_deadline)}
-                        </span>
-                      ) : (
-                        <span className="muted">Belum ada deadline</span>
-                      )}
-                      {overdue ? (
-                        <div className="muted" style={{ fontSize: "0.75rem", color: "var(--danger)" }}>
-                          {overdueLabel(task.sla_deadline)}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td>
-                      <span className={`badge-soft task-status-${task.status}`}>
-                        {taskStatusLabel(task.status)}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        {task.ticket_id && task.ticket_attachment_url ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-neutral"
-                            onClick={() => void openAttachment(task.ticket_id as string)}
-                          >
-                            Lampiran
-                          </button>
-                        ) : null}
-                        {!isReadOnlyViewer && task.status === "pending" ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            disabled={busy}
-                            onClick={() => void updateStatus(task.id, "in_progress")}
-                          >
-                            {busy ? "…" : "Mulai Kerjakan"}
-                          </button>
-                        ) : null}
-                        {!isReadOnlyViewer && task.status === "in_progress" ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            disabled={busy}
-                            onClick={() => void updateStatus(task.id, "done")}
-                          >
-                            {busy ? "…" : "Selesai"}
-                          </button>
-                        ) : null}
-                        {!isReadOnlyViewer && task.status === "done" ? (
-                          <span className="muted" style={{ fontSize: "0.85rem" }}>
-                            Selesai
-                          </span>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {loading ? <LoadingState label="Memuat Task Monitoring…" /> : null}
+      {!loading && !error && rows.length === 0 ? <EmptyState title="Belum ada Task" description="Task yang masuk ke scope Anda akan tampil di sini. Gunakan filter Project atau status bila diperlukan." /> : null}
+      {!loading && rows.length > 0 ? (
+        <div className="task-monitoring-groups">
+          {groupedRows.map((group) => (
+            <section className="panel task-monitoring-group" key={group.name}>
+              <div className="panel-heading-row">
+                <div><span className="eyebrow">Project</span><h3 className="panel-title">{group.name}</h3></div>
+                <span className="muted">{group.rows.length} Task</span>
+              </div>
+              <div className="task-monitoring-list">
+                {group.rows.map((row) => <TaskRow key={row.id} row={row} technicalView={technicalView} onOpen={() => setSelected(row)} />)}
+              </div>
+            </section>
+          ))}
         </div>
       ) : null}
 
-      {addModalOpen && user ? (
-        <AddPersonalTaskModal
-          websites={Object.values(websites)}
-          currentUserId={user.id}
-          onClose={() => setAddModalOpen(false)}
-          onCreated={(task) => {
-            setItems((prev) => [task, ...prev]);
-            setAddModalOpen(false);
-          }}
-        />
-      ) : null}
+      {selected ? <TaskDetailPanel row={selected} technicalView={technicalView} canOverride={user.role === "superadmin" || user.role === "bos_it"} onClose={() => setSelected(null)} onUpdated={(row) => { setSelected(row); setRows((current) => current.map((item) => item.id === row.id ? row : item)); }} /> : null}
+      {createOpen ? <CreateTaskModal filters={filters} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setLoading(true); taskMonitoringApi.list({ limit: 100 }).then((response) => { setRows(response.data); setSummary(response.summary); }).catch(() => undefined).finally(() => setLoading(false)); }} /> : null}
     </AppShell>
   );
 }
 
-function HighLevelTaskMonitoring({
-  userRole,
-  items,
-  websites,
-  developers,
-  loading,
-  error,
-}: {
-  userRole: string;
-  items: Task[];
-  websites: Record<string, Website>;
-  developers: DeveloperWorkload[];
-  loading: boolean;
-  error: string;
-}) {
-  const [ticketCount, setTicketCount] = useState(0);
-  useEffect(() => {
-    ticketsApi.list({ limit: 100, status: "open" }).then((res) => setTicketCount(res.meta.total)).catch(() => undefined);
-  }, []);
-  const pending = items.filter((task) => task.status === "pending").length;
-  const inProgress = items.filter((task) => task.status === "in_progress").length;
-  const overdue = items.filter((task) => isOverdue(task)).length;
-  const grouped = Object.values(websites).reduce((groups, website) => {
-    const key = website.project_id || website.id;
-    const current = groups.get(key) ?? { name: website.project_id ? `Project ${website.project_id.slice(0, 8)}` : website.name, websites: 0, pending: 0, inProgress: 0, overdue: 0 };
-    current.websites += 1;
-    const siteTasks = items.filter((task) => task.website_id === website.id);
-    current.pending += siteTasks.filter((task) => task.status === "pending").length;
-    current.inProgress += siteTasks.filter((task) => task.status === "in_progress").length;
-    current.overdue += siteTasks.filter((task) => isOverdue(task)).length;
-    groups.set(key, current);
-    return groups;
-  }, new Map<string, { name: string; websites: number; pending: number; inProgress: number; overdue: number }>());
-  return <>
-    <div className="page-toolbar"><p className="page-toolbar-desc muted">Ringkasan high-level per Project dan status intake. Detail instruksi teknis tetap berada di Project / User Stories.</p><span className="high-level-view-label">High-level view</span></div>
-    {error ? <ErrorBanner message={error} /> : null}
-    {loading ? <LoadingState label="Memuat ringkasan pekerjaan…" /> : <>
-      <div className="metrics-row high-level-metrics"><div className="metric"><div className="metric-label">Pending</div><div className="metric-value">{pending}</div></div><div className="metric"><div className="metric-label">In progress</div><div className="metric-value">{inProgress}</div></div><div className="metric"><div className="metric-label">Overdue</div><div className="metric-value" style={overdue > 0 ? { color: "var(--danger)" } : undefined}>{overdue}</div></div><div className="metric"><div className="metric-label">Tiket belum ditriase</div><div className="metric-value">{ticketCount}</div></div></div>
-      <section className="panel"><div className="panel-heading-row"><div><span className="eyebrow">Portfolio pulse</span><h3 className="panel-title">Pekerjaan per Project</h3></div><span className="muted">{userRole === "pic_web" ? "Scope Project Anda" : "Semua Project"}</span></div>{grouped.size === 0 ? <EmptyState title="Belum ada pekerjaan aktif" description="Ringkasan pekerjaan akan muncul setelah ada story atau legacy task." /> : <div className="high-level-project-list">{[...grouped.values()].map((group, index) => <div key={`${group.name}-${index}`} className="high-level-project-row"><div><strong>{group.name}</strong><span className="muted">{group.websites} website</span></div><div className="high-level-project-stats"><span>{group.pending} pending</span><span>{group.inProgress} in progress</span>{group.overdue ? <span className="text-danger">{group.overdue} overdue</span> : null}</div></div>)}</div>}</section>
-      {developers.length > 0 ? <section className="panel"><div className="panel-heading-row"><div><span className="eyebrow">Capacity</span><h3 className="panel-title">Workload agregat</h3></div><span className="muted">Tanpa detail instruksi teknis</span></div><div className="high-level-developer-grid">{developers.map((developer) => <div key={developer.developer_id} className="high-level-developer"><span className="member-avatar">{initials(developer.developer_name)}</span><div><strong>{developer.developer_name}</strong><span className="muted">{developer.total_active} pekerjaan aktif</span></div><span className={developer.overdue > 0 ? "text-danger" : "muted"}>{developer.overdue} overdue</span></div>)}</div></section> : null}
-    </>}
-  </>;
+function SummaryCard({ label, value, tone }: { label: string; value: number; tone?: string }) {
+  return <div className={`task-summary-card ${tone ?? ""}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function TaskRow({ row, technicalView, onOpen }: { row: TaskMonitoringRow; technicalView: boolean; onOpen: () => void }) {
+  return (
+    <button type="button" className={`task-monitoring-row ${row.is_overdue ? "overdue" : ""}`} onClick={onOpen}>
+      <div className="task-monitoring-main">
+        <div className="task-monitoring-title-line"><strong>{row.title}</strong>{row.source === "legacy_task" ? <span className="legacy-task-label">Pekerjaan Lama</span> : null}</div>
+        <span className="muted">{row.website ? `${row.website.name} · ${row.website.domain}` : "General / tanpa Website"}</span>
+        {row.summary ? <span className="task-monitoring-summary">{row.summary}</span> : null}
+      </div>
+      <div className="task-monitoring-context"><span className={`task-business-status ${row.status}`}>{STATUS_LABELS[row.status]}</span><span className={`priority-tag ${row.priority}`}>{PRIORITY_LABELS[row.priority]}</span>{row.is_overdue ? <span className="overdue-label">Terlambat</span> : null}</div>
+      <div className="task-monitoring-assignees">{row.pic_developer ? <span className="task-monitoring-person"><span className="member-avatar">{initials(row.pic_developer.name)}</span>{row.pic_developer.name}</span> : <span className="muted">Belum ada PIC teknis</span>}{technicalView && row.developers.length > 0 ? <span className="muted">{row.developers.length} developer</span> : null}</div>
+      <div className="task-monitoring-due">{row.due_date ? <span className={row.is_overdue ? "text-danger" : "muted"}>{formatDateTime(row.due_date)}</span> : <span className="muted">Tanpa deadline</span>}{technicalView ? <span className="muted">{row.story_count ? `${row.story_count} User Story` : "Belum ada User Story"}</span> : <span className="muted">{row.story_count ? "Sedang ditangani tim teknis" : "Belum diturunkan ke tim teknis"}</span>}</div>
+    </button>
+  );
+}
+
+function TaskDetailPanel({ row, technicalView, canOverride, onClose, onUpdated }: { row: TaskMonitoringRow; technicalView: boolean; canOverride: boolean; onClose: () => void; onUpdated: (row: TaskMonitoringRow) => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function updateStatus(status: string) {
+    setSaving(true); setError("");
+    try { onUpdated(await taskMonitoringApi.updateStatus(row.source_id, status || null)); }
+    catch (err) { setError(err instanceof ApiError ? err.message : "Gagal memperbarui status Task"); }
+    finally { setSaving(false); }
+  }
+  return <div className="drawer-backdrop" role="presentation" onClick={onClose}><aside className="task-detail-drawer" role="dialog" aria-modal="true" aria-label={`Detail Task ${row.title}`} onClick={(event) => event.stopPropagation()}><div className="drawer-header"><div><span className="eyebrow">Detail Task</span><h2>{row.title}</h2></div><button type="button" className="icon-btn" onClick={onClose} aria-label="Tutup detail">×</button></div>{error ? <ErrorBanner message={error} /> : null}<div className="task-detail-badges"><span className={`task-business-status ${row.status}`}>{STATUS_LABELS[row.status]}</span><span className={`priority-tag ${row.priority}`}>{PRIORITY_LABELS[row.priority]}</span>{row.is_overdue ? <span className="overdue-label">Terlambat</span> : null}</div><dl className="task-detail-facts"><div><dt>Project</dt><dd>{row.project?.name ?? "General / tanpa Project"}</dd></div><div><dt>Website</dt><dd>{row.website ? <Link href={`/websites/${row.website.id}`}>{row.website.name}</Link> : "—"}</dd></div><div><dt>PIC teknis</dt><dd>{row.pic_developer?.name ?? "Belum ada — perlu ditetapkan oleh Bos IT"}</dd></div><div><dt>Deadline</dt><dd>{row.due_date ? formatDateTime(row.due_date) : "Belum ditentukan"}</dd></div></dl><section className="task-detail-section"><span className="eyebrow">Ringkasan bisnis</span><p>{row.business?.problem || row.summary || "Tidak ada ringkasan."}</p>{row.business?.expectation ? <><span className="eyebrow">Hasil yang diharapkan</span><p>{row.business.expectation}</p></> : null}</section>{technicalView ? <section className="task-detail-section"><div className="panel-heading-row"><div><span className="eyebrow">Technical breakdown</span><h3 className="panel-title">User Stories</h3></div><span className="muted">{row.story_count}</span></div>{row.stories.length === 0 ? <p className="muted">Belum ada User Story. PIC Developer dapat memecah Task ini menjadi pekerjaan teknis.</p> : <div className="task-detail-stories">{row.stories.map((story) => <div className="task-detail-story" key={story.id}><strong>{story.title}</strong><span className={`story-status-label ${story.status}`}>{story.status.replace(/_/g, " ")}</span><span className="muted">{story.primary_developer?.name ?? "Belum ada developer utama"}{story.collaborators.length ? ` · ${story.collaborators.length} collaborator` : ""}</span></div>)}</div>}</section> : <section className="task-detail-section"><span className="eyebrow">Progress teknis</span><p className="muted">{row.story_count ? "Sedang ditangani tim teknis." : "Belum diturunkan ke tim teknis."}</p></section>}{canOverride && row.source === "task" ? <section className="task-detail-actions"><span className="eyebrow">Kontrol status bisnis</span><p className="muted">Override hanya digunakan untuk kondisi bisnis khusus. Progress teknis tetap menjadi sumber status otomatis.</p><Select value={row.status} onChange={(value) => void updateStatus(value)} options={[{ value: "", label: "Kembali ke status otomatis" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} disabled={saving} aria-label="Status bisnis Task" /></section> : null}</aside></div>;
+}
+
+function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitoringFilters; onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({ title: "", project_id: "", website_id: "", category: "website", description: "", expectation: "", priority: "medium" as Severity });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const websites = filters.websites.filter((website) => !form.project_id || website.project_id === form.project_id);
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("");
+    if (form.category === "website" && !form.website_id) {
+      setError("Pilih Website untuk Task berkategori Website.");
+      setSaving(false);
+      return;
+    }
+    try { await ticketsApi.create({ title: form.title, project_id: form.project_id || undefined, website_id: form.website_id || undefined, category: form.category as "website" | "help_desk" | "procurement", description: form.description, expectation: form.expectation, priority: form.priority }); onCreated(); }
+    catch (err) { setError(err instanceof ApiError ? err.message : "Gagal membuat Task"); }
+    finally { setSaving(false); }
+  }
+  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal task-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Intake pekerjaan</div><h2>Buat Task</h2><p className="muted">Task akan masuk ke Project dan dipantau oleh PIC teknisnya. Anda tidak perlu memilih developer di tahap ini.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="task-title">Judul Task</label><input id="task-title" className="text-input" required maxLength={255} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: Perbaiki form kontak" /></div><div className="form-grid"><div className="form-field"><label htmlFor="task-project">Project</label><Select id="task-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value, website_id: "" }))} options={[{ value: "", label: "General / tanpa Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /></div><div className="form-field"><label htmlFor="task-website">Website <span className="muted">(opsional)</span></label><Select id="task-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Pilih Website" }, ...websites.map((website) => ({ value: website.id, label: website.name }))]} /></div><div className="form-field"><label htmlFor="task-category">Kategori</label><Select id="task-category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value }))} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div><div className="form-field"><label htmlFor="task-priority">Priority</label><Select id="task-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as Severity }))} options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} /></div></div><div className="form-field"><label htmlFor="task-description">Masalah / kebutuhan</label><textarea id="task-description" className="text-input" rows={4} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="task-expectation">Hasil yang diharapkan</label><textarea id="task-expectation" className="text-input" rows={3} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
 }

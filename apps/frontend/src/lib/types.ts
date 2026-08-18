@@ -7,6 +7,7 @@ export type {
   NotificationChannel,
   NotificationStatus,
   TaskStatus,
+  TaskBusinessStatus,
   ProjectStatus,
   ProjectMemberType,
   UserStoryStatus,
@@ -21,6 +22,7 @@ import type {
   NotificationStatus,
   Severity,
   TaskStatus,
+  TaskBusinessStatus,
   ProjectStatus,
   ProjectMemberType,
   UserStoryStatus,
@@ -92,6 +94,8 @@ export interface Ticket {
   website_id: string | null;
   project_id: string | null;
   user_story_id: string | null;
+  user_story_ids: string[];
+  user_story_count: number;
   created_by: string | null;
   title: string;
   category: TicketCategory | null;
@@ -124,6 +128,60 @@ export interface Task {
   ticket_attachment_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TaskMonitoringStory {
+  id: string;
+  title: string;
+  status: UserStoryStatus;
+  priority: UserStoryPriority;
+  due_date: string | null;
+  primary_developer: UserSummary | null;
+  collaborators: UserSummary[];
+}
+
+export interface TaskMonitoringRow {
+  id: string;
+  source: "task" | "legacy_task";
+  source_id: string;
+  title: string;
+  summary: string | null;
+  project: { id: string; name: string } | null;
+  website: { id: string; name: string; domain: string } | null;
+  status: TaskBusinessStatus;
+  status_reason: "automatic" | "manual_override" | "waiting_pic_developer" | "legacy_task";
+  priority: Severity;
+  pic_developer: UserSummary | null;
+  developers: UserSummary[];
+  due_date: string | null;
+  last_update: string;
+  is_overdue: boolean;
+  needs_action: boolean;
+  story_count: number;
+  stories: TaskMonitoringStory[];
+  business: {
+    problem: string | null;
+    expectation: string | null;
+    attachment_url: string | null;
+    category: string | null;
+  } | null;
+}
+
+export interface TaskMonitoringSummary {
+  total: number;
+  needs_action: number;
+  new: number;
+  in_progress: number;
+  waiting_pic: number;
+  blocked: number;
+  overdue: number;
+  done: number;
+}
+
+export interface TaskMonitoringFilters {
+  projects: Array<{ id: string; name: string }>;
+  websites: Array<{ id: string; name: string; domain: string; project_id: string | null }>;
+  developers: Array<{ id: string; name: string; email: string; project_ids: string[] }>;
 }
 
 export interface UserSummary {

@@ -6,15 +6,14 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   canManagePlatform,
-  canViewDeveloperWorkload,
   canViewIncidents,
   canViewProjectRegistry,
-  canViewTasks,
+  canViewTaskMonitoring,
   canViewUserStories,
   initials,
   isEndUserPublicDashboard,
 } from "@/lib/format";
-import { incidentsApi, userStoriesApi } from "@/lib/api-services";
+import { incidentsApi, projectsApi, userStoriesApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
 import {
   IconAlert,
@@ -89,6 +88,7 @@ export function AppShell({ title, children, actions }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeIncidents, setActiveIncidents] = useState(0);
   const [myOpenTasks, setMyOpenTasks] = useState(0);
+  const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -124,6 +124,24 @@ export function AppShell({ title, children, actions }: AppShellProps) {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!user || user.role !== "developer") {
+      setIsProjectPicDeveloper(false);
+      return;
+    }
+    let cancelled = false;
+    projectsApi.list({ limit: 100 })
+      .then((response) => {
+        if (!cancelled) setIsProjectPicDeveloper(response.data.some((project) => project.pic_developer_id === user.id));
+      })
+      .catch(() => {
+        if (!cancelled) setIsProjectPicDeveloper(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   if (loading || !user) {
     return (
       <div className="login-page">
@@ -138,30 +156,23 @@ export function AppShell({ title, children, actions }: AppShellProps) {
 
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-    ...(canViewTasks(user.role)
+    ...(canViewTaskMonitoring(user.role) && (user.role !== "developer" || isProjectPicDeveloper)
       ? [
           {
-            href: user.role === "developer" ? "/me/work" : "/tasks",
-            label: user.role === "developer" ? "My Work" : "Task Monitoring",
+            href: "/tasks",
+            label: "Task Monitoring",
             icon: IconTasks,
-            badge: user.role === "developer" && myOpenTasks > 0 ? myOpenTasks : undefined,
           },
         ]
+      : []),
+    ...(user.role === "developer"
+      ? [{ href: "/me/work", label: "My Work", icon: IconTasks, badge: myOpenTasks > 0 ? myOpenTasks : undefined }]
       : []),
     ...(canViewProjectRegistry(user.role)
       ? [{ href: "/projects", label: user.role === "superadmin" || user.role === "bos_it" ? "Kelola Project" : "Project Saya", icon: IconGlobe }]
       : []),
     ...(canViewUserStories(user.role)
       ? [{ href: "/user-stories", label: "User Stories", icon: IconTasks }]
-      : []),
-    ...(user.role === "superadmin" || user.role === "bos_it"
-      ? [{ href: "/tickets", label: "Tiket", icon: IconTasks }]
-      : []),
-    ...(user.role === "pic_web"
-      ? [{ href: "/pic-web/tickets", label: "Tiket Saya", icon: IconTasks }]
-      : []),
-    ...(canViewDeveloperWorkload(user.role)
-      ? [{ href: "/team", label: "Developer", icon: IconUsers }]
       : []),
     ...(canViewIncidents(user.role)
       ? [

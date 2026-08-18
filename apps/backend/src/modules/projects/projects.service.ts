@@ -96,7 +96,7 @@ const PROJECT_DETAIL_INCLUDE = {
     },
     orderBy: { updatedAt: "desc" },
   },
-  tickets: { select: { status: true, userStoryId: true, assignedTo: true } },
+  tickets: { select: { status: true, userStoryId: true, assignedTo: true, storyLinks: { select: { userStoryId: true } } } },
   _count: { select: { websites: true, members: true, userStories: true, tickets: true } },
 } satisfies Prisma.ProjectInclude;
 
@@ -453,7 +453,10 @@ export class ProjectsService {
     const visibleStoryIds = new Set(visibleStories.map((story) => story.id));
     const visibleTickets = isRegularDeveloper
       ? project.tickets.filter(
-          (ticket) => ticket.assignedTo === user.id || (ticket.userStoryId && visibleStoryIds.has(ticket.userStoryId)),
+          (ticket) =>
+            ticket.assignedTo === user.id
+            || (ticket.userStoryId && visibleStoryIds.has(ticket.userStoryId))
+            || ticket.storyLinks.some((link) => visibleStoryIds.has(link.userStoryId)),
         )
       : project.tickets;
     const websites = project.websites.map((website) => ({

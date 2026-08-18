@@ -16,6 +16,9 @@ export type NotificationStatus = "pending" | "sent" | "failed";
 
 export type TaskStatus = "pending" | "in_progress" | "done";
 
+/** Business-facing status for the unified Task Monitoring workspace. */
+export type TaskBusinessStatus = "new" | "in_progress" | "waiting_pic" | "blocked" | "done";
+
 export type ProjectStatus = "draft" | "active" | "archived";
 
 export type ProjectMemberType = "pic_web" | "developer";
@@ -29,6 +32,17 @@ export type UserStoryStatus =
   | "blocked";
 
 export type UserStoryPriority = "critical" | "high" | "medium" | "low";
+
+export interface TaskMonitoringSummary {
+  total: number;
+  needs_action: number;
+  new: number;
+  in_progress: number;
+  waiting_pic: number;
+  blocked: number;
+  overdue: number;
+  done: number;
+}
 
 export interface ProjectListSummary {
   id: string;
@@ -60,6 +74,7 @@ export {
   TICKET_MANAGER_ROLES,
   TICKET_ASSIGNEE_ROLES,
   TASK_CREATOR_ROLES,
+  TASK_INTAKE_CREATOR_ROLES,
   LIFECYCLE_NOTIFICATION_ROLES,
   WORKLOAD_VIEWER_ROLES,
   canManagePlatform,
@@ -75,6 +90,8 @@ export {
   canManageTickets,
   isTicketAssigneeCandidate,
   canCreateTasks,
+  canCreateTaskIntake,
+  canViewTaskMonitoring,
   receivesLifecycleNotifications,
   isEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard,

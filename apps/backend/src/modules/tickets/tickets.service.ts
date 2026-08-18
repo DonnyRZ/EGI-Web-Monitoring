@@ -21,6 +21,7 @@ import { createScreenshotSignedUrl, uploadObject } from "../../common/s3";
 
 const TICKET_INCLUDE = {
   assignee: { select: { id: true, name: true } },
+  storyLinks: { select: { userStoryId: true } },
 } as const;
 
 @Injectable()
@@ -71,6 +72,18 @@ export class TicketsService {
                 { primaryDeveloperId: user.id },
                 { collaborators: { some: { userId: user.id } } },
               ],
+            },
+          },
+          {
+            storyLinks: {
+              some: {
+                userStory: {
+                  OR: [
+                    { primaryDeveloperId: user.id },
+                    { collaborators: { some: { userId: user.id } } },
+                  ],
+                },
+              },
             },
           },
         ],
@@ -322,10 +335,13 @@ export class TicketsService {
       throw new ForbiddenException("PIC Web cannot update tickets");
     }
     if (user.role === "developer") {
-      const assignedStory = existing.userStoryId
+      const storyIds = [existing.userStoryId, ...(existing.storyLinks?.map((link) => link.userStoryId) ?? [])].filter(
+        (storyId): storyId is string => Boolean(storyId),
+      );
+      const assignedStory = storyIds.length > 0
         ? await this.prisma.userStory.findFirst({
             where: {
-              id: existing.userStoryId,
+              id: { in: storyIds },
               OR: [
                 { primaryDeveloperId: user.id },
                 { collaborators: { some: { userId: user.id } } },

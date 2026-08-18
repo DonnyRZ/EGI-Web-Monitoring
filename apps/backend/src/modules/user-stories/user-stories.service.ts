@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -27,6 +26,7 @@ const STORY_INCLUDE = {
   primaryDeveloper: { select: USER_SUMMARY },
   collaborators: { include: { user: { select: USER_SUMMARY } } },
   tickets: { select: { id: true, title: true, status: true } },
+  ticketLinks: { include: { ticket: { select: { id: true, title: true, status: true } } } },
 } as const;
 
 const LEGACY_TASK_INCLUDE = {
@@ -99,10 +99,10 @@ export class UserStoriesService {
       include: {
         website: { select: { id: true, projectId: true } },
         userStory: { select: { id: true } },
+        storyLinks: { select: { userStoryId: true } },
       },
     });
     if (!ticket) throw new NotFoundException("Ticket not found");
-    if (ticket.userStory) throw new ConflictException("Ticket is already linked to a user story");
     const projectId = ticket.projectId ?? ticket.website?.projectId;
     if (!projectId) throw new BadRequestException("A general ticket must be linked to a Project before it can become a story");
 
@@ -279,10 +279,17 @@ export class UserStoriesService {
         include: STORY_INCLUDE,
       });
       if (ticketId) {
+        const ticket = await tx.ticket.findUnique({ where: { id: ticketId }, select: { userStoryId: true } });
+        if (!ticket) throw new NotFoundException("Ticket not found");
         await tx.ticket.update({
           where: { id: ticketId },
-          data: { projectId: project.id, userStoryId: created.id, status: TicketStatus.in_progress },
+          data: {
+            projectId: project.id,
+            userStoryId: ticket.userStoryId ?? created.id,
+            status: TicketStatus.in_progress,
+          },
         });
+        await tx.ticketUserStoryLink.create({ data: { ticketId, userStoryId: created.id } });
       }
       return created;
     });
@@ -398,12 +405,18 @@ export class UserStoriesService {
   private async syncTicketsFromStory(tx: Prisma.TransactionClient, storyId: string, status: UserStoryStatus) {
     if (status === UserStoryStatus.done) {
       await tx.ticket.updateMany({
-        where: { userStoryId: storyId, status: { in: [TicketStatus.open, TicketStatus.in_progress] } },
+        where: {
+          OR: [{ userStoryId: storyId }, { storyLinks: { some: { userStoryId: storyId } } }],
+          status: { in: [TicketStatus.open, TicketStatus.in_progress] },
+        },
         data: { status: TicketStatus.resolved, resolvedAt: new Date() },
       });
     } else if (status === UserStoryStatus.in_progress || status === UserStoryStatus.review) {
       await tx.ticket.updateMany({
-        where: { userStoryId: storyId, status: TicketStatus.open },
+        where: {
+          OR: [{ userStoryId: storyId }, { storyLinks: { some: { userStoryId: storyId } } }],
+          status: TicketStatus.open,
+        },
         data: { status: TicketStatus.in_progress },
       });
     }
@@ -436,7 +449,10 @@ export class UserStoriesService {
       website: story.website,
       primary_developer: story.primaryDeveloper ? this.toUserSummary(story.primaryDeveloper) : null,
       collaborators: story.collaborators.map((row) => this.toUserSummary(row.user)),
-      tickets: story.tickets,
+      tickets: [
+        ...story.tickets,
+        ...story.ticketLinks.map((row) => row.ticket),
+      ].filter((ticket, index, all) => all.findIndex((candidate) => candidate.id === ticket.id) === index),
       is_overdue: isOverdue,
     };
   }

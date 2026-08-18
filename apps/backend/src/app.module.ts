@@ -13,6 +13,7 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { WorkloadModule } from "./modules/workload/workload.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { UserStoriesModule } from "./modules/user-stories/user-stories.module";
+import { TaskMonitoringModule } from "./modules/task-monitoring/task-monitoring.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -34,6 +35,7 @@ import { HealthController } from "./health.controller";
     WorkloadModule,
     ProjectsModule,
     UserStoriesModule,
+    TaskMonitoringModule,
   ],
   controllers: [HealthController],
 })

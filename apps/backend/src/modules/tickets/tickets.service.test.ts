@@ -252,6 +252,18 @@ test("developer ticket list stays scoped even with incident and assignee filters
         ],
       },
     },
+    {
+      storyLinks: {
+        some: {
+          userStory: {
+            OR: [
+              { primaryDeveloperId: developer.id },
+              { collaborators: { some: { userId: developer.id } } },
+            ],
+          },
+        },
+      },
+    },
   ]);
 });
 
@@ -299,6 +311,18 @@ test("developer ticket detail is scoped to the authenticated assignee", async ()
           { primaryDeveloperId: developer.id },
           { collaborators: { some: { userId: developer.id } } },
         ],
+      },
+    },
+    {
+      storyLinks: {
+        some: {
+          userStory: {
+            OR: [
+              { primaryDeveloperId: developer.id },
+              { collaborators: { some: { userId: developer.id } } },
+            ],
+          },
+        },
       },
     },
   ]);
