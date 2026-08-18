@@ -57,5 +57,10 @@ RUN if [ "${SERVICE}" = "@egi/backend" ]; then \
       /opt/egi-migration/node_modules/.bin/prisma --version; \
     fi
 
+RUN npm_root="$(npm root -g)" \
+ && rm -rf "${npm_root}/npm" \
+ && rm -f "$(command -v npm)" "$(command -v npx)" \
+ && if command -v corepack >/dev/null 2>&1; then rm -f "$(command -v corepack)"; fi
+
 ENV EGI_SERVICE=${SERVICE}
-CMD ["sh", "-c", "npm run start:prod -w ${EGI_SERVICE}"]
+CMD ["sh", "-c", "case \"$EGI_SERVICE\" in @egi/backend) exec node apps/backend/dist/main.js;; @egi/frontend) exec node node_modules/next/dist/bin/next start -p 3010;; @egi/scheduler) exec node apps/scheduler/dist/main.js;; @egi/worker) exec node apps/worker/dist/main.js;; *) echo \"Unknown service: $EGI_SERVICE\" >&2; exit 64;; esac"]
