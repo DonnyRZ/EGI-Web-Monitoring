@@ -1,11 +1,13 @@
-# CI must always provide an immutable image reference containing @sha256:.
-ARG BASE_IMAGE
+# CI must provide an immutable image reference containing @sha256:.
+# Keep the default immutable as a safe fallback for direct local builds.
+ARG BASE_IMAGE=node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 FROM ${BASE_IMAGE} AS build
 
 WORKDIR /app
 ARG BASE_IMAGE
 RUN case "${BASE_IMAGE}" in node:*) \
       apt-get update \
+      && apt-get upgrade -y \
       && apt-get install -y --no-install-recommends openssl ca-certificates \
       && rm -rf /var/lib/apt/lists/*; \
     ;; \
@@ -30,11 +32,19 @@ ENV NODE_ENV=production
 ARG BASE_IMAGE
 RUN case "${BASE_IMAGE}" in node:*) \
       apt-get update \
+      && apt-get upgrade -y \
       && apt-get install -y --no-install-recommends openssl ca-certificates \
       && rm -rf /var/lib/apt/lists/*; \
     ;; \
    esac
 COPY --from=build /app /app
+
+# Prisma 6 pins a vulnerable deepmerge-ts 7.x copy through its CLI config.
+# The root build dependency supplies the compatible 8.x release; remove only
+# Prisma's nested copy so migration and runtime resolve the patched package.
+RUN rm -rf /app/node_modules/@prisma/config/node_modules/deepmerge-ts \
+ && node -e "const v=require('/app/node_modules/deepmerge-ts/package.json').version; if (v !== '8.0.1') { throw new Error('deepmerge-ts 8.0.1 is required in the image') }" \
+ && node -e "require('/app/node_modules/@prisma/client')"
 
 ARG SERVICE
 ENV EGI_SERVICE=${SERVICE}

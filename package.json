@@ -10,6 +10,9 @@
     "apps/*",
     "packages/*"
   ],
+  "devDependencies": {
+    "deepmerge-ts": "8.0.1"
+  },
   "scripts": {
     "dev:frontend": "npm run dev -w @egi/frontend",
     "dev:backend": "npm run dev -w @egi/backend",
