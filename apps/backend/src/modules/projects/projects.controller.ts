@@ -49,6 +49,11 @@ export class ProjectsController {
     return this.projectsService.roster(role, user);
   }
 
+  @Get("summary/scope")
+  scopeSummary(@CurrentUser() user: AuthUser) {
+    return this.projectsService.scopeSummary(user);
+  }
+
   @Post()
   @HttpCode(201)
   @Roles(...PROJECT_ADMIN_ROLES_PRISMA)

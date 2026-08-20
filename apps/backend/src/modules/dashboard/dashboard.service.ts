@@ -7,7 +7,6 @@ import {
   toMonitoringResultDto,
   toWebsiteDto,
 } from "../../common/mappers";
-import { createScreenshotSignedUrl } from "../../common/s3";
 import { canOperateScopedResources, websiteVisibilityScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
@@ -32,11 +31,6 @@ type LatestResultRow = {
   createdAt: Date;
 };
 
-type DashboardLatestResult = ReturnType<typeof toMonitoringResultDto> & {
-  screenshot_signed_url?: string | null;
-  screenshot_expires_at?: Date;
-};
-
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
@@ -45,6 +39,20 @@ export class DashboardService {
     const websiteScope = this.websiteScope(user);
     const websites = await this.prisma.website.findMany({
       where: { isActive: true, ...websiteScope },
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        url: true,
+        projectId: true,
+        ownerId: true,
+        itPicId: true,
+        backupItPicId: true,
+        monitoringIntervalMinutes: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { name: "asc" },
     });
 
@@ -97,7 +105,7 @@ export class DashboardService {
         return {
           website: toWebsiteDto(website),
           latest_result: latestResult
-            ? (toMonitoringResultDto(latestResult) as DashboardLatestResult)
+            ? toMonitoringResultDto(latestResult)
             : null,
           active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
         };
@@ -120,20 +128,6 @@ export class DashboardService {
         return true;
       });
 
-    await Promise.all(
-      cards.map(async (card) => {
-        const key = card.latest_result?.screenshot_url;
-        if (!key || !card.latest_result) return;
-        try {
-          const signed = await createScreenshotSignedUrl(key);
-          card.latest_result.screenshot_signed_url = signed.url;
-          card.latest_result.screenshot_expires_at = signed.expiresAt;
-        } catch {
-          card.latest_result.screenshot_signed_url = null;
-        }
-      }),
-    );
-
     return { data: cards };
   }
 
@@ -145,6 +139,20 @@ export class DashboardService {
     const websiteScope = this.websiteScope(user);
     const website = await this.prisma.website.findFirst({
       where: { id: websiteId, ...websiteScope },
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        url: true,
+        projectId: true,
+        ownerId: true,
+        itPicId: true,
+        backupItPicId: true,
+        monitoringIntervalMinutes: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     if (!website) throw new NotFoundException("Website not found");
 

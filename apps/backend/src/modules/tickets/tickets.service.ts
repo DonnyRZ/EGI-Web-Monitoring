@@ -15,6 +15,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { CreateTicketDto, TicketsQueryDto, UpdateTicketDto } from "./tickets.dto";
+import { CreateTaskIntakeDto } from "./task-intake.dto";
 import { canOperateScopedResources, projectVisibilityWhere } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 import { createScreenshotSignedUrl, uploadObject } from "../../common/s3";
@@ -141,6 +142,48 @@ export class TicketsService {
     }
     const signed = await createScreenshotSignedUrl(ticket.attachmentUrl);
     return { url: signed.url, expires_at: signed.expiresAt };
+  }
+
+  /**
+   * Canonical business Task intake. The persistence model remains Ticket for
+   * compatibility, but this contract cannot select a developer or create a
+   * Legacy Task row.
+   */
+  async createTaskIntake(dto: CreateTaskIntakeDto, user: AuthUser) {
+    if (user.role !== UserRole.superadmin && user.role !== UserRole.bos_it && user.role !== UserRole.pic_web) {
+      throw new ForbiddenException("Task intake requires superadmin, bos_it, or pic_web role");
+    }
+    if (!dto.title.trim()) {
+      throw new BadRequestException("title is required");
+    }
+
+    if (dto.category === TicketCategory.website && !dto.website_id) {
+      throw new BadRequestException("website_id is required for a website Task");
+    }
+
+    if (dto.website_id) {
+      const website = await this.assertWebsiteAccess(dto.website_id, user);
+      if (!website.projectId) {
+        throw new BadRequestException("Website must belong to a Project before creating a Task");
+      }
+      if (dto.project_id && dto.project_id !== website.projectId) {
+        throw new BadRequestException("project_id must match the Website Project");
+      }
+    }
+
+    return this.create(
+      {
+        title: dto.title,
+        project_id: dto.project_id,
+        website_id: dto.website_id,
+        category: dto.category,
+        description: dto.description,
+        expectation: dto.expectation,
+        attachment_url: dto.attachment_url,
+        priority: dto.priority,
+      },
+      user,
+    );
   }
 
   async create(dto: CreateTicketDto, user: AuthUser) {

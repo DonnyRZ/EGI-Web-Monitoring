@@ -42,9 +42,9 @@ function loadActiveIncidents() {
   }
   if (!activeIncidentsRequest) {
     activeIncidentsRequest = incidentsApi
-      .list({ active_only: true, limit: 1 })
+      .activeCount()
       .then((res) => {
-        activeIncidentsCache = res.meta.total;
+        activeIncidentsCache = res.count;
         activeIncidentsCachedAt = Date.now();
         return activeIncidentsCache;
       })
@@ -67,9 +67,9 @@ function loadMyOpenTasks() {
   }
   if (!myOpenTasksRequest) {
     myOpenTasksRequest = userStoriesApi
-      .meWork()
+      .meWorkSummary()
       .then((res) => {
-        const count = res.summary.pending + res.summary.in_progress;
+        const count = res.pending + res.in_progress;
         myOpenTasksCache = count;
         myOpenTasksCachedAt = Date.now();
         return myOpenTasksCache;
@@ -79,6 +79,28 @@ function loadMyOpenTasks() {
       });
   }
   return myOpenTasksRequest;
+}
+
+let projectScopeCache = false;
+let projectScopeCachedAt = 0;
+let projectScopeRequest: Promise<boolean> | null = null;
+
+function loadProjectScope() {
+  const now = Date.now();
+  if (now - projectScopeCachedAt < 60_000) return Promise.resolve(projectScopeCache);
+  if (!projectScopeRequest) {
+    projectScopeRequest = projectsApi
+      .scopeSummary()
+      .then((res) => {
+        projectScopeCache = res.has_pic_developer;
+        projectScopeCachedAt = Date.now();
+        return projectScopeCache;
+      })
+      .finally(() => {
+        projectScopeRequest = null;
+      });
+  }
+  return projectScopeRequest;
 }
 
 export function AppShell({ title, children }: AppShellProps) {
@@ -99,7 +121,7 @@ export function AppShell({ title, children }: AppShellProps) {
   }, [pathname]);
 
   useEffect(() => {
-    if (!user || !canViewIncidents(user.role)) return;
+    if (loading || !user || !canViewIncidents(user.role)) return;
     let cancelled = false;
     loadActiveIncidents()
       .then((count) => {
@@ -109,10 +131,10 @@ export function AppShell({ title, children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id, user?.role, loading]);
 
   useEffect(() => {
-    if (!user || user.role !== "developer") return;
+    if (loading || !user || user.role !== "developer") return;
     let cancelled = false;
     loadMyOpenTasks()
       .then((count) => {
@@ -122,17 +144,17 @@ export function AppShell({ title, children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id, user?.role, loading]);
 
   useEffect(() => {
-    if (!user || user.role !== "developer") {
+    if (loading || !user || user.role !== "developer") {
       setIsProjectPicDeveloper(false);
       return;
     }
     let cancelled = false;
-    projectsApi.list({ limit: 100 })
+    loadProjectScope()
       .then((response) => {
-        if (!cancelled) setIsProjectPicDeveloper(response.data.some((project) => project.pic_developer_id === user.id));
+        if (!cancelled) setIsProjectPicDeveloper(response);
       })
       .catch(() => {
         if (!cancelled) setIsProjectPicDeveloper(false);
@@ -140,7 +162,7 @@ export function AppShell({ title, children }: AppShellProps) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user?.id, user?.role, loading]);
 
   if (loading || !user) {
     return (

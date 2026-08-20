@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { DelegateTaskForm } from "@/components/DelegateTaskForm";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { IconExternal } from "@/components/icons";
 import {
@@ -16,7 +15,7 @@ import {
   StatusPill,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { dashboardApi, tasksApi } from "@/lib/api-services";
+import { dashboardApi, legacyTasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   clipText,
@@ -24,7 +23,6 @@ import {
   formatRelative,
   incidentStatusLabel,
   msLabel,
-  canManagePlatform,
   opensWebsiteExternallyFromDashboard,
   taskStatusLabel,
 } from "@/lib/format";
@@ -45,7 +43,6 @@ export default function WebsiteDetailPage() {
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const [myTasksLoading, setMyTasksLoading] = useState(false);
   const isDeveloper = user?.role === "developer";
-  const canDelegateTasks = canManagePlatform(user?.role) || user?.role === "bos_it";
 
   useEffect(() => {
     if (!authLoading && user && opensWebsiteExternallyFromDashboard(user.role)) {
@@ -81,7 +78,7 @@ export default function WebsiteDetailPage() {
     if (!user || user.role !== "developer") return;
     let cancelled = false;
     setMyTasksLoading(true);
-    tasksApi
+    legacyTasksApi
       .list({ website_id: id, limit: 50 })
       .then((res) => {
         if (!cancelled) setMyTasks(res.data);
@@ -245,10 +242,6 @@ export default function WebsiteDetailPage() {
                 </div>
               </div>
             </div>
-          ) : null}
-
-          {canDelegateTasks ? (
-            <DelegateTaskForm websiteId={data.website.id} websiteName={data.website.name} />
           ) : null}
 
           {isDeveloper ? (

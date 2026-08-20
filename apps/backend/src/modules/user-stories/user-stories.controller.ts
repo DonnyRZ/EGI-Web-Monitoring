@@ -80,4 +80,9 @@ export class UserStoriesController {
   meWork(@CurrentUser() user: AuthUser) {
     return this.userStoriesService.meWork(user);
   }
+
+  @Get("me/work/summary")
+  meWorkSummary(@CurrentUser() user: AuthUser) {
+    return this.userStoriesService.meWorkSummary(user);
+  }
 }

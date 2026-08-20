@@ -5,7 +5,7 @@ import {
   PLATFORM_ADMIN_ROLES,
   PROJECT_ADMIN_ROLES,
   USER_STORY_MANAGER_ROLES,
-  TASK_CREATOR_ROLES,
+  TASK_INTAKE_CREATOR_ROLES,
   TICKET_MANAGER_ROLES,
   WORKLOAD_VIEWER_ROLES,
   canAccessAllMonitoredResources as roleCanAccessAllMonitoredResources,
@@ -31,8 +31,8 @@ export const INCIDENT_MANAGER_ROLES_PRISMA = asPrismaRoles(INCIDENT_MANAGER_ROLE
 /** @Roles(...) — create / update tickets. */
 export const TICKET_MANAGER_ROLES_PRISMA = asPrismaRoles(TICKET_MANAGER_ROLES);
 
-/** @Roles(...) — create self-service or delegated developer tasks. */
-export const TASK_CREATOR_ROLES_PRISMA = asPrismaRoles(TASK_CREATOR_ROLES);
+/** @Roles(...) — create business Task intake records. */
+export const TASK_INTAKE_CREATOR_ROLES_PRISMA = asPrismaRoles(TASK_INTAKE_CREATOR_ROLES);
 
 /** @Roles(...) — view developer workload/overdue summary. */
 export const WORKLOAD_VIEWER_ROLES_PRISMA = asPrismaRoles(WORKLOAD_VIEWER_ROLES);

@@ -2,7 +2,7 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
+  GoneException,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -15,9 +15,8 @@ import { UserRole } from "@egi/database";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RolesGuard } from "../../common/roles.guard";
-import { TASK_CREATOR_ROLES_PRISMA } from "../../common/resource-access";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
-import { CreateTaskDto, TasksQueryDto, UpdateTaskStatusDto } from "./tasks.dto";
+import { TasksQueryDto, UpdateTaskStatusDto } from "./tasks.dto";
 import { TasksService } from "./tasks.service";
 
 @ApiTags("Tasks")
@@ -27,11 +26,16 @@ import { TasksService } from "./tasks.service";
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
+  /**
+   * Keep an explicit response during the deprecation window so old clients
+   * fail safely instead of silently creating a second kind of work item.
+   */
   @Post()
-  @HttpCode(201)
-  @Roles(...TASK_CREATOR_ROLES_PRISMA)
-  create(@Body() dto: CreateTaskDto, @CurrentUser() user: AuthUser) {
-    return this.tasksService.create(dto, user);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  createDisabled(@CurrentUser() _user: AuthUser): never {
+    throw new GoneException(
+      "Legacy Task creation is disabled. Use the Task Intake workspace instead.",
+    );
   }
 
   @Get()

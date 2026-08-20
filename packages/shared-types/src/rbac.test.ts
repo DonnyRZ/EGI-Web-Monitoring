@@ -7,7 +7,6 @@ import {
   PLATFORM_ADMIN_ROLES,
   TICKET_ASSIGNEE_ROLES,
   TICKET_MANAGER_ROLES,
-  TASK_CREATOR_ROLES,
   PROJECT_ADMIN_ROLES,
   USER_STORY_MANAGER_ROLES,
   USER_ROLES,
@@ -24,7 +23,6 @@ import {
   roleLabel,
   canViewTasks,
   canViewDeveloperWorkload,
-  canCreateTasks,
   canManageProjects,
   canViewProjectRegistry,
   canManageUserStories,
@@ -69,14 +67,6 @@ test("incident mutate is superadmin only; tickets include operational roles", ()
   assert.equal(canManageIncidents("superadmin"), true);
   assert.equal(canManageIncidents("developer"), false);
   assert.equal(canManageTickets("developer"), true);
-});
-
-test("task creation includes Bos IT delegation and developer self-service", () => {
-  assert.deepEqual([...TASK_CREATOR_ROLES], ["superadmin", "bos_it", "developer"]);
-  assert.equal(canCreateTasks("superadmin"), true);
-  assert.equal(canCreateTasks("bos_it"), true);
-  assert.equal(canCreateTasks("developer"), true);
-  assert.equal(canCreateTasks("pic_web"), false);
 });
 
 test("worker assignee and notification role sets", () => {

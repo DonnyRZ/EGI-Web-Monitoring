@@ -228,6 +228,42 @@ export class UserStoriesService {
     };
   }
 
+  async meWorkSummary(user: AuthUser) {
+    if (user.role !== UserRole.developer) {
+      throw new ForbiddenException("My Work is available for developers");
+    }
+    const assignmentWhere: Prisma.UserStoryWhereInput = {
+      OR: [
+        { primaryDeveloperId: user.id },
+        { collaborators: { some: { userId: user.id } } },
+      ],
+    };
+    const now = new Date();
+    const [pending, inProgress, overdueStories, done, overdueLegacyTasks] = await this.prisma.$transaction([
+      this.prisma.userStory.count({
+        where: { AND: [assignmentWhere, { status: { in: [UserStoryStatus.backlog, UserStoryStatus.ready] } }] },
+      }),
+      this.prisma.userStory.count({
+        where: { AND: [assignmentWhere, { status: { in: [UserStoryStatus.in_progress, UserStoryStatus.review, UserStoryStatus.blocked] } }] },
+      }),
+      this.prisma.userStory.count({
+        where: { AND: [assignmentWhere, { status: { not: UserStoryStatus.done }, dueDate: { lt: now } }] },
+      }),
+      this.prisma.userStory.count({
+        where: { AND: [assignmentWhere, { status: UserStoryStatus.done }] },
+      }),
+      this.prisma.task.count({
+        where: { assigneeId: user.id, status: { not: TaskStatus.done }, slaDeadline: { lt: now } },
+      }),
+    ]);
+    return {
+      pending,
+      in_progress: inProgress,
+      overdue: overdueStories + overdueLegacyTasks,
+      done,
+    };
+  }
+
   private async paginate(where: Prisma.UserStoryWhereInput, pagination: UserStoriesQueryDto) {
     const [total, stories] = await this.prisma.$transaction([
       this.prisma.userStory.count({ where }),

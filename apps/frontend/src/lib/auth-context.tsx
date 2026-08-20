@@ -30,22 +30,41 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+let refreshUserRequest: Promise<void> | null = null;
+
+function sameUser(a: User | null, b: User | null) {
+  if (!a || !b) return a === b;
+  return a.id === b.id
+    && a.email === b.email
+    && a.name === b.name
+    && a.role === b.role
+    && a.is_active === b.is_active
+    && a.updated_at === b.updated_at;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    const token = getAccessToken();
-    try {
-      const refreshed = token ? null : await authApi.refresh();
-      if (refreshed) setTokens(refreshed.access_token);
-      const me = refreshed?.user ?? await authApi.me();
-      setUser(me);
-      setStoredUser(me);
-    } catch {
-      clearAuthStorage();
-      setUser(null);
+    if (!refreshUserRequest) {
+      refreshUserRequest = (async () => {
+        const token = getAccessToken();
+        try {
+          const refreshed = token ? null : await authApi.refresh();
+          if (refreshed) setTokens(refreshed.access_token);
+          const me = refreshed?.user ?? await authApi.me();
+          setUser((current) => sameUser(current, me) ? current : me);
+          setStoredUser(me);
+        } catch {
+          clearAuthStorage();
+          setUser(null);
+        }
+      })().finally(() => {
+        refreshUserRequest = null;
+      });
     }
+    return refreshUserRequest;
   }, []);
 
   useEffect(() => {
@@ -53,10 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const hasCachedSession = Boolean(cached && getAccessToken());
     if (hasCachedSession) {
       setUser(cached);
-      setLoading(false);
     }
     refreshUser().finally(() => {
-      if (!hasCachedSession) setLoading(false);
+      setLoading(false);
     });
   }, [refreshUser]);
 

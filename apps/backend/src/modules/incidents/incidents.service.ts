@@ -47,6 +47,17 @@ export class IncidentsService {
     };
   }
 
+  async activeCount(user: AuthUser) {
+    this.assertOperational(user);
+    const where: Prisma.IncidentWhereInput = {
+      status: { in: [IncidentStatus.open, IncidentStatus.in_progress] },
+      ...(user.role === "pic_web" || user.role === "developer"
+        ? { website: websiteVisibilityScope(user) }
+        : {}),
+    };
+    return { count: await this.prisma.incident.count({ where }) };
+  }
+
   async get(id: string, user: AuthUser) {
     this.assertOperational(user);
     const incident = await this.prisma.incident.findFirst({

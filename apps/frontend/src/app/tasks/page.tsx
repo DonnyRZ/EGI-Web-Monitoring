@@ -7,7 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { taskMonitoringApi, ticketsApi } from "@/lib/api-services";
+import { taskIntakeApi, taskMonitoringApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canCreateTaskIntake, canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
 import type {
@@ -59,6 +59,10 @@ export default function TasksPage() {
   const [needsActionOnly, setNeedsActionOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<TaskMonitoringRow | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -73,16 +77,22 @@ export default function TasksPage() {
   useEffect(() => {
     if (!user || !canViewTaskMonitoring(user.role)) return;
     taskMonitoringApi.filters().then(setFilters).catch(() => undefined);
-  }, [user]);
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
-    if (!user || !canViewTaskMonitoring(user.role)) return;
+    setPage(1);
+  }, [projectId, websiteId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter]);
+
+  useEffect(() => {
+    if (authLoading || !user || !canViewTaskMonitoring(user.role)) return;
     let cancelled = false;
-    setLoading(true);
+    if (page === 1) setLoading(true);
+    else setLoadingMore(true);
     setError("");
     const timer = window.setTimeout(() => {
       taskMonitoringApi.list({
-        limit: 100,
+        page,
+        limit: 50,
         project_id: projectId || undefined,
         website_id: websiteId || undefined,
         developer_id: showDeveloperFilter ? developerId || undefined : undefined,
@@ -93,20 +103,27 @@ export default function TasksPage() {
         search: search.trim() || undefined,
       }).then((response) => {
         if (cancelled) return;
-        setRows(response.data);
+        setRows((current) => {
+          const next = page === 1 ? response.data : [...current, ...response.data];
+          setSelected((selectedRow) => selectedRow ? next.find((row) => row.id === selectedRow.id) ?? null : null);
+          return next;
+        });
         setSummary(response.summary);
-        setSelected((current) => current ? response.data.find((row) => row.id === current.id) ?? null : null);
+        setHasMore(response.meta.page < response.meta.total_pages);
       }).catch((err) => {
         if (!cancelled) setError(err instanceof ApiError ? err.message : "Gagal memuat Task Monitoring");
       }).finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
       });
     }, 180);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [user, projectId, websiteId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter]);
+  }, [authLoading, user, page, projectId, websiteId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter, refreshNonce]);
 
   const visibleWebsites = useMemo(
     () => filters.websites.filter((website) => !projectId || website.project_id === projectId),
@@ -222,7 +239,8 @@ export default function TasksPage() {
       ) : null}
 
       {selected ? <TaskDetailPanel row={selected} technicalView={technicalView} canOverride={user.role === "superadmin" || user.role === "bos_it"} onClose={() => setSelected(null)} onUpdated={(row) => { setSelected(row); setRows((current) => current.map((item) => item.id === row.id ? row : item)); }} /> : null}
-      {createOpen ? <CreateTaskModal filters={filters} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setLoading(true); taskMonitoringApi.list({ limit: 100 }).then((response) => { setRows(response.data); setSummary(response.summary); }).catch(() => undefined).finally(() => setLoading(false)); }} /> : null}
+      {!loading && !error && rows.length > 0 && hasMore ? <div className="task-load-more"><button type="button" className="btn btn-neutral" disabled={loadingMore} onClick={() => setPage((current) => current + 1)}>{loadingMore ? "Memuat…" : "Muat Task berikutnya"}</button></div> : null}
+      {createOpen ? <CreateTaskModal filters={filters} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setPage(1); setRefreshNonce((value) => value + 1); }} /> : null}
     </AppShell>
   );
 }
@@ -270,7 +288,7 @@ function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitor
       setSaving(false);
       return;
     }
-    try { await ticketsApi.create({ title: form.title, project_id: form.project_id || undefined, website_id: form.website_id || undefined, category: form.category as "website" | "help_desk" | "procurement", description: form.description, expectation: form.expectation, priority: form.priority }); onCreated(); }
+    try { await taskIntakeApi.create({ title: form.title, project_id: form.project_id || undefined, website_id: form.website_id || undefined, category: form.category as "website" | "help_desk" | "procurement", description: form.description, expectation: form.expectation, priority: form.priority }); onCreated(); }
     catch (err) { setError(err instanceof ApiError ? err.message : "Gagal membuat Task"); }
     finally { setSaving(false); }
   }

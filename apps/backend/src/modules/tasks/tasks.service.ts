@@ -10,7 +10,7 @@ import { paginatedMeta, toTaskDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { canManagePlatform } from "@egi/shared-types";
 import type { AuthUser } from "../../common/current-user.decorator";
-import { CreateTaskDto, TasksQueryDto, UpdateTaskStatusDto } from "./tasks.dto";
+import { TasksQueryDto, UpdateTaskStatusDto } from "./tasks.dto";
 
 const DEVELOPER_ALLOWED_STATUSES: TaskStatus[] = [
   TaskStatus.in_progress,
@@ -25,71 +25,6 @@ const TASK_INCLUDE = {
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
-
-  async create(dto: CreateTaskDto, user: AuthUser) {
-    const website = await this.prisma.website.findUnique({
-      where: { id: dto.website_id },
-      select: {
-        id: true,
-        projectId: true,
-        itPicId: true,
-        backupItPicId: true,
-        project: {
-          select: {
-            picDeveloperId: true,
-            members: { where: { memberType: "developer" }, select: { userId: true } },
-          },
-        },
-      },
-    });
-    if (!website) throw new NotFoundException("Website not found");
-
-    let assigneeId: string;
-    if (user.role === UserRole.developer) {
-      // Self-service to-do: developers may only add work for sites they actually own,
-      // and always assign it to themselves regardless of what the client sent.
-      const projectMember = website.project?.members.some((member) => member.userId === user.id);
-      const isProjectPic = website.project?.picDeveloperId === user.id;
-      if (!projectMember && !isProjectPic && website.itPicId !== user.id && website.backupItPicId !== user.id) {
-        throw new ForbiddenException(
-          "You may only add to-dos for websites where you are the IT PIC or backup",
-        );
-      }
-      assigneeId = user.id;
-    } else {
-      if (!dto.assignee_id) {
-        throw new BadRequestException("assignee_id is required");
-      }
-      assigneeId = dto.assignee_id;
-    }
-
-    const assignee = await this.prisma.user.findUnique({
-      where: { id: assigneeId },
-      select: { id: true, role: true, isActive: true },
-    });
-    if (!assignee) throw new NotFoundException("Assignee not found");
-    if (!assignee.isActive) {
-      throw new BadRequestException("Assignee is inactive");
-    }
-    if (assignee.role !== UserRole.developer) {
-      throw new BadRequestException("Assignee must have the developer role");
-    }
-
-    const task = await this.prisma.task.create({
-      data: {
-        websiteId: dto.website_id,
-        assigneeId,
-        createdById: user.id,
-        instructionNotes: dto.instruction_notes,
-        attachmentUrl: dto.attachment_url,
-        slaDeadline: dto.sla_deadline ? new Date(dto.sla_deadline) : null,
-        status: TaskStatus.pending,
-      },
-      include: TASK_INCLUDE,
-    });
-
-    return toTaskDto(task);
-  }
 
   async list(pagination: PaginationQueryDto, filters: TasksQueryDto, user: AuthUser) {
     const where: Prisma.TaskWhereInput = {};

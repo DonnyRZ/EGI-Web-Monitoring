@@ -843,32 +843,6 @@ h3,
   box-shadow: inset 3px 0 0 var(--danger);
 }
 
-.task-source-tag {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  margin-top: 4px;
-}
-
-.task-source-tag.ticket {
-  background: var(--egi-blue-soft);
-  color: var(--egi-blue-dark);
-}
-
-.task-source-tag.delegation {
-  background: #f1eee6;
-  color: #8a6a3b;
-}
-
-.task-source-tag.manual {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
 .task-points {
   display: flex;
   flex-direction: column;

@@ -20,7 +20,8 @@
     { "name": "Tickets", "description": "Incident handling tickets" },
     { "name": "Notifications", "description": "Dashboard, email, and Telegram notifications" },
     { "name": "Dashboard", "description": "Aggregated dashboard queries" },
-    { "name": "Tasks", "description": "Developer task delegation and status" },
+    { "name": "Tasks", "description": "Legacy task history and status compatibility" },
+    { "name": "Task Intake", "description": "Business-facing Project work intake" },
     { "name": "Workload", "description": "Developer workload summaries" }
   ],
   "components": {
@@ -323,15 +324,18 @@
           "updated_at": { "$ref": "#/components/schemas/Timestamp" }
         }
       },
-      "CreateTaskRequest": {
+      "CreateTaskIntakeRequest": {
         "type": "object",
-        "required": ["website_id", "instruction_notes"],
+        "required": ["title", "category", "description", "expectation"],
         "properties": {
+          "title": { "type": "string", "maxLength": 255 },
+          "project_id": { "$ref": "#/components/schemas/Uuid" },
           "website_id": { "$ref": "#/components/schemas/Uuid" },
-          "assignee_id": { "$ref": "#/components/schemas/Uuid", "description": "Required for superadmin/Bos IT delegation; ignored for developer self-service." },
-          "instruction_notes": { "type": "string", "maxLength": 5000 },
-          "attachment_url": { "type": "string", "maxLength": 2000 },
-          "sla_deadline": { "$ref": "#/components/schemas/Timestamp" }
+          "category": { "$ref": "#/components/schemas/TicketCategory" },
+          "description": { "type": "string", "maxLength": 10000 },
+          "expectation": { "type": "string", "maxLength": 10000 },
+          "priority": { "$ref": "#/components/schemas/Severity" },
+          "attachment_url": { "type": "string", "maxLength": 2000 }
         }
       },
       "UpdateTaskStatusRequest": {
@@ -1271,11 +1275,29 @@
         }
       }
     },
+    "/task-intake": {
+      "post": {
+        "tags": ["Task Intake"],
+        "summary": "Create a business Task intake",
+        "description": "Creates an internal Ticket for Project monitoring. The client cannot select a developer assignee; technical assignment happens through User Stories.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTaskIntakeRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Task intake created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Ticket" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/tasks": {
       "get": {
         "tags": ["Tasks"],
-        "summary": "List tasks",
-        "description": "Superadmin and Bos IT see global tasks; developer sees assigned tasks; PIC Web sees tasks on owned websites.",
+        "summary": "List Legacy Tasks",
+        "description": "Compatibility read surface for historical direct-assignment tasks. New work is created through Task Intake.",
         "parameters": [
           { "$ref": "#/components/parameters/PageParam" },
           { "$ref": "#/components/parameters/LimitParam" },
@@ -1305,26 +1327,19 @@
       },
       "post": {
         "tags": ["Tasks"],
-        "summary": "Create or delegate a developer task",
-        "description": "Superadmin and Bos IT must provide assignee_id; a developer may create a self-assigned to-do only for an assigned website.",
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTaskRequest" } } }
-        },
+        "summary": "Legacy Task creation disabled",
+        "description": "Direct Legacy Task creation no longer writes data. Use POST /task-intake instead.",
         "responses": {
-          "201": { "description": "Task created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Task" } } } },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "403": { "$ref": "#/components/responses/Forbidden" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "410": { "description": "Legacy Task creation disabled" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
     "/tasks/{id}/status": {
       "patch": {
         "tags": ["Tasks"],
-        "summary": "Update task status",
-        "description": "Developers can set in_progress or done for their own tasks; superadmin can set any task status.",
+        "summary": "Update Legacy Task status",
+        "description": "Compatibility status update for historical tasks; new technical work is tracked through User Stories.",
         "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
         "requestBody": {
           "required": true,

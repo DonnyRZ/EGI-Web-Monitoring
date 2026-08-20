@@ -10,36 +10,7 @@ import {
 import { TaskStatus } from "@egi/database";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 
-export class CreateTaskDto {
-  @ApiProperty()
-  @IsUUID()
-  website_id!: string;
-
-  @ApiPropertyOptional({
-    description:
-      "Developer user id to assign. Required for superadmin delegation; ignored (forced to self) for developers creating their own to-do.",
-  })
-  @IsOptional()
-  @IsUUID()
-  assignee_id?: string;
-
-  @ApiProperty()
-  @IsString()
-  @MaxLength(5000)
-  instruction_notes!: string;
-
-  @ApiPropertyOptional({ description: "Object storage path / URL" })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  attachment_url?: string;
-
-  @ApiPropertyOptional({ example: "2026-08-10T17:00:00.000Z" })
-  @IsOptional()
-  @IsDateString()
-  sla_deadline?: string;
-}
-
+/** DTOs for reading and updating historical direct-assignment tasks only. */
 export class UpdateTaskStatusDto {
   @ApiProperty({ enum: TaskStatus, example: TaskStatus.in_progress })
   @IsEnum(TaskStatus)

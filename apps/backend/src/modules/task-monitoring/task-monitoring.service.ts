@@ -31,13 +31,23 @@ const STORY_SELECT = {
   collaborators: { include: { user: { select: USER_SUMMARY } } },
 } as const;
 
-const TICKET_INCLUDE = {
+const TICKET_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  expectation: true,
+  attachmentUrl: true,
+  category: true,
+  priority: true,
+  status: true,
+  slaDeadline: true,
+  updatedAt: true,
+  taskStatusOverride: true,
   project: {
     select: {
       id: true,
       name: true,
       picDeveloper: { select: USER_SUMMARY },
-      members: { where: { memberType: ProjectMemberType.developer }, include: { user: { select: USER_SUMMARY } } },
     },
   },
   website: { select: { id: true, name: true, domain: true, projectId: true } },
@@ -46,7 +56,12 @@ const TICKET_INCLUDE = {
   storyLinks: { include: { userStory: { select: STORY_SELECT } } },
 } as const;
 
-const LEGACY_TASK_INCLUDE = {
+const LEGACY_TASK_SELECT = {
+  id: true,
+  instructionNotes: true,
+  status: true,
+  slaDeadline: true,
+  updatedAt: true,
   website: {
     select: {
       id: true,
@@ -58,7 +73,6 @@ const LEGACY_TASK_INCLUDE = {
           id: true,
           name: true,
           picDeveloper: { select: USER_SUMMARY },
-          members: { where: { memberType: ProjectMemberType.developer }, include: { user: { select: USER_SUMMARY } } },
         },
       },
     },
@@ -67,8 +81,8 @@ const LEGACY_TASK_INCLUDE = {
   ticket: { select: { id: true } },
 } as const;
 
-type TicketRecord = Prisma.TicketGetPayload<{ include: typeof TICKET_INCLUDE }>;
-type LegacyTaskRecord = Prisma.TaskGetPayload<{ include: typeof LEGACY_TASK_INCLUDE }>;
+type TicketRecord = Prisma.TicketGetPayload<{ select: typeof TICKET_SELECT }>;
+type LegacyTaskRecord = Prisma.TaskGetPayload<{ select: typeof LEGACY_TASK_SELECT }>;
 
 type StoryRecord = TicketRecord["userStory"];
 
@@ -112,7 +126,7 @@ export class TaskMonitoringService {
 
   async list(query: TaskMonitoringQueryDto, user: AuthUser) {
     this.assertCanView(user);
-    const rows = await this.loadRows(user);
+    const rows = await this.loadRows(user, query);
     const filtered = rows
       .filter((row) => this.matches(row, query))
       .sort((a, b) => {
@@ -136,23 +150,20 @@ export class TaskMonitoringService {
 
   async filters(user: AuthUser) {
     this.assertCanView(user);
-    const [rows, visibleProjects] = await Promise.all([
-      this.loadRows(user),
-      this.prisma.project.findMany({
-        where: projectVisibilityWhere(user),
-        select: {
-          id: true,
-          name: true,
-          picDeveloper: { select: USER_SUMMARY },
-          websites: { select: { id: true, name: true, domain: true } },
-          members: {
-            where: { memberType: ProjectMemberType.developer },
-            include: { user: { select: USER_SUMMARY } },
-          },
+    const visibleProjects = await this.prisma.project.findMany({
+      where: projectVisibilityWhere(user),
+      select: {
+        id: true,
+        name: true,
+        picDeveloper: { select: USER_SUMMARY },
+        websites: { select: { id: true, name: true, domain: true } },
+        members: {
+          where: { memberType: ProjectMemberType.developer },
+          include: { user: { select: USER_SUMMARY } },
         },
-        orderBy: { name: "asc" },
-      }),
-    ]);
+      },
+      orderBy: { name: "asc" },
+    });
     const projects = new Map<string, { id: string; name: string }>();
     const websites = new Map<string, { id: string; name: string; domain: string; project_id: string | null }>();
     const developers = new Map<string, { id: string; name: string; email: string; project_ids: Set<string> }>();
@@ -170,21 +181,6 @@ export class TaskMonitoringService {
         const current = developers.get(developer.id) ?? { ...this.userDto(developer), project_ids: new Set<string>() };
         current.project_ids.add(project.id);
         developers.set(developer.id, current);
-      }
-    }
-
-    for (const row of rows) {
-      if (row.project) projects.set(row.project.id, row.project);
-      if (row.website) websites.set(row.website.id, { ...row.website, project_id: row.project?.id ?? null });
-      for (const developer of row.developers) {
-        const current = developers.get(developer.id) ?? { ...developer, project_ids: new Set<string>() };
-        if (row.project) current.project_ids.add(row.project.id);
-        developers.set(developer.id, current);
-      }
-      if (row.pic_developer) {
-        const current = developers.get(row.pic_developer.id) ?? { ...row.pic_developer, role: UserRole.developer, project_ids: new Set<string>() };
-        if (row.project) current.project_ids.add(row.project.id);
-        developers.set(row.pic_developer.id, current);
       }
     }
 
@@ -222,19 +218,86 @@ export class TaskMonitoringService {
     return this.get(updated.id, "task", user);
   }
 
-  private async loadRows(user: AuthUser): Promise<MonitoringRow[]> {
+  private async loadRows(user: AuthUser, query?: TaskMonitoringQueryDto): Promise<MonitoringRow[]> {
     const ticketWhere: Prisma.TicketWhereInput = {
-      AND: [this.ticketScope(user), { task: null }],
+      AND: [this.ticketScope(user), { task: null }, this.ticketQueryWhere(query)],
     };
-    const legacyWhere: Prisma.TaskWhereInput = this.legacyTaskScope(user);
+    const legacyWhere: Prisma.TaskWhereInput = {
+      AND: [this.legacyTaskScope(user), this.legacyTaskQueryWhere(query)],
+    };
     const [tickets, legacyTasks] = await this.prisma.$transaction([
-      this.prisma.ticket.findMany({ where: ticketWhere, include: TICKET_INCLUDE }),
-      this.prisma.task.findMany({ where: legacyWhere, include: LEGACY_TASK_INCLUDE }),
+      this.prisma.ticket.findMany({ where: ticketWhere, select: TICKET_SELECT }),
+      this.prisma.task.findMany({ where: legacyWhere, select: LEGACY_TASK_SELECT }),
     ]);
     return [
       ...tickets.map((ticket) => this.ticketRow(ticket)),
       ...legacyTasks.map((task) => this.legacyTaskRow(task)),
     ];
+  }
+
+  private ticketQueryWhere(query?: TaskMonitoringQueryDto): Prisma.TicketWhereInput {
+    if (!query) return {};
+    const where: Prisma.TicketWhereInput = {};
+    if (query.project_id) where.projectId = query.project_id;
+    if (query.website_id) where.websiteId = query.website_id;
+    if (query.priority) where.priority = query.priority;
+    if (query.developer_id) {
+      where.OR = [
+        { assignedTo: query.developer_id },
+        { project: { picDeveloperId: query.developer_id } },
+        { userStory: { OR: [{ primaryDeveloperId: query.developer_id }, { collaborators: { some: { userId: query.developer_id } } }] } },
+        { storyLinks: { some: { userStory: { OR: [{ primaryDeveloperId: query.developer_id }, { collaborators: { some: { userId: query.developer_id } } }] } } } },
+      ];
+    }
+    if (query.search?.trim()) {
+      const search = query.search.trim();
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : []),
+        {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { project: { name: { contains: search, mode: "insensitive" } } },
+            { website: { name: { contains: search, mode: "insensitive" } } },
+            { website: { domain: { contains: search, mode: "insensitive" } } },
+          ],
+        },
+      ];
+    }
+    return where;
+  }
+
+  private legacyTaskQueryWhere(query?: TaskMonitoringQueryDto): Prisma.TaskWhereInput {
+    if (!query) return {};
+    const and: Prisma.TaskWhereInput[] = [];
+    if (query.project_id) and.push({ website: { projectId: query.project_id } });
+    if (query.website_id) and.push({ websiteId: query.website_id });
+    if (query.priority && query.priority !== "medium") and.push({ id: "00000000-0000-0000-0000-000000000000" });
+    if (query.developer_id) {
+      and.push({ OR: [
+        { assigneeId: query.developer_id },
+        { website: { project: { picDeveloperId: query.developer_id } } },
+      ] });
+    }
+    if (query.status) {
+      const status = query.status === TaskBusinessStatus.new
+        ? TaskStatus.pending
+        : query.status === TaskBusinessStatus.in_progress
+          ? TaskStatus.in_progress
+        : query.status === TaskBusinessStatus.done
+            ? TaskStatus.done
+            : null;
+      and.push(status ? { status } : { id: "00000000-0000-0000-0000-000000000000" });
+    }
+    if (query.search?.trim()) {
+      const search = query.search.trim();
+      and.push({ OR: [
+        { instructionNotes: { contains: search, mode: "insensitive" } },
+        { website: { name: { contains: search, mode: "insensitive" } } },
+        { website: { domain: { contains: search, mode: "insensitive" } } },
+      ] });
+    }
+    return and.length > 0 ? { AND: and } : {};
   }
 
   private ticketScope(user: AuthUser): Prisma.TicketWhereInput {

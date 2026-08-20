@@ -7,7 +7,7 @@ import { IconExternal } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
-import { dashboardApi, tasksApi } from "@/lib/api-services";
+import { dashboardApi, legacyTasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { formatRelative, isEndUserPublicDashboard, opensWebsiteExternallyFromDashboard, statusLabel } from "@/lib/format";
 import type { DashboardWebsiteCard } from "@/lib/types";
@@ -16,7 +16,7 @@ import { ApiError } from "@/lib/api";
 type StatusFilter = "active" | "down" | "my_tasks";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isDeveloper = user?.role === "developer";
   const isGallery = isEndUserPublicDashboard(user?.role);
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const openExternally = opensWebsiteExternallyFromDashboard(user?.role);
 
   useEffect(() => {
+    if (authLoading || !user) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -50,14 +51,14 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, isGallery]);
+  }, [authLoading, user, statusFilter, isGallery]);
 
   useEffect(() => {
-    if (statusFilter !== "my_tasks" || !isDeveloper || myTaskWebsiteIds) return;
+    if (authLoading || !user || statusFilter !== "my_tasks" || !isDeveloper || myTaskWebsiteIds) return;
     let cancelled = false;
     (async () => {
       try {
-        const res = await tasksApi.list({ limit: 100 });
+        const res = await legacyTasksApi.list({ limit: 100 });
         if (cancelled) return;
         const ids = new Set(
           res.data
@@ -72,7 +73,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [statusFilter, isDeveloper, myTaskWebsiteIds]);
+  }, [authLoading, user, statusFilter, isDeveloper, myTaskWebsiteIds]);
 
   const filtered = useMemo(() => {
     if (statusFilter === "my_tasks") {

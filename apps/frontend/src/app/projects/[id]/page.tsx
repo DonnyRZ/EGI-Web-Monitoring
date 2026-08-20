@@ -7,7 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState, SuccessBanner } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { projectsApi, ticketsApi, userStoriesApi } from "@/lib/api-services";
+import { projectsApi, taskIntakeApi, ticketsApi, userStoriesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canManageProjects, canViewProjectRegistry, formatDateTime, initials } from "@/lib/format";
 import type {
@@ -60,7 +60,7 @@ export default function ProjectDetailPage() {
     user && project && (user.role === "bos_it" || (user.role === "developer" && project.pic_developer_id === user.id)),
   );
   const canCreateProjectTicket = Boolean(
-    user && project && (canAdmin || user.role === "pic_web" || (user.role === "developer" && project.pic_developer_id === user.id)),
+    user && project && (canAdmin || user.role === "pic_web"),
   );
 
   const loadProject = useCallback(async () => {
@@ -290,7 +290,7 @@ function TicketComposer({ project, onClose, onSaved }: { project: Project; onClo
       setSaving(false);
       return;
     }
-    try { await ticketsApi.create({ ...form, project_id: project.id, website_id: form.website_id || undefined }); onSaved(); }
+    try { await taskIntakeApi.create({ ...form, project_id: project.id, website_id: form.website_id || undefined }); onSaved(); }
     catch (err) { setError(err instanceof ApiError ? err.message : "Gagal membuat Task"); }
     finally { setSaving(false); }
   }

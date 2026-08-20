@@ -31,7 +31,7 @@ import {
 
 const USER_SUMMARY = { id: true, name: true, email: true, role: true, isActive: true } as const;
 
-const PROJECT_LIST_INCLUDE = {
+const projectListInclude = (now: Date) => ({
   websites: {
     select: {
       id: true,
@@ -55,12 +55,21 @@ const PROJECT_LIST_INCLUDE = {
   },
   members: { include: { user: { select: USER_SUMMARY } } },
   picDeveloper: { select: USER_SUMMARY },
-  userStories: { select: { status: true, dueDate: true } },
-  tickets: { select: { status: true, userStoryId: true, assignedTo: true } },
-  _count: { select: { websites: true, members: true, userStories: true, tickets: true } },
-} satisfies Prisma.ProjectInclude;
+  userStories: {
+    where: { status: { not: UserStoryStatus.done }, dueDate: { lt: now } },
+    select: { id: true },
+  },
+  _count: {
+    select: {
+      websites: true,
+      members: true,
+      userStories: { where: { status: { not: UserStoryStatus.done } } },
+      tickets: { where: { status: { in: [TicketStatus.open, TicketStatus.in_progress] } } },
+    },
+  },
+} satisfies Prisma.ProjectInclude);
 
-const PROJECT_DETAIL_INCLUDE = {
+const projectDetailInclude = (now: Date) => ({
   websites: {
     include: {
       monitoringResults: {
@@ -89,19 +98,25 @@ const PROJECT_DETAIL_INCLUDE = {
   members: { include: { user: { select: USER_SUMMARY } } },
   picDeveloper: { select: USER_SUMMARY },
   userStories: {
-    include: {
-      primaryDeveloper: { select: USER_SUMMARY },
-      collaborators: { include: { user: { select: USER_SUMMARY } } },
-      tickets: { select: { id: true, title: true, status: true } },
-    },
-    orderBy: { updatedAt: "desc" },
+    where: { status: { not: UserStoryStatus.done }, dueDate: { lt: now } },
+    select: { id: true },
   },
-  tickets: { select: { status: true, userStoryId: true, assignedTo: true, storyLinks: { select: { userStoryId: true } } } },
-  _count: { select: { websites: true, members: true, userStories: true, tickets: true } },
-} satisfies Prisma.ProjectInclude;
+  tickets: {
+    where: { status: TicketStatus.open, userStoryId: null },
+    select: { id: true },
+  },
+  _count: {
+    select: {
+      websites: true,
+      members: true,
+      userStories: { where: { status: { not: UserStoryStatus.done } } },
+      tickets: { where: { status: { in: [TicketStatus.open, TicketStatus.in_progress] } } },
+    },
+  },
+} satisfies Prisma.ProjectInclude);
 
-type ProjectListRecord = Prisma.ProjectGetPayload<{ include: typeof PROJECT_LIST_INCLUDE }>;
-type ProjectDetailRecord = Prisma.ProjectGetPayload<{ include: typeof PROJECT_DETAIL_INCLUDE }>;
+type ProjectListRecord = Prisma.ProjectGetPayload<{ include: ReturnType<typeof projectListInclude> }>;
+type ProjectDetailRecord = Prisma.ProjectGetPayload<{ include: ReturnType<typeof projectDetailInclude> }>;
 
 type HealthStatus = "normal" | "warning" | "down" | "unknown";
 
@@ -112,12 +127,13 @@ export class ProjectsService {
   async list(pagination: ProjectsQueryDto, filters: ProjectsQueryDto, user: AuthUser) {
     this.assertCanView(user);
     const where = this.buildWhere(filters, user);
+    const include = projectListInclude(new Date());
 
     const [total, projects] = await this.prisma.$transaction([
       this.prisma.project.count({ where }),
       this.prisma.project.findMany({
         where,
-        include: PROJECT_LIST_INCLUDE,
+        include,
         skip: (pagination.page - 1) * pagination.limit,
         take: pagination.limit,
         orderBy: [{ status: "asc" }, { name: "asc" }],
@@ -134,10 +150,32 @@ export class ProjectsService {
     this.assertCanView(user);
     const project = await this.prisma.project.findFirst({
       where: { id, ...projectVisibilityWhere(user) },
-      include: PROJECT_DETAIL_INCLUDE,
+      include: projectDetailInclude(new Date()),
     });
     if (!project) throw new NotFoundException("Project not found");
-    return this.toDetailDto(project, user);
+    const scopedUntriagedCount = user.role === UserRole.developer && project.picDeveloperId !== user.id
+      ? await this.prisma.ticket.count({
+          where: {
+            projectId: id,
+            status: TicketStatus.open,
+            userStoryId: null,
+            assignedTo: user.id,
+          },
+        })
+      : undefined;
+    return this.toDetailDto(project, user, scopedUntriagedCount);
+  }
+
+  async scopeSummary(user: AuthUser) {
+    this.assertCanView(user);
+    if (user.role !== UserRole.developer) {
+      return { has_pic_developer: false };
+    }
+    const project = await this.prisma.project.findFirst({
+      where: { picDeveloperId: user.id, ...projectVisibilityWhere(user) },
+      select: { id: true },
+    });
+    return { has_pic_developer: Boolean(project) };
   }
 
   async create(dto: CreateProjectDto, user: AuthUser) {
@@ -155,7 +193,7 @@ export class ProjectsService {
         status: dto.status ?? ProjectStatus.draft,
         createdById: user.id,
       },
-      include: PROJECT_DETAIL_INCLUDE,
+        include: projectDetailInclude(new Date()),
     });
     return this.toDetailDto(project, user);
   }
@@ -413,11 +451,6 @@ export class ProjectsService {
     const health = this.healthFromWebsites(project.websites);
     const picWeb = project.members.filter((member) => member.memberType === ProjectMemberType.pic_web);
     const developers = project.members.filter((member) => member.memberType === ProjectMemberType.developer);
-    const activeStories = project.userStories.filter((story) => story.status !== UserStoryStatus.done);
-    const overdueStories = activeStories.filter((story) => story.dueDate && story.dueDate < new Date());
-    const activeTickets = project.tickets.filter(
-      (ticket) => ticket.status === TicketStatus.open || ticket.status === TicketStatus.in_progress,
-    );
     return {
       id: project.id,
       name: project.name,
@@ -427,11 +460,11 @@ export class ProjectsService {
       created_by_id: project.createdById,
       created_at: project.createdAt,
       updated_at: project.updatedAt,
-      websites_count: project.websites.length,
+      websites_count: project._count.websites,
       active_websites_count: project.websites.filter((website) => website.isActive).length,
-      active_tickets_count: activeTickets.length,
-      active_stories_count: activeStories.length,
-      overdue_count: overdueStories.length,
+      active_tickets_count: project._count.tickets,
+      active_stories_count: project._count.userStories,
+      overdue_count: project.userStories.length,
       health,
       configuration_status: this.configurationStatus(project.websites.length, picWeb.length, Boolean(project.picDeveloperId), developers.length),
       pic_developer: this.toUserSummary(project.picDeveloper),
@@ -440,25 +473,8 @@ export class ProjectsService {
     };
   }
 
-  private toDetailDto(project: ProjectDetailRecord, user: AuthUser) {
+  private toDetailDto(project: ProjectDetailRecord, user: AuthUser, scopedUntriagedCount?: number) {
     const summary = this.toListDto(project as unknown as ProjectListRecord);
-    const isRegularDeveloper = user.role === UserRole.developer && project.picDeveloperId !== user.id;
-    const visibleStories = isRegularDeveloper
-      ? project.userStories.filter(
-          (story) =>
-            story.primaryDeveloper?.id === user.id ||
-            story.collaborators.some((collaborator) => collaborator.user.id === user.id),
-        )
-      : project.userStories;
-    const visibleStoryIds = new Set(visibleStories.map((story) => story.id));
-    const visibleTickets = isRegularDeveloper
-      ? project.tickets.filter(
-          (ticket) =>
-            ticket.assignedTo === user.id
-            || (ticket.userStoryId && visibleStoryIds.has(ticket.userStoryId))
-            || ticket.storyLinks.some((link) => visibleStoryIds.has(link.userStoryId)),
-        )
-      : project.tickets;
     const websites = project.websites.map((website) => ({
       ...toWebsiteDto(website),
       latest_result: website.monitoringResults[0] ?? null,
@@ -472,9 +488,7 @@ export class ProjectsService {
       websites,
       health_summary: this.healthSummaryFromWebsites(project.websites),
       active_incidents_count: activeIncidentsCount,
-      untriaged_tickets_count: visibleTickets.filter(
-        (ticket) => ticket.status === TicketStatus.open && !ticket.userStoryId,
-      ).length,
+      untriaged_tickets_count: scopedUntriagedCount ?? project.tickets.length,
     };
   }
 

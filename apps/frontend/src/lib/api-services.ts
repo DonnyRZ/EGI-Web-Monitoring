@@ -88,6 +88,7 @@ export const monitoringApi = {
 };
 
 export const incidentsApi = {
+  activeCount: () => apiFetch<{ count: number }>("/incidents/summary/active-count"),
   list: (params: {
     page?: number;
     limit?: number;
@@ -146,7 +147,21 @@ export const ticketsApi = {
   ) => apiFetch<Ticket>(`/tickets/${id}`, { method: "PATCH", body }),
 };
 
+export const taskIntakeApi = {
+  create: (body: {
+    title: string;
+    website_id?: string;
+    project_id?: string;
+    category: "website" | "help_desk" | "procurement";
+    description: string;
+    expectation: string;
+    attachment_url?: string;
+    priority?: Severity;
+  }) => apiFetch<Ticket>("/task-intake", { method: "POST", body }),
+};
+
 export const projectsApi = {
+  scopeSummary: () => apiFetch<{ has_pic_developer: boolean }>("/projects/summary/scope"),
   list: (params: {
     page?: number;
     limit?: number;
@@ -232,10 +247,12 @@ export const userStoriesApi = {
     collaborator_ids?: string[];
     due_date?: string | null;
   }) => apiFetch<UserStory>(`/tickets/${ticketId}/create-story`, { method: "POST", body }),
+  meWorkSummary: () => apiFetch<{ pending: number; in_progress: number; overdue: number; done: number }>("/me/work/summary"),
   meWork: () => apiFetch<MyWorkResponse>("/me/work"),
 };
 
-export const tasksApi = {
+/** Read/update compatibility surface for historical direct-assignment tasks. */
+export const legacyTasksApi = {
   list: (params: {
     page?: number;
     limit?: number;
@@ -244,13 +261,6 @@ export const tasksApi = {
     status?: string;
   } = {}) =>
     apiFetch<{ data: Task[]; meta: PaginatedMeta }>(`/tasks${qs(params)}`),
-  create: (body: {
-    website_id: string;
-    assignee_id?: string;
-    instruction_notes: string;
-    attachment_url?: string;
-    sla_deadline?: string;
-  }) => apiFetch<Task>("/tasks", { method: "POST", body }),
   updateStatus: (id: string, status: string) =>
     apiFetch<Task>(`/tasks/${id}/status`, { method: "PATCH", body: { status } }),
 };

@@ -65,13 +65,6 @@ export const TICKET_ASSIGNEE_ROLES = [
   "developer",
 ] as const satisfies readonly UserRole[];
 
-/** Create tasks: developers may create self-service to-dos; operations may delegate. */
-export const TASK_CREATOR_ROLES = [
-  "superadmin",
-  "bos_it",
-  "developer",
-] as const satisfies readonly UserRole[];
-
 /** Create a business Task/intake. Developer work starts from User Stories. */
 export const TASK_INTAKE_CREATOR_ROLES = [
   "superadmin",
@@ -162,10 +155,6 @@ export function canManageTickets(role?: string | null): boolean {
 
 export function isTicketAssigneeCandidate(role?: string | null): boolean {
   return roleIn(role, TICKET_ASSIGNEE_ROLES);
-}
-
-export function canCreateTasks(role?: string | null): boolean {
-  return roleIn(role, TASK_CREATOR_ROLES);
 }
 
 export function canCreateTaskIntake(role?: string | null): boolean {
