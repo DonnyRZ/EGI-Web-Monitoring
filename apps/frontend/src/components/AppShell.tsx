@@ -91,6 +91,13 @@ let projectScopeCachedAt = 0;
 let projectScopeRequest: Promise<boolean> | null = null;
 let projectScopeCacheKey = "";
 
+const BACKGROUND_BADGE_DELAY_MS = 350;
+
+function scheduleBackground(callback: () => void) {
+  const timer = window.setTimeout(callback, BACKGROUND_BADGE_DELAY_MS);
+  return () => window.clearTimeout(timer);
+}
+
 function loadProjectScope(user: { id: string }) {
   const now = Date.now();
   if (user.id === projectScopeCacheKey && now - projectScopeCachedAt < 60_000) return Promise.resolve(projectScopeCache);
@@ -130,26 +137,32 @@ export function AppShell({ title, children }: AppShellProps) {
   useEffect(() => {
     if (loading || !user || !canViewIncidents(user.role)) return;
     let cancelled = false;
-    loadActiveIncidents(user)
-      .then((count) => {
-        if (!cancelled) setActiveIncidents(count);
-      })
-      .catch(() => undefined);
+    const cancelSchedule = scheduleBackground(() => {
+      loadActiveIncidents(user)
+        .then((count) => {
+          if (!cancelled) setActiveIncidents(count);
+        })
+        .catch(() => undefined);
+    });
     return () => {
       cancelled = true;
+      cancelSchedule();
     };
   }, [user?.id, user?.role, loading]);
 
   useEffect(() => {
     if (loading || !user || user.role !== "developer") return;
     let cancelled = false;
-    loadMyOpenTasks(user)
-      .then((count) => {
-        if (!cancelled) setMyOpenTasks(count);
-      })
-      .catch(() => undefined);
+    const cancelSchedule = scheduleBackground(() => {
+      loadMyOpenTasks(user)
+        .then((count) => {
+          if (!cancelled) setMyOpenTasks(count);
+        })
+        .catch(() => undefined);
+    });
     return () => {
       cancelled = true;
+      cancelSchedule();
     };
   }, [user?.id, user?.role, loading]);
 
@@ -159,15 +172,18 @@ export function AppShell({ title, children }: AppShellProps) {
       return;
     }
     let cancelled = false;
-    loadProjectScope(user)
-      .then((response) => {
-        if (!cancelled) setIsProjectPicDeveloper(response);
-      })
-      .catch(() => {
-        if (!cancelled) setIsProjectPicDeveloper(false);
-      });
+    const cancelSchedule = scheduleBackground(() => {
+      loadProjectScope(user)
+        .then((response) => {
+          if (!cancelled) setIsProjectPicDeveloper(response);
+        })
+        .catch(() => {
+          if (!cancelled) setIsProjectPicDeveloper(false);
+        });
+    });
     return () => {
       cancelled = true;
+      cancelSchedule();
     };
   }, [user?.id, user?.role, loading]);
 

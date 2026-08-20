@@ -76,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // refresh is single-flight and preserves object identity when nothing
       // changed, so pages do not refetch merely because /auth/me completed.
       setLoading(false);
+      const refreshTimer = window.setTimeout(() => {
+        void refreshUser();
+      }, 700);
+      return () => window.clearTimeout(refreshTimer);
     }
     refreshUser().finally(() => {
       if (!hasCachedSession) setLoading(false);
