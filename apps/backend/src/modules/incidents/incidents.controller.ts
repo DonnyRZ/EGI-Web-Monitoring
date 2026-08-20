@@ -36,6 +36,11 @@ export class IncidentsController {
     return this.incidentsService.activeCount(user);
   }
 
+  @Get(":id/context")
+  context(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.incidentsService.context(id, user);
+  }
+
   @Get(":id")
   get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.incidentsService.get(id, user);

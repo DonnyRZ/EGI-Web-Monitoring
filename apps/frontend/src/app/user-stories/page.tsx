@@ -42,10 +42,16 @@ export default function UserStoriesPage() {
   useEffect(() => { if (!authLoading && user && !canViewUserStories(user.role)) router.replace("/dashboard"); }, [authLoading, user, router]);
   useEffect(() => {
     if (!user || !canViewUserStories(user.role)) return;
+    if (user.role === "bos_it" || user.role === "developer") {
+      taskMonitoringApi.filters().then((response) => {
+        setProjects(response.projects);
+        setDeveloperFilters(response.developers);
+      }).catch(() => undefined);
+      return;
+    }
     projectsApi.list({ limit: 100 }).then((response) => setProjects(response.data.map((project) => ({ id: project.id, name: project.name })))).catch(() => undefined);
-    if (user.role === "bos_it" || user.role === "developer") taskMonitoringApi.filters().then((response) => setDeveloperFilters(response.developers)).catch(() => undefined);
-  }, [user]);
-  useEffect(() => { if (user && canViewUserStories(user.role)) void load(); }, [user, status, priority, projectId, developerId]);
+  }, [user?.id, user?.role]);
+  useEffect(() => { if (user && canViewUserStories(user.role)) void load(); }, [user?.id, user?.role, status, priority, projectId, developerId]);
 
   const title = user?.role === "developer" ? "User Stories" : "User Stories";
   const filtered = useMemo(() => search.trim() ? items.filter((story) => `${story.title} ${story.project?.name || ""} ${story.website?.name || ""}`.toLowerCase().includes(search.trim().toLowerCase())) : items, [items, search]);

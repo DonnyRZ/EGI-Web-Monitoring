@@ -1,11 +1,16 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { IncidentStatus, Prisma } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
-import { paginatedMeta, toIncidentDto } from "../../common/mappers";
+import { paginatedMeta, toIncidentDto, toTicketDto, toWebsiteDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 import { IncidentsQueryDto, UpdateIncidentDto } from "./incidents.dto";
 import { canOperateScopedResources, websiteVisibilityScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
+
+const CONTEXT_TICKET_INCLUDE = {
+  assignee: { select: { id: true, name: true } },
+  storyLinks: { select: { userStoryId: true } },
+} as const;
 
 @Injectable()
 export class IncidentsService {
@@ -56,6 +61,51 @@ export class IncidentsService {
         : {}),
     };
     return { count: await this.prisma.incident.count({ where }) };
+  }
+
+  async context(id: string, user: AuthUser) {
+    this.assertOperational(user);
+    const incident = await this.prisma.incident.findFirst({
+      where: {
+        id,
+        ...(user.role === "pic_web" || user.role === "developer"
+          ? { website: websiteVisibilityScope(user) }
+          : {}),
+      },
+    });
+    if (!incident) throw new NotFoundException("Incident not found");
+
+    const [website, tickets] = await Promise.all([
+      this.prisma.website.findFirst({
+        where: { id: incident.websiteId, ...websiteVisibilityScope(user) },
+        select: {
+          id: true,
+          name: true,
+          domain: true,
+          url: true,
+          projectId: true,
+          ownerId: true,
+          itPicId: true,
+          backupItPicId: true,
+          monitoringIntervalMinutes: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.ticket.findMany({
+        where: { incidentId: id, ...this.ticketReadScope(user) },
+        include: CONTEXT_TICKET_INCLUDE,
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+    ]);
+
+    return {
+      incident: toIncidentDto(incident),
+      website: website ? toWebsiteDto(website) : null,
+      tickets: tickets.map(toTicketDto),
+    };
   }
 
   async get(id: string, user: AuthUser) {
@@ -117,5 +167,27 @@ export class IncidentsService {
       },
     });
     return toIncidentDto(incident);
+  }
+
+  private ticketReadScope(user: AuthUser): Prisma.TicketWhereInput {
+    if (user.role === "pic_web") {
+      return {
+        OR: [
+          { project: { members: { some: { userId: user.id, memberType: "pic_web" } } } },
+          { projectId: null, website: { ownerId: user.id } },
+        ],
+      };
+    }
+    if (user.role === "developer") {
+      return {
+        OR: [
+          { assignedTo: user.id },
+          { project: { picDeveloperId: user.id } },
+          { userStory: { OR: [{ primaryDeveloperId: user.id }, { collaborators: { some: { userId: user.id } } }] } },
+          { storyLinks: { some: { userStory: { OR: [{ primaryDeveloperId: user.id }, { collaborators: { some: { userId: user.id } } }] } } } },
+        ],
+      };
+    }
+    return {};
   }
 }

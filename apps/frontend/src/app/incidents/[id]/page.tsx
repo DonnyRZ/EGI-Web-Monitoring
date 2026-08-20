@@ -14,7 +14,7 @@ import {
   PriorityTag,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { incidentsApi, ticketsApi, websitesApi } from "@/lib/api-services";
+import { incidentsApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import {
   canManageIncidents,
@@ -60,14 +60,10 @@ export default function IncidentDetailPage() {
     setError("");
     setTicketPage(1);
     try {
-      const inc = await incidentsApi.get(id);
-      setIncident(inc);
-      const [site, ticketRes] = await Promise.all([
-        websitesApi.get(inc.website_id).catch(() => null),
-        ticketsApi.list({ incident_id: id, limit: 50 }),
-      ]);
-      setWebsite(site);
-      setTickets(ticketRes.data);
+      const context = await incidentsApi.context(id);
+      setIncident(context.incident);
+      setWebsite(context.website);
+      setTickets(context.tickets);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat incident");
     } finally {

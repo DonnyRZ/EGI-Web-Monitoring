@@ -193,21 +193,23 @@ export class UserStoriesService {
     if (user.role !== UserRole.developer) {
       throw new ForbiddenException("My Work is available for developers");
     }
-    const stories = await this.prisma.userStory.findMany({
-      where: {
-        OR: [
-          { primaryDeveloperId: user.id },
-          { collaborators: { some: { userId: user.id } } },
-        ],
-      },
-      include: STORY_INCLUDE,
-      orderBy: [{ dueDate: "asc" }, { updatedAt: "desc" }],
-    });
-    const legacyTasks = await this.prisma.task.findMany({
-      where: { assigneeId: user.id },
-      include: LEGACY_TASK_INCLUDE,
-      orderBy: [{ slaDeadline: "asc" }, { updatedAt: "desc" }],
-    });
+    const [stories, legacyTasks] = await Promise.all([
+      this.prisma.userStory.findMany({
+        where: {
+          OR: [
+            { primaryDeveloperId: user.id },
+            { collaborators: { some: { userId: user.id } } },
+          ],
+        },
+        include: STORY_INCLUDE,
+        orderBy: [{ dueDate: "asc" }, { updatedAt: "desc" }],
+      }),
+      this.prisma.task.findMany({
+        where: { assigneeId: user.id },
+        include: LEGACY_TASK_INCLUDE,
+        orderBy: [{ slaDeadline: "asc" }, { updatedAt: "desc" }],
+      }),
+    ]);
     const now = new Date();
     const pendingStatuses: UserStoryStatus[] = [UserStoryStatus.backlog, UserStoryStatus.ready];
     const activeStatuses: UserStoryStatus[] = [

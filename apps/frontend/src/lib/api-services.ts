@@ -89,6 +89,7 @@ export const monitoringApi = {
 
 export const incidentsApi = {
   activeCount: () => apiFetch<{ count: number }>("/incidents/summary/active-count"),
+  context: (id: string) => apiFetch<{ incident: Incident; website: Website | null; tickets: Ticket[] }>(`/incidents/${id}/context`),
   list: (params: {
     page?: number;
     limit?: number;

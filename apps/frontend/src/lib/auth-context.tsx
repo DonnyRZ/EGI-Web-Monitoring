@@ -72,9 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const hasCachedSession = Boolean(cached && getAccessToken());
     if (hasCachedSession) {
       setUser(cached);
+      // Cached identity can render the workspace immediately. The background
+      // refresh is single-flight and preserves object identity when nothing
+      // changed, so pages do not refetch merely because /auth/me completed.
+      setLoading(false);
     }
     refreshUser().finally(() => {
-      setLoading(false);
+      if (!hasCachedSession) setLoading(false);
     });
   }, [refreshUser]);
 

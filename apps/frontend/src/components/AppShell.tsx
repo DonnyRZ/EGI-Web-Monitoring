@@ -34,10 +34,12 @@ interface AppShellProps {
 let activeIncidentsCache = 0;
 let activeIncidentsCachedAt = 0;
 let activeIncidentsRequest: Promise<number> | null = null;
+let activeIncidentsCacheKey = "";
 
-function loadActiveIncidents() {
+function loadActiveIncidents(user: { id: string; role: string }) {
   const now = Date.now();
-  if (now - activeIncidentsCachedAt < 30_000) {
+  const key = `${user.id}:${user.role}`;
+  if (key === activeIncidentsCacheKey && now - activeIncidentsCachedAt < 30_000) {
     return Promise.resolve(activeIncidentsCache);
   }
   if (!activeIncidentsRequest) {
@@ -45,6 +47,7 @@ function loadActiveIncidents() {
       .activeCount()
       .then((res) => {
         activeIncidentsCache = res.count;
+        activeIncidentsCacheKey = key;
         activeIncidentsCachedAt = Date.now();
         return activeIncidentsCache;
       })
@@ -58,11 +61,12 @@ function loadActiveIncidents() {
 let myOpenTasksCache = 0;
 let myOpenTasksCachedAt = 0;
 let myOpenTasksRequest: Promise<number> | null = null;
+let myOpenTasksCacheKey = "";
 
 /** Developer's own pending + in_progress task count, shown as a nav badge so they see workload before opening the page. */
-function loadMyOpenTasks() {
+function loadMyOpenTasks(user: { id: string }) {
   const now = Date.now();
-  if (now - myOpenTasksCachedAt < 30_000) {
+  if (user.id === myOpenTasksCacheKey && now - myOpenTasksCachedAt < 30_000) {
     return Promise.resolve(myOpenTasksCache);
   }
   if (!myOpenTasksRequest) {
@@ -71,6 +75,7 @@ function loadMyOpenTasks() {
       .then((res) => {
         const count = res.pending + res.in_progress;
         myOpenTasksCache = count;
+        myOpenTasksCacheKey = user.id;
         myOpenTasksCachedAt = Date.now();
         return myOpenTasksCache;
       })
@@ -84,15 +89,17 @@ function loadMyOpenTasks() {
 let projectScopeCache = false;
 let projectScopeCachedAt = 0;
 let projectScopeRequest: Promise<boolean> | null = null;
+let projectScopeCacheKey = "";
 
-function loadProjectScope() {
+function loadProjectScope(user: { id: string }) {
   const now = Date.now();
-  if (now - projectScopeCachedAt < 60_000) return Promise.resolve(projectScopeCache);
+  if (user.id === projectScopeCacheKey && now - projectScopeCachedAt < 60_000) return Promise.resolve(projectScopeCache);
   if (!projectScopeRequest) {
     projectScopeRequest = projectsApi
       .scopeSummary()
       .then((res) => {
         projectScopeCache = res.has_pic_developer;
+        projectScopeCacheKey = user.id;
         projectScopeCachedAt = Date.now();
         return projectScopeCache;
       })
@@ -123,7 +130,7 @@ export function AppShell({ title, children }: AppShellProps) {
   useEffect(() => {
     if (loading || !user || !canViewIncidents(user.role)) return;
     let cancelled = false;
-    loadActiveIncidents()
+    loadActiveIncidents(user)
       .then((count) => {
         if (!cancelled) setActiveIncidents(count);
       })
@@ -136,7 +143,7 @@ export function AppShell({ title, children }: AppShellProps) {
   useEffect(() => {
     if (loading || !user || user.role !== "developer") return;
     let cancelled = false;
-    loadMyOpenTasks()
+    loadMyOpenTasks(user)
       .then((count) => {
         if (!cancelled) setMyOpenTasks(count);
       })
@@ -152,7 +159,7 @@ export function AppShell({ title, children }: AppShellProps) {
       return;
     }
     let cancelled = false;
-    loadProjectScope()
+    loadProjectScope(user)
       .then((response) => {
         if (!cancelled) setIsProjectPicDeveloper(response);
       })

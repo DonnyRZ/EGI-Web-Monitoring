@@ -195,7 +195,7 @@ export class TaskMonitoringService {
 
   async get(id: string, source: "task" | "legacy_task" | undefined, user: AuthUser) {
     this.assertCanView(user);
-    const rows = await this.loadRows(user);
+    const rows = await this.loadRows(user, undefined, { id, source });
     const row = rows.find((candidate) => candidate.id === id || (candidate.source_id === id && (!source || candidate.source === source)));
     if (!row) throw new NotFoundException("Task not found");
     return this.toDto(row, user, true);
@@ -218,12 +218,25 @@ export class TaskMonitoringService {
     return this.get(updated.id, "task", user);
   }
 
-  private async loadRows(user: AuthUser, query?: TaskMonitoringQueryDto): Promise<MonitoringRow[]> {
+  private async loadRows(
+    user: AuthUser,
+    query?: TaskMonitoringQueryDto,
+    lookup?: { id: string; source?: "task" | "legacy_task" },
+  ): Promise<MonitoringRow[]> {
     const ticketWhere: Prisma.TicketWhereInput = {
-      AND: [this.ticketScope(user), { task: null }, this.ticketQueryWhere(query)],
+      AND: [
+        this.ticketScope(user),
+        { task: null },
+        this.ticketQueryWhere(query),
+        ...(lookup && lookup.source !== "legacy_task" ? [{ id: lookup.id }] : []),
+      ],
     };
     const legacyWhere: Prisma.TaskWhereInput = {
-      AND: [this.legacyTaskScope(user), this.legacyTaskQueryWhere(query)],
+      AND: [
+        this.legacyTaskScope(user),
+        this.legacyTaskQueryWhere(query),
+        ...(lookup && lookup.source !== "task" ? [{ id: lookup.id }] : []),
+      ],
     };
     const [tickets, legacyTasks] = await this.prisma.$transaction([
       this.prisma.ticket.findMany({ where: ticketWhere, select: TICKET_SELECT }),
