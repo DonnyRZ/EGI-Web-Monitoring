@@ -3048,3 +3048,303 @@ body {
   .project-table-wrap { display: none; }
   .task-detail-drawer { padding: 22px 16px; }
 }
+
+/* Final responsive overflow safeguards.
+   Dense workspace views must reflow before they can widen the page. */
+.project-table-wrap {
+  overflow: hidden;
+}
+
+.project-table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.project-table th,
+.project-table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-table .project-name-cell,
+.project-table .member-stack,
+.project-table td:last-child {
+  min-width: 0;
+}
+
+.project-table .member-name {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 180px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.project-card:hover {
+  border-color: var(--egi-blue-mid);
+}
+
+.project-card-top,
+.project-card-footer,
+.project-card-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-card h3 {
+  margin: 3px 0 0;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+}
+
+.project-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .76rem;
+}
+
+.project-card-stats {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: .72rem;
+}
+
+.project-card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.project-tabs {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.task-monitoring-filters {
+  grid-template-columns: minmax(0, 1.7fr) repeat(5, minmax(0, 1fr));
+}
+
+.task-list-header,
+.task-monitoring-row {
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, .8fr) minmax(0, .9fr) minmax(0, .75fr);
+}
+
+.task-monitoring-row > *,
+.story-list .story-card > * {
+  min-width: 0;
+}
+
+.story-filter-grid {
+  grid-template-columns: minmax(0, 1.7fr) repeat(4, minmax(0, 1fr));
+}
+
+.story-board {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  overflow-x: visible;
+}
+
+.story-list .story-card {
+  grid-template-columns: 110px minmax(0, 1.5fr) minmax(0, .8fr) minmax(0, .5fr) auto;
+}
+
+.story-list .story-card h4 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.story-card .member-stack {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.story-card .member-name {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.story-column,
+.story-column-cards,
+.story-column-cards > .story-card {
+  min-width: 0;
+}
+
+.story-column-cards > .story-card {
+  max-width: 100%;
+}
+
+.story-board .story-card .select,
+.story-board .story-card .select-trigger {
+  width: 100%;
+  min-width: 0;
+}
+
+.story-board .story-card .select-value {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.incident-filter-panel .toolbar {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+
+.incident-filter-panel .toolbar > * {
+  min-width: 0;
+}
+
+.list-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.list-item > * {
+  min-width: 0;
+}
+
+.table {
+  table-layout: fixed;
+}
+
+.table th:last-child,
+.table td:last-child {
+  width: 80px;
+}
+
+.table td:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1480px) {
+  .project-table-wrap {
+    display: none;
+  }
+
+  .project-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .task-monitoring-filters,
+  .story-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .task-monitoring-filters .filter-field-search,
+  .story-filter-grid .filter-field-search {
+    grid-column: span 2;
+  }
+
+  .task-list-header {
+    display: none;
+  }
+
+  .task-monitoring-row {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .72fr);
+    grid-template-areas:
+      "main context"
+      "main assignees"
+      "main due";
+    align-items: start;
+  }
+
+  .task-monitoring-main { grid-area: main; }
+  .task-monitoring-context { grid-area: context; }
+  .task-monitoring-assignees { grid-area: assignees; }
+  .task-monitoring-due { grid-area: due; }
+
+  .story-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .story-list .story-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "top top"
+      "title select"
+      "context select"
+      "assignees select"
+      "meta select";
+  }
+
+  .story-list .story-card > .story-card-top { grid-area: top; }
+  .story-list .story-card > h4 { grid-area: title; }
+  .story-list .story-card > .story-card-context { grid-area: context; }
+  .story-list .story-card > .story-card-assignees { grid-area: assignees; }
+  .story-list .story-card > .story-list-meta { grid-area: meta; }
+  .story-list .story-card > .select { grid-area: select; align-self: center; }
+}
+
+@media (max-width: 1180px) {
+  .project-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-search-wrap {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .project-toolbar,
+  .task-monitoring-filters,
+  .story-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-search-wrap,
+  .task-monitoring-filters .filter-field-search,
+  .story-filter-grid .filter-field-search {
+    grid-column: 1 / -1;
+  }
+
+  .task-monitoring-row {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "context"
+      "main"
+      "assignees"
+      "due";
+    gap: 9px;
+  }
+
+  .story-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .story-list .story-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .story-list .story-card > .select {
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 520px) {
+  .project-card-grid,
+  .story-board {
+    grid-template-columns: 1fr;
+  }
+}
