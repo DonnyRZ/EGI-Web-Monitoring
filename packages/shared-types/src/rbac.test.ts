@@ -99,8 +99,10 @@ test("project and user story capability sets keep pic_developer project-scoped",
   assert.equal(canViewProjectRegistry("pic_web"), true);
   assert.equal(canViewProjectRegistry("end_user"), false);
   assert.equal(canManageUserStories("developer"), true);
+  assert.equal(canViewUserStories("superadmin"), true);
   assert.equal(canViewUserStories("developer"), true);
   assert.equal(canViewUserStories("pic_web"), false);
+  assert.equal(canViewUserStories("end_user"), false);
 });
 
 test("business Task intake and unified monitoring have the intended role split", () => {

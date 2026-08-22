@@ -142,7 +142,7 @@ export function canViewTasks(role?: string | null): boolean {
 }
 
 export function canViewUserStories(role?: string | null): boolean {
-  return role === "bos_it" || role === "developer";
+  return roleIn(role, USER_STORY_MANAGER_ROLES);
 }
 
 export function canManageIncidents(role?: string | null): boolean {

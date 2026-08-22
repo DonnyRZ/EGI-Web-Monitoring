@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
   canManagePlatform,
@@ -27,8 +36,29 @@ import {
 } from "./icons";
 
 interface AppShellProps {
-  title: string;
+  title?: string;
   children: ReactNode;
+}
+
+interface AppShellHostValue {
+  setPageTitle: (title: string) => void;
+}
+
+const AppShellHostContext = createContext<AppShellHostValue | null>(null);
+
+const PUBLIC_ROUTES = new Set(["/login", "/forgot-password", "/reset-password"]);
+
+function routeTitle(pathname: string) {
+  if (pathname === "/tasks") return "Task Monitoring";
+  if (pathname === "/me/work") return "My Work";
+  if (pathname === "/projects") return "Project";
+  if (pathname.startsWith("/projects/")) return "Project";
+  if (pathname === "/user-stories") return "User Stories";
+  if (pathname === "/incidents") return "Incidents";
+  if (pathname.startsWith("/incidents/")) return "Detail Incident";
+  if (pathname.startsWith("/websites/")) return "Detail Website";
+  if (pathname === "/admin/users") return "Users";
+  return "Dashboard";
 }
 
 let activeIncidentsCache = 0;
@@ -118,6 +148,22 @@ function loadProjectScope(user: { id: string }) {
 }
 
 export function AppShell({ title, children }: AppShellProps) {
+  const host = useContext(AppShellHostContext);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (host) host.setPageTitle(title || routeTitle(pathname));
+  }, [host, pathname, title]);
+
+  // Pages historically wrapped themselves in AppShell. Keep those wrappers
+  // source-compatible while letting the root layout own one persistent shell.
+  if (host) return <>{children}</>;
+  if (PUBLIC_ROUTES.has(pathname)) return <>{children}</>;
+
+  return <AppShellFrame initialTitle={title}>{children}</AppShellFrame>;
+}
+
+function AppShellFrame({ initialTitle, children }: { initialTitle?: string; children: ReactNode }) {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -125,6 +171,21 @@ export function AppShell({ title, children }: AppShellProps) {
   const [activeIncidents, setActiveIncidents] = useState(0);
   const [myOpenTasks, setMyOpenTasks] = useState(0);
   const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
+  const [pageTitle, setPageTitleState] = useState(() => initialTitle || routeTitle(pathname));
+  const titleOverrideRef = useRef<{ pathname: string; title: string } | null>(null);
+
+  const setPageTitle = useCallback((nextTitle: string) => {
+    titleOverrideRef.current = { pathname, title: nextTitle };
+    setPageTitleState(nextTitle);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (titleOverrideRef.current?.pathname === pathname) return;
+    titleOverrideRef.current = null;
+    setPageTitleState(initialTitle || routeTitle(pathname));
+  }, [initialTitle, pathname]);
+
+  const host = useMemo(() => ({ setPageTitle }), [setPageTitle]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -259,8 +320,9 @@ export function AppShell({ title, children }: AppShellProps) {
   }
 
   return (
-    <div className={`app-shell${isGallery ? " gallery" : ""}`}>
-      {!isGallery && sidebarOpen ? (
+    <AppShellHostContext.Provider value={host}>
+      <div className={`app-shell${isGallery ? " gallery" : ""}`}>
+        {!isGallery && sidebarOpen ? (
         <button
           type="button"
           className="sidebar-overlay"
@@ -269,8 +331,8 @@ export function AppShell({ title, children }: AppShellProps) {
         />
       ) : null}
 
-      {!isGallery ? (
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        {!isGallery ? (
+        <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
           <img src="/logo-egi.png" alt="EGResources" />
           <div className="sidebar-brand-text">
@@ -315,8 +377,8 @@ export function AppShell({ title, children }: AppShellProps) {
             <span>Logout</span>
           </button>
         </div>
-      </aside>
-      ) : null}
+        </aside>
+        ) : null}
 
       <div className="shell-main">
         <header className="top-header">
@@ -333,7 +395,7 @@ export function AppShell({ title, children }: AppShellProps) {
             ) : (
               <img src="/logo-egi.png" alt="EGResources" className="gallery-header-logo" />
             )}
-            {!isGallery ? <h1 className="page-title">{title}</h1> : null}
+            {!isGallery ? <h1 className="page-title">{pageTitle}</h1> : null}
             {isGallery ? (
               <div className="gallery-header-copy">
                 <strong>Website Monitoring</strong>
@@ -362,6 +424,7 @@ export function AppShell({ title, children }: AppShellProps) {
         </header>
         <main className="content">{children}</main>
       </div>
-    </div>
+      </div>
+    </AppShellHostContext.Provider>
   );
 }
