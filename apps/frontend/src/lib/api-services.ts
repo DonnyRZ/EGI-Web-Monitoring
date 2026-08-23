@@ -16,6 +16,8 @@ import type {
   Severity,
   Task,
   TaskMonitoringFilters,
+  TaskMonitoringOverviewResponse,
+  TaskMonitoringPeriod,
   TaskMonitoringRow,
   TaskMonitoringSummary,
   Ticket,
@@ -267,6 +269,14 @@ export const legacyTasksApi = {
 };
 
 export const taskMonitoringApi = {
+  overview: (params: {
+    period?: TaskMonitoringPeriod;
+    project_id?: string;
+    website_id?: string;
+    developer_id?: string;
+    status?: string;
+    search?: string;
+  } = {}) => apiFetch<TaskMonitoringOverviewResponse>(`/task-monitoring/overview${qs(params)}`),
   list: (params: {
     page?: number;
     limit?: number;
@@ -278,6 +288,7 @@ export const taskMonitoringApi = {
     overdue?: boolean;
     needs_action?: boolean;
     search?: string;
+    scope?: "general";
   } = {}) => apiFetch<{
     data: TaskMonitoringRow[];
     summary: TaskMonitoringSummary;

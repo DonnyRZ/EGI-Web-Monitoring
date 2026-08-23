@@ -44,6 +44,51 @@ export interface TaskMonitoringSummary {
   done: number;
 }
 
+export type TaskMonitoringPeriod = "7d" | "30d" | "90d" | "month";
+
+export interface TaskMonitoringOverviewUser {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+export interface TaskMonitoringOverviewProject {
+  key: string;
+  project: { id: string; name: string; status: ProjectStatus } | null;
+  website_count: number;
+  active_count: number;
+  new_count: number;
+  in_progress_count: number;
+  blocked_count: number;
+  overdue_count: number;
+  completed_period_count: number;
+  attention_count: number;
+  unassigned_count: number;
+  developer_count: number;
+  pic_developer: TaskMonitoringOverviewUser | null;
+}
+
+export interface TaskMonitoringOverviewSummary {
+  projects: number;
+  active: number;
+  new: number;
+  in_progress: number;
+  blocked: number;
+  overdue: number;
+  completed_period: number;
+  attention_projects: number;
+}
+
+export interface TaskMonitoringOverviewResponse {
+  data: TaskMonitoringOverviewProject[];
+  summary: TaskMonitoringOverviewSummary;
+  meta: {
+    period: TaskMonitoringPeriod;
+    completed_from: string;
+    completed_to: string;
+  };
+}
+
 export interface ProjectListSummary {
   id: string;
   name: string;

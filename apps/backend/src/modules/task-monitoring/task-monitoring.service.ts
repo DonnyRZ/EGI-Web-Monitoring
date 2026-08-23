@@ -16,7 +16,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import type { AuthUser } from "../../common/current-user.decorator";
 import { paginatedMeta } from "../../common/mappers";
 import { projectVisibilityWhere } from "../../common/resource-access";
-import type { TaskMonitoringQueryDto, UpdateTaskMonitoringStatusDto } from "./task-monitoring.dto";
+import type { TaskMonitoringOverviewQueryDto, TaskMonitoringQueryDto, UpdateTaskMonitoringStatusDto } from "./task-monitoring.dto";
+import { aggregateTaskMonitoringRows } from "./task-monitoring.overview";
 import { isTaskOverdue, needsTaskAction, rollupTaskStatus } from "./task-monitoring.rollup";
 
 const USER_SUMMARY = { id: true, name: true, email: true, role: true, isActive: true } as const;
@@ -27,6 +28,7 @@ const STORY_SELECT = {
   status: true,
   priority: true,
   dueDate: true,
+  completedAt: true,
   primaryDeveloper: { select: USER_SUMMARY },
   collaborators: { include: { user: { select: USER_SUMMARY } } },
 } as const;
@@ -41,12 +43,14 @@ const TICKET_SELECT = {
   priority: true,
   status: true,
   slaDeadline: true,
+  resolvedAt: true,
   updatedAt: true,
   taskStatusOverride: true,
   project: {
     select: {
       id: true,
       name: true,
+      status: true,
       picDeveloper: { select: USER_SUMMARY },
     },
   },
@@ -72,6 +76,7 @@ const LEGACY_TASK_SELECT = {
         select: {
           id: true,
           name: true,
+          status: true,
           picDeveloper: { select: USER_SUMMARY },
         },
       },
@@ -92,7 +97,7 @@ type MonitoringRow = {
   source_id: string;
   title: string;
   summary: string | null;
-  project: { id: string; name: string } | null;
+  project: { id: string; name: string; status: "draft" | "active" | "archived" } | null;
   website: { id: string; name: string; domain: string } | null;
   status: TaskBusinessStatus;
   status_reason: "automatic" | "manual_override" | "waiting_pic_developer" | "legacy_task";
@@ -111,7 +116,9 @@ type MonitoringRow = {
     due_date: Date | null;
     primary_developer: { id: string; name: string; email: string } | null;
     collaborators: Array<{ id: string; name: string; email: string }>;
+    completed_at: Date | null;
   }>;
+  completed_at: Date | null;
   task: {
     problem: string | null;
     expectation: string | null;
@@ -145,6 +152,27 @@ export class TaskMonitoringService {
       data,
       summary,
       meta: paginatedMeta(query.page, query.limit, filtered.length),
+    };
+  }
+
+  async overview(query: TaskMonitoringOverviewQueryDto, user: AuthUser) {
+    this.assertCanView(user);
+    const period = this.completedPeriod(query.period);
+    const rows = await this.loadRows(user, query);
+    const filtered = rows.filter((row) => this.matches(row, query));
+    const overview = aggregateTaskMonitoringRows(filtered, {
+      completedFrom: period.from,
+      completedTo: period.to,
+      includeCompletedOutsidePeriod: query.status === TaskBusinessStatus.done,
+    });
+
+    return {
+      ...overview,
+      meta: {
+        period: period.value,
+        completed_from: period.from.toISOString(),
+        completed_to: period.to.toISOString(),
+      },
     };
   }
 
@@ -248,10 +276,27 @@ export class TaskMonitoringService {
     ];
   }
 
+  private completedPeriod(value: TaskMonitoringOverviewQueryDto["period"]) {
+    const to = new Date();
+    const from = new Date(to);
+    const period = value ?? "30d";
+
+    if (period === "month") {
+      from.setUTCDate(1);
+      from.setUTCHours(0, 0, 0, 0);
+    } else {
+      const days = period === "7d" ? 7 : period === "90d" ? 90 : 30;
+      from.setUTCDate(from.getUTCDate() - days);
+    }
+
+    return { value: period, from, to };
+  }
+
   private ticketQueryWhere(query?: TaskMonitoringQueryDto): Prisma.TicketWhereInput {
     if (!query) return {};
     const where: Prisma.TicketWhereInput = {};
     if (query.project_id) where.projectId = query.project_id;
+    if (query.scope === "general") where.projectId = null;
     if (query.website_id) where.websiteId = query.website_id;
     if (query.priority) where.priority = query.priority;
     if (query.developer_id) {
@@ -284,6 +329,7 @@ export class TaskMonitoringService {
     if (!query) return {};
     const and: Prisma.TaskWhereInput[] = [];
     if (query.project_id) and.push({ website: { projectId: query.project_id } });
+    if (query.scope === "general") and.push({ website: { projectId: null } });
     if (query.website_id) and.push({ websiteId: query.website_id });
     if (query.priority && query.priority !== "medium") and.push({ id: "00000000-0000-0000-0000-000000000000" });
     if (query.developer_id) {
@@ -362,6 +408,13 @@ export class TaskMonitoringService {
     const status = this.rollupTicketStatus(ticket, stories);
     const dueDate = this.minDate([ticket.slaDeadline, ...stories.map((story) => story.due_date)]);
     const lastUpdate = new Date(Math.max(ticket.updatedAt.getTime(), ...stories.map((story) => story.updated_at.getTime())));
+    const completedAt = ticket.resolvedAt
+      ?? (status === TaskBusinessStatus.done
+        ? this.maxDate([
+          ...stories.map((story) => story.completed_at),
+          ticket.updatedAt,
+        ])
+        : null);
     const developers = this.developersFor(ticket, stories);
     const isOverdue = isTaskOverdue(status, dueDate);
     return {
@@ -370,7 +423,7 @@ export class TaskMonitoringService {
       source_id: ticket.id,
       title: ticket.title,
       summary: ticket.description,
-      project: ticket.project ? { id: ticket.project.id, name: ticket.project.name } : null,
+      project: ticket.project ? { id: ticket.project.id, name: ticket.project.name, status: ticket.project.status } : null,
       website: ticket.website ? { id: ticket.website.id, name: ticket.website.name, domain: ticket.website.domain } : null,
       status,
       status_reason: ticket.taskStatusOverride ? "manual_override" : status === TaskBusinessStatus.waiting_pic ? "waiting_pic_developer" : "automatic",
@@ -382,6 +435,7 @@ export class TaskMonitoringService {
       is_overdue: isOverdue,
       needs_action: needsTaskAction(status, isOverdue),
       stories,
+      completed_at: completedAt,
       task: {
         problem: ticket.description,
         expectation: ticket.expectation,
@@ -400,7 +454,7 @@ export class TaskMonitoringService {
       source_id: task.id,
       title: task.instructionNotes,
       summary: task.instructionNotes,
-      project: task.website.project ? { id: task.website.project.id, name: task.website.project.name } : null,
+      project: task.website.project ? { id: task.website.project.id, name: task.website.project.name, status: task.website.project.status } : null,
       website: { id: task.website.id, name: task.website.name, domain: task.website.domain },
       status,
       status_reason: "legacy_task",
@@ -412,6 +466,7 @@ export class TaskMonitoringService {
       is_overdue: isOverdue,
       needs_action: needsTaskAction(status, isOverdue),
       stories: [],
+      completed_at: status === TaskBusinessStatus.done ? task.updatedAt : null,
       task: { problem: task.ticket ? null : task.instructionNotes, expectation: null, attachment_url: null, category: null },
     };
   }
@@ -432,6 +487,7 @@ export class TaskMonitoringService {
       priority: story.priority,
       due_date: story.dueDate,
       updated_at: ticket.updatedAt,
+      completed_at: story.completedAt,
       primary_developer: story.primaryDeveloper ? this.userDto(story.primaryDeveloper) : null,
       collaborators: story.collaborators.map((row) => this.userDto(row.user)),
     }));
@@ -459,9 +515,12 @@ export class TaskMonitoringService {
 
   private matches(row: MonitoringRow, query: TaskMonitoringQueryDto) {
     if (query.project_id && row.project?.id !== query.project_id) return false;
+    if (query.scope === "general" && row.project) return false;
     if (query.website_id && row.website?.id !== query.website_id) return false;
     if (query.developer_id && !row.developers.some((developer) => developer.id === query.developer_id)) return false;
-    if (query.status && row.status !== query.status) return false;
+    if (query.status && !(query.status === TaskBusinessStatus.new
+      ? row.status === TaskBusinessStatus.new || row.status === TaskBusinessStatus.waiting_pic
+      : row.status === query.status)) return false;
     if (query.priority && row.priority !== query.priority) return false;
     if (query.overdue !== undefined && row.is_overdue !== query.overdue) return false;
     if (query.needs_action !== undefined && row.needs_action !== query.needs_action) return false;
@@ -490,7 +549,7 @@ export class TaskMonitoringService {
       source_id: row.source_id,
       title: row.title,
       summary: row.summary,
-      project: row.project,
+      project: row.project ? { id: row.project.id, name: row.project.name } : null,
       website: row.website,
       status: row.status,
       status_reason: row.status_reason,
@@ -514,6 +573,11 @@ export class TaskMonitoringService {
   private minDate(dates: Array<Date | null | undefined>) {
     const valid = dates.filter((date): date is Date => Boolean(date));
     return valid.length ? new Date(Math.min(...valid.map((date) => date.getTime()))) : null;
+  }
+
+  private maxDate(dates: Array<Date | null | undefined>) {
+    const valid = dates.filter((date): date is Date => Boolean(date));
+    return valid.length ? new Date(Math.max(...valid.map((date) => date.getTime()))) : null;
   }
 
   private assertCanView(user: AuthUser) {

@@ -32,6 +32,7 @@
     "infra:down": "docker compose down",
     "playwright:install": "npm run playwright:install -w @egi/worker",
     "test:e2e:project-settings": "node apps/frontend/e2e/project-settings.e2e.mjs",
+    "test:e2e:task-monitoring": "node apps/frontend/e2e/task-monitoring-overview.e2e.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }

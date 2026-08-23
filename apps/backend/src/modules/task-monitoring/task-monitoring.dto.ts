@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import { IsBoolean, IsEnum, IsIn, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
 import { Severity, TaskBusinessStatus } from "@egi/database";
 import { PaginationQueryDto } from "../../common/pagination.dto";
+import type { TaskMonitoringPeriod } from "@egi/shared-types";
 
 export class TaskMonitoringQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional()
@@ -47,6 +48,18 @@ export class TaskMonitoringQueryDto extends PaginationQueryDto {
   @IsString()
   @MaxLength(120)
   search?: string;
+
+  @ApiPropertyOptional({ description: "Batasi daftar ke Task Umum tanpa Project." })
+  @IsOptional()
+  @IsIn(["general"])
+  scope?: "general";
+}
+
+export class TaskMonitoringOverviewQueryDto extends TaskMonitoringQueryDto {
+  @ApiPropertyOptional({ enum: ["7d", "30d", "90d", "month"], default: "30d" })
+  @IsOptional()
+  @IsIn(["7d", "30d", "90d", "month"])
+  period?: TaskMonitoringPeriod;
 }
 
 export class UpdateTaskMonitoringStatusDto {

@@ -96,7 +96,7 @@ try {
 
   await page.goto(`${baseURL}/tasks`, { waitUntil: "domcontentloaded" });
   await assertVisible(page.getByLabel("Filter Project"), "Project filter");
-  assert.equal(await page.getByLabel("Filter Website").count(), 0);
+  await assertVisible(page.getByLabel("Filter Website"), "Website filter");
   await page.getByRole("button", { name: "Buat Task" }).click();
   const taskDialog = page.getByRole("dialog", { name: "Buat Task" });
   await assertVisible(taskDialog, "Buat Task dialog");
@@ -119,7 +119,7 @@ try {
   await taskDialog.getByLabel("Kategori").click();
   await page.getByRole("option", { name: "Help Desk" }).click();
   await taskDialog.getByLabel("Task ini untuk").click();
-  await page.getByRole("option", { name: "General / tanpa Project" }).click();
+  await page.getByRole("option", { name: "Task Umum" }).click();
   assert.equal(await taskDialog.getByLabel("Project").count(), 0);
   assert.equal(await taskDialog.getByLabel("Website").count(), 0);
 

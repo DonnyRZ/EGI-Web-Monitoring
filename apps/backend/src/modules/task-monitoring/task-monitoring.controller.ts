@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
 import { TaskMonitoringService } from "./task-monitoring.service";
-import { TaskMonitoringQueryDto, UpdateTaskMonitoringStatusDto } from "./task-monitoring.dto";
+import { TaskMonitoringOverviewQueryDto, TaskMonitoringQueryDto, UpdateTaskMonitoringStatusDto } from "./task-monitoring.dto";
 
 @ApiTags("Task Monitoring")
 @ApiBearerAuth()
@@ -11,6 +11,11 @@ import { TaskMonitoringQueryDto, UpdateTaskMonitoringStatusDto } from "./task-mo
 @Controller("task-monitoring")
 export class TaskMonitoringController {
   constructor(private readonly service: TaskMonitoringService) {}
+
+  @Get("overview")
+  overview(@Query() query: TaskMonitoringOverviewQueryDto, @CurrentUser() user: AuthUser) {
+    return this.service.overview(query, user);
+  }
 
   @Get("filters")
   filters(@CurrentUser() user: AuthUser) {

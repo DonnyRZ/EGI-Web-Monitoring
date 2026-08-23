@@ -18,7 +18,7 @@
     "test:tickets": "tsx --test src/modules/tickets/tickets.service.test.ts src/modules/tickets/task-intake.service.test.ts src/modules/tickets/task-intake.integration.test.ts",
     "test:tasks": "tsx --test src/modules/tasks/tasks.service.test.ts src/modules/tasks/tasks.controller.test.ts",
     "test:workload": "tsx --test src/modules/workload/workload.service.test.ts",
-    "test:task-monitoring": "tsx --test src/modules/task-monitoring/task-monitoring.rollup.test.ts",
+    "test:task-monitoring": "tsx --test src/modules/task-monitoring/task-monitoring.rollup.test.ts src/modules/task-monitoring/task-monitoring.overview.test.ts",
     "test:dashboard": "tsx --test src/modules/dashboard/dashboard.service.test.ts",
     "test:projects": "tsx --test src/modules/projects/projects.service.test.ts",
     "test:health": "tsx --test src/health.controller.test.ts",

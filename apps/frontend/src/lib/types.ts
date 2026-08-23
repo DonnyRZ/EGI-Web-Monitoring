@@ -8,6 +8,8 @@ export type {
   NotificationStatus,
   TaskStatus,
   TaskBusinessStatus,
+  TaskMonitoringPeriod,
+  TaskMonitoringOverviewResponse,
   ProjectStatus,
   ProjectMemberType,
   UserStoryStatus,
