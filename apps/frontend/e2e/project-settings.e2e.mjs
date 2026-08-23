@@ -26,6 +26,31 @@ try {
   await page.waitForURL(/\/dashboard$/);
 
   await page.goto(`${baseURL}/projects/project-1`, { waitUntil: "domcontentloaded" });
+
+  await page.getByRole("button", { name: "PIC & Assignment", exact: true }).click();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "assignment page should not overflow horizontally");
+
+  await page.getByRole("button", { name: "Kelola PIC Web", exact: true }).click();
+  const picWebDialog = page.getByRole("dialog", { name: "Kelola PIC Web" });
+  await assertVisible(picWebDialog, "PIC Web picker");
+  await picWebDialog.getByPlaceholder("Cari nama atau email…").fill("tidak-ada-anggota");
+  await assertVisible(picWebDialog.getByText("Tidak ada anggota ditemukan"), "empty roster search state");
+  await picWebDialog.getByRole("button", { name: "Batal", exact: true }).click();
+  assert.equal(await page.getByRole("dialog", { name: "Kelola PIC Web" }).count(), 0);
+
+  await page.getByRole("button", { name: "Kelola Developer Team", exact: true }).click();
+  const teamDialog = page.getByRole("dialog", { name: "Kelola Developer Team" });
+  await assertVisible(teamDialog, "Developer Team picker");
+  await assertVisible(teamDialog.getByRole("button", { name: "Terpilih", exact: true }), "selected filter");
+  await assertVisible(teamDialog.getByRole("button", { name: "Ada overdue", exact: true }), "overdue filter");
+  await teamDialog.getByRole("button", { name: "Batal", exact: true }).click();
+
+  await page.getByRole("button", { name: /(?:Pilih|Ganti) PIC Developer/ }).click();
+  const picDeveloperDialog = page.getByRole("dialog", { name: "Pilih PIC Developer" });
+  await assertVisible(picDeveloperDialog, "PIC Developer picker");
+  await assertVisible(picDeveloperDialog.getByRole("button", { name: "Belum ditentukan", exact: true }), "optional PIC Developer choice");
+  await picDeveloperDialog.getByRole("button", { name: "Batal", exact: true }).click();
+
   await page.getByRole("button", { name: "Pengaturan Project" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Pengaturan Project" });
