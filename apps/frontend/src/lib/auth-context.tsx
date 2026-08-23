@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { authApi } from "./api-services";
 import {
   clearAuthStorage,
@@ -32,6 +33,11 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 let refreshUserRequest: Promise<void> | null = null;
+let authMutationVersion = 0;
+
+const PUBLIC_AUTH_ROUTES = new Set(["/login", "/forgot-password", "/reset-password"]);
+const PUBLIC_BOOTSTRAP_TIMEOUT_MS = 1_500;
+const PROTECTED_BOOTSTRAP_TIMEOUT_MS = 4_000;
 
 function sameUser(a: User | null, b: User | null) {
   if (!a || !b) return a === b;
@@ -46,8 +52,10 @@ function sameUser(a: User | null, b: User | null) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
   const refreshUser = useCallback(async () => {
+    const requestVersion = authMutationVersion;
     if (!refreshUserRequest) {
       refreshUserRequest = (async () => {
         const token = getAccessToken();
@@ -55,9 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const refreshed = token ? null : await authApi.refresh();
           if (refreshed) setTokens(refreshed.access_token);
           const me = refreshed?.user ?? await authApi.me();
+          if (requestVersion !== authMutationVersion) return;
           setUser((current) => sameUser(current, me) ? current : me);
           setStoredUser(me);
-        } catch {
+        } catch (error) {
+          if (requestVersion !== authMutationVersion) return;
+          // A temporary network/API outage must not log a cached user out or
+          // make every page redirect to login. Only an explicit auth failure
+          // invalidates the local identity.
+          if (error instanceof Error && "status" in error) {
+            const status = Number((error as { status?: number }).status);
+            if (status === 0 || status === 408 || status === 429 || status >= 500) return;
+          }
           clearAuthStorage();
           setUser(null);
         }
@@ -82,12 +99,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, 5_000);
       return () => window.clearTimeout(refreshTimer);
     }
+    let active = true;
+    const timeoutMs = PUBLIC_AUTH_ROUTES.has(pathname)
+      ? PUBLIC_BOOTSTRAP_TIMEOUT_MS
+      : PROTECTED_BOOTSTRAP_TIMEOUT_MS;
+    const bootstrapTimer = window.setTimeout(() => {
+      if (active) setLoading(false);
+    }, timeoutMs);
     refreshUser().finally(() => {
-      if (!hasCachedSession) setLoading(false);
+      window.clearTimeout(bootstrapTimer);
+      if (active) setLoading(false);
     });
-  }, [refreshUser]);
+    return () => {
+      active = false;
+      window.clearTimeout(bootstrapTimer);
+    };
+  }, [pathname, refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
+    authMutationVersion += 1;
     const res = await authApi.login(email, password);
     clearApiCache();
     setTokens(res.access_token);
@@ -96,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginAsGuest = useCallback(async () => {
+    authMutationVersion += 1;
     const res = await authApi.guest();
     clearApiCache();
     setTokens(res.access_token);
@@ -104,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    authMutationVersion += 1;
     try {
       await authApi.logout();
     } catch {

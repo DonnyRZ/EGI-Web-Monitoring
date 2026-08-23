@@ -250,11 +250,23 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
     };
   }, [user?.id, user?.role, loading]);
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="login-page">
         <div className="state-box" style={{ border: "none", background: "transparent" }}>
           Memuat…
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="login-page">
+        <div className="state-box">
+          <h3>Sesi Anda berakhir</h3>
+          <p>Silakan masuk kembali untuk melanjutkan.</p>
+          <Link href="/login" className="btn btn-primary">Buka halaman login</Link>
         </div>
       </div>
     );

@@ -34,8 +34,22 @@ export function LoadingState({ label = "Memuat data…" }: { label?: string }) {
   return <div className="state-box">{label}</div>;
 }
 
-export function ErrorBanner({ message }: { message: string }) {
-  return <div className="error-banner">{message}</div>;
+export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const retryable = Boolean(onRetry) || /Gagal memuat|Sesi .*bermasalah|Server terlalu|Koneksi ke server/.test(message);
+  return (
+    <div className="error-banner" role="alert" aria-live="polite">
+      <span>{message}</span>
+      {retryable ? (
+        <button
+          type="button"
+          className="btn btn-sm btn-neutral error-retry"
+          onClick={onRetry ?? (() => window.location.reload())}
+        >
+          Coba lagi
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 export function SuccessBanner({ message }: { message: string }) {
