@@ -23,6 +23,11 @@ type ProjectTab = "overview" | "websites" | "assignments" | "tasks" | "stories";
 type StoryView = "list" | "board";
 
 const STATUS_LABELS: Record<ProjectStatus, string> = { draft: "Draft", active: "Aktif", archived: "Archived" };
+const STATUS_HELP: Record<ProjectStatus, { title: string; description: string }> = {
+  draft: { title: "Draft", description: "Project masih disiapkan dan boleh belum memiliki Website." },
+  active: { title: "Aktif", description: "Project sedang berjalan dan wajib memiliki minimal satu Website." },
+  archived: { title: "Archived", description: "Project disimpan sebagai arsip; data historis tetap dipertahankan." },
+};
 const STORY_STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog",
   ready: "Ready",
@@ -143,7 +148,7 @@ export default function ProjectDetailPage() {
             <p className="muted project-description">{project.description || "Belum ada deskripsi Project."}</p>
           </div>
           <div className="project-header-actions">
-            {canAdmin ? <button type="button" className="btn btn-neutral" onClick={() => setEditOpen(true)}>Edit Project</button> : null}
+            {canAdmin ? <button type="button" className="btn btn-neutral" onClick={() => setEditOpen(true)}>Pengaturan Project</button> : null}
             {canAdmin ? <button type="button" className="btn btn-primary" onClick={() => setWebsiteOpen(true)}>Tambah Website</button> : null}
           </div>
         </div>
@@ -275,7 +280,110 @@ function StoryCard({ story, canManage, onRefresh, compact = false }: { story: Us
 
 function WorkTab({ project, stories, loading, canManage, onOpenStories }: { project: Project; stories: UserStory[]; loading: boolean; canManage: boolean; onOpenStories: () => void }) { const open = stories.filter((story) => story.status !== "done"); return <section className="work-monitoring"><div className="work-monitoring-header"><div><span className="eyebrow">Task Monitoring</span><h3>Work Monitoring Project</h3><p className="muted">{canManage ? "Detail pekerjaan, blocker, deadline, dan assignment developer." : "Ringkasan pekerjaan Project yang berkaitan dengan tanggung jawab Anda."}</p></div>{canManage ? <button type="button" className="btn btn-neutral" onClick={onOpenStories}>Buka User Stories</button> : null}</div><div className="work-summary-grid"><SummaryMetric label="Pending" value={String(open.filter((story) => story.status === "backlog" || story.status === "ready").length)} detail="Backlog + Ready" /><SummaryMetric label="In progress" value={String(open.filter((story) => story.status === "in_progress" || story.status === "review").length)} detail="Sedang dikerjakan" /><SummaryMetric label="Blocked" value={String(open.filter((story) => story.status === "blocked").length)} detail="Butuh perhatian" tone={open.some((story) => story.status === "blocked") ? "down" : undefined} /><SummaryMetric label="Overdue" value={String(open.filter((story) => story.is_overdue).length)} detail="Melewati deadline" tone={open.some((story) => story.is_overdue) ? "down" : undefined} /></div>{loading ? <LoadingState /> : open.length === 0 ? <EmptyState title="Tidak ada pekerjaan aktif" description="Project ini belum memiliki User Story aktif." /> : <div className="work-detail-list">{open.map((story) => <div key={story.id} className="work-detail-row"><div><strong>{story.title}</strong><span className="muted">{story.primary_developer?.name || "Belum ditugaskan"}{story.due_date ? ` · Deadline ${formatDateTime(story.due_date)}` : " · Tanpa deadline"}</span></div><div className="work-detail-right"><span className={`story-status-label ${story.status}`}>{STORY_STATUS_LABELS[story.status]}</span>{story.is_overdue ? <span className="overdue-label">Overdue</span> : null}</div></div>)}</div>}</section>; }
 
-function EditProjectModal({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: (project: Project) => void }) { const [name, setName] = useState(project.name); const [description, setDescription] = useState(project.description || ""); const [status, setStatus] = useState<ProjectStatus>(project.status); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); setError(""); try { onSaved(await projectsApi.update(project.id, { name, description: description || null, status })); } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal menyimpan Project"); } finally { setSaving(false); } } return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal project-create-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Project settings</div><h2>Edit Project</h2>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="edit-project-name">Nama Project</label><input id="edit-project-name" className="text-input" required value={name} onChange={(event) => setName(event.target.value)} /></div><div className="form-field"><label htmlFor="edit-project-desc">Deskripsi</label><textarea id="edit-project-desc" className="text-input" rows={5} value={description} onChange={(event) => setDescription(event.target.value)} /></div><div className="form-field"><label htmlFor="edit-project-status">Status</label><Select id="edit-project-status" value={status} onChange={(value) => setStatus(value as ProjectStatus)} options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan Perubahan"}</button></div></form></div></div>; }
+function EditProjectModal({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: (project: Project) => void }) {
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description || "");
+  const [status, setStatus] = useState<ProjectStatus>(project.status);
+  const [archiveConfirmed, setArchiveConfirmed] = useState(project.status === "archived");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const dirty = name !== project.name || description !== (project.description || "") || status !== project.status;
+  const activeWorkCount = project.active_tickets_count + project.active_stories_count;
+  const activeWorkLabel = [
+    project.active_tickets_count ? `${project.active_tickets_count} Task aktif` : "",
+    project.active_stories_count ? `${project.active_stories_count} User Story aktif` : "",
+  ].filter(Boolean).join(" dan ");
+  const statusHelp = STATUS_HELP[status];
+  const archiveNeedsConfirmation = status === "archived" && project.status !== "archived" && !archiveConfirmed;
+
+  const requestClose = useCallback(() => {
+    if (!dirty || saving || window.confirm("Perubahan belum disimpan. Tutup Pengaturan Project?")) onClose();
+  }, [dirty, onClose, saving]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        requestClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [requestClose]);
+
+  function handleStatusChange(value: string) {
+    const next = value as ProjectStatus;
+    setStatus(next);
+    setArchiveConfirmed(next === "archived" && project.status === "archived");
+    setError("");
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (status === "active" && project.websites_count === 0) {
+      setError("Tambahkan minimal satu Website sebelum mengaktifkan Project.");
+      return;
+    }
+    if (archiveNeedsConfirmation) {
+      setError("Konfirmasikan pengarsipan Project terlebih dahulu.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      onSaved(await projectsApi.update(project.id, { name, description: description || null, status }));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal menyimpan Pengaturan Project");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={requestClose}>
+      <div className="modal project-create-drawer project-settings-modal" role="dialog" aria-modal="true" aria-labelledby="project-settings-title" aria-describedby="project-settings-description" onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-kicker">Project settings</div>
+        <h2 id="project-settings-title">Pengaturan Project</h2>
+        <p id="project-settings-description" className="muted project-settings-description">Kelola identitas dan lifecycle Project. Website serta PIC & Assignment diatur pada tab masing-masing.</p>
+        {error ? <ErrorBanner message={error} /> : null}
+        <form onSubmit={submit}>
+          <fieldset className="project-settings-section">
+            <legend>Informasi Project</legend>
+            <p className="project-settings-section-help">Informasi ini membantu tim mengenali tujuan dan ruang lingkup Project.</p>
+            <div className="form-field">
+              <label htmlFor="edit-project-name">Nama Project</label>
+              <input id="edit-project-name" className="text-input" required maxLength={150} autoFocus value={name} onChange={(event) => setName(event.target.value)} />
+            </div>
+            <div className="form-field">
+              <label htmlFor="edit-project-desc">Deskripsi <span className="muted">(opsional)</span></label>
+              <textarea id="edit-project-desc" className="text-input" rows={4} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Tujuan, batasan, atau konteks Project…" />
+            </div>
+          </fieldset>
+
+          <fieldset className="project-settings-section">
+            <legend>Status Project</legend>
+            <p className="project-settings-section-help">Status menunjukkan lifecycle Project, bukan status kesehatan Website.</p>
+            <div className="form-field">
+              <label htmlFor="edit-project-status">Status</label>
+              <Select id="edit-project-status" value={status} onChange={handleStatusChange} options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))} />
+              <p className="status-help"><strong>{statusHelp.title}.</strong> {statusHelp.description}</p>
+            </div>
+            {status === "active" && project.websites_count === 0 ? <div className="warning-banner" role="alert">Project aktif wajib memiliki minimal satu Website. Tambahkan Website terlebih dahulu melalui tab Websites & Monitoring.</div> : null}
+            {status === "archived" && project.status !== "archived" ? <div className="project-status-confirmation" role="alert"><strong>Konfirmasi pengarsipan</strong><p>Project akan ditandai sebagai Archived dan tidak muncul sebagai Project aktif. Data, Website, Task, dan User Story tidak dihapus.</p>{activeWorkCount > 0 ? <p className="text-danger">Masih ada {activeWorkLabel}. Pastikan pekerjaan ini memang boleh dilanjutkan tanpa Project aktif.</p> : null}<div className="row-actions"><button type="button" className="btn btn-sm" onClick={() => { setStatus(project.status); setArchiveConfirmed(project.status === "archived"); }}>Kembali</button><button type="button" className="btn btn-sm btn-danger" onClick={() => setArchiveConfirmed(true)}>Ya, arsipkan Project</button></div></div> : null}
+            {status === "archived" && project.status === "archived" && activeWorkCount > 0 ? <div className="warning-banner" role="alert">Project Archived masih memiliki {activeWorkLabel}. Histori tetap aman, tetapi pekerjaan aktif perlu ditinjau.</div> : null}
+            {status === "archived" && project.active_websites_count > 0 ? <div className="warning-banner" role="alert">Archived tidak otomatis menghentikan monitoring Website. Nonaktifkan Website pada tab Websites & Monitoring bila monitoring memang harus dihentikan.</div> : null}
+          </fieldset>
+
+          <div className="modal-actions">
+            <button type="button" className="btn" onClick={requestClose}>Batal</button>
+            <button type="submit" className="btn btn-primary" disabled={saving || archiveNeedsConfirmation}>{saving ? "Menyimpan…" : "Simpan Perubahan"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: (project: Project) => void }) { const [form, setForm] = useState({ name: "", domain: "", url: "" }); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); setError(""); try { onSaved(await projectsApi.addWebsite(projectId, form)); } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal menambahkan Website"); } finally { setSaving(false); } } return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal project-create-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Monitoring source</div><h2>Tambah Website</h2><p className="muted">Website langsung ditempatkan di Project ini. Histori monitoring existing tetap menggunakan Website ID-nya.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="website-name">Nama Website</label><input id="website-name" className="text-input" required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></div><div className="form-field"><label htmlFor="website-domain">Domain</label><input id="website-domain" className="text-input" required value={form.domain} onChange={(event) => setForm((current) => ({ ...current, domain: event.target.value }))} placeholder="example.com" /></div><div className="form-field"><label htmlFor="website-url">URL</label><input id="website-url" className="text-input" type="url" required value={form.url} onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://example.com" /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menambahkan…" : "Tambahkan Website"}</button></div></form></div></div>; }
 

@@ -33,6 +33,9 @@ const PRIORITY_LABELS: Record<Severity, string> = {
   low: "Rendah",
 };
 
+type TaskScope = "project" | "website" | "general";
+type TaskCategory = "website" | "help_desk" | "procurement";
+
 const EMPTY_SUMMARY: TaskMonitoringSummary = {
   total: 0,
   needs_action: 0,
@@ -51,7 +54,6 @@ export default function TasksPage() {
   const [summary, setSummary] = useState<TaskMonitoringSummary>(EMPTY_SUMMARY);
   const [filters, setFilters] = useState<TaskMonitoringFilters>({ projects: [], websites: [], developers: [] });
   const [projectId, setProjectId] = useState("");
-  const [websiteId, setWebsiteId] = useState("");
   const [developerId, setDeveloperId] = useState("");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
@@ -81,7 +83,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [projectId, websiteId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter]);
+  }, [projectId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter]);
 
   useEffect(() => {
     if (authLoading || !user || !canViewTaskMonitoring(user.role)) return;
@@ -94,7 +96,6 @@ export default function TasksPage() {
         page,
         limit: 50,
         project_id: projectId || undefined,
-        website_id: websiteId || undefined,
         developer_id: showDeveloperFilter ? developerId || undefined : undefined,
         status: status || undefined,
         priority: priority || undefined,
@@ -123,12 +124,7 @@ export default function TasksPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [authLoading, user, page, projectId, websiteId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter, refreshNonce]);
-
-  const visibleWebsites = useMemo(
-    () => filters.websites.filter((website) => !projectId || website.project_id === projectId),
-    [filters.websites, projectId],
-  );
+  }, [authLoading, user, page, projectId, developerId, status, priority, overdueOnly, needsActionOnly, search, showDeveloperFilter, refreshNonce]);
   const visibleDevelopers = useMemo(
     () => filters.developers.filter((developer) => !projectId || developer.project_ids.includes(projectId)),
     [filters.developers, projectId],
@@ -173,7 +169,6 @@ export default function TasksPage() {
             className="text-link filter-reset"
             onClick={() => {
               setProjectId("");
-              setWebsiteId("");
               setDeveloperId("");
               setStatus("");
               setPriority("");
@@ -185,18 +180,14 @@ export default function TasksPage() {
             Reset filter
           </button>
         </div>
-        <div className="task-monitoring-filters">
+        <div className={`task-monitoring-filters ${showDeveloperFilter ? "with-developer-filter" : ""}`}>
           <div className="filter-field filter-field-search">
             <label htmlFor="task-search">Cari</label>
             <input id="task-search" className="text-input project-search" placeholder="Judul Task, Project, atau Website" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
           <div className="filter-field">
             <span className="filter-field-label">Project</span>
-            <Select value={projectId} onChange={(value) => { setProjectId(value); setWebsiteId(""); setDeveloperId(""); }} options={[{ value: "", label: user.role === "developer" ? "Semua Project Saya" : "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
-          </div>
-          <div className="filter-field">
-            <span className="filter-field-label">Website</span>
-            <Select value={websiteId} onChange={setWebsiteId} options={[{ value: "", label: "Semua Website" }, ...visibleWebsites.map((website) => ({ value: website.id, label: website.name }))]} aria-label="Filter Website" />
+            <Select value={projectId} onChange={(value) => { setProjectId(value); setDeveloperId(""); }} options={[{ value: "", label: user.role === "developer" ? "Semua Project Saya" : "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
           </div>
           {showDeveloperFilter ? <div className="filter-field"><span className="filter-field-label">Developer</span><Select value={developerId} onChange={setDeveloperId} options={[{ value: "", label: "Semua developer" }, ...visibleDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" /></div> : null}
           <div className="filter-field"><span className="filter-field-label">Status</span><Select value={status} onChange={setStatus} options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter status Task" /></div>
@@ -277,20 +268,58 @@ function TaskDetailPanel({ row, technicalView, canOverride, onClose, onUpdated }
 }
 
 function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitoringFilters; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ title: "", project_id: "", website_id: "", category: "website", description: "", expectation: "", priority: "medium" as Severity });
+  const [form, setForm] = useState({ title: "", scope: "website" as TaskScope, project_id: "", website_id: "", category: "website" as TaskCategory, description: "", expectation: "", priority: "medium" as Severity });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const websites = filters.websites.filter((website) => !form.project_id || website.project_id === form.project_id);
+  const scopeOptions = [
+    { value: "project", label: "Seluruh Project" },
+    { value: "website", label: "Website tertentu" },
+    ...(form.category === "website" ? [] : [{ value: "general", label: "General / tanpa Project" }]),
+  ];
+
+  function changeScope(value: string) {
+    const scope = value as TaskScope;
+    setForm((current) => ({
+      ...current,
+      scope,
+      project_id: scope === "general" ? "" : current.project_id,
+      website_id: scope === "website" ? current.website_id : "",
+    }));
+    setError("");
+  }
+
+  function changeCategory(value: string) {
+    const category = value as TaskCategory;
+    setForm((current) => ({
+      ...current,
+      category,
+      scope: category === "website" && current.scope === "general" ? "website" : category === "website" && current.scope === "project" ? "website" : current.scope,
+      website_id: category === "website" && current.scope === "project" ? "" : current.website_id,
+    }));
+    setError("");
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError("");
-    if (form.category === "website" && !form.website_id) {
-      setError("Pilih Website untuk Task berkategori Website.");
+    if (form.scope === "general" && form.category === "website") {
+      setError("Task kategori Website harus ditujukan ke Website tertentu.");
       setSaving(false);
       return;
     }
-    try { await taskIntakeApi.create({ title: form.title, project_id: form.project_id || undefined, website_id: form.website_id || undefined, category: form.category as "website" | "help_desk" | "procurement", description: form.description, expectation: form.expectation, priority: form.priority }); onCreated(); }
+    if (form.scope !== "general" && !form.project_id) {
+      setError("Pilih Project untuk menentukan ruang kerja Task.");
+      setSaving(false);
+      return;
+    }
+    if (form.scope === "website" && !form.website_id) {
+      setError("Pilih Website yang menjadi sumber masalah atau kebutuhan.");
+      setSaving(false);
+      return;
+    }
+    try { await taskIntakeApi.create({ title: form.title, project_id: form.scope === "general" ? undefined : form.project_id || undefined, website_id: form.scope === "website" ? form.website_id || undefined : undefined, category: form.category, description: form.description, expectation: form.expectation, priority: form.priority }); onCreated(); }
     catch (err) { setError(err instanceof ApiError ? err.message : "Gagal membuat Task"); }
     finally { setSaving(false); }
   }
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal task-create-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Intake pekerjaan</div><h2>Buat Task</h2><p className="muted">Task akan masuk ke Project dan dipantau oleh PIC teknisnya. Anda tidak perlu memilih developer di tahap ini.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="task-title">Judul Task</label><input id="task-title" className="text-input" required maxLength={255} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: Perbaiki form kontak" /></div><div className="form-grid"><div className="form-field"><label htmlFor="task-project">Project</label><Select id="task-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value, website_id: "" }))} options={[{ value: "", label: "General / tanpa Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /></div><div className="form-field"><label htmlFor="task-website">Website <span className="muted">(opsional)</span></label><Select id="task-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Pilih Website" }, ...websites.map((website) => ({ value: website.id, label: website.name }))]} /></div><div className="form-field"><label htmlFor="task-category">Kategori</label><Select id="task-category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value }))} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div><div className="form-field"><label htmlFor="task-priority">Priority</label><Select id="task-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as Severity }))} options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} /></div></div><div className="form-field"><label htmlFor="task-description">Masalah / kebutuhan</label><textarea id="task-description" className="text-input" rows={4} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="task-expectation">Hasil yang diharapkan</label><textarea id="task-expectation" className="text-input" rows={3} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
+  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal task-create-modal" role="dialog" aria-modal="true" aria-labelledby="create-task-title" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Intake pekerjaan</div><h2 id="create-task-title">Buat Task</h2><p className="muted">Masukkan kebutuhan dari sisi bisnis. Developer tidak dipilih di form ini; bila Task terkait Project, PIC teknis Project yang menindaklanjuti.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="task-title">Judul Task</label><input id="task-title" className="text-input" required maxLength={255} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: Perbaiki form kontak" /></div><div className="form-grid task-scope-grid"><div className="form-field"><label htmlFor="task-scope">Task ini untuk</label><Select id="task-scope" value={form.scope} onChange={changeScope} options={scopeOptions} /><p className="task-scope-help muted">Pilih Website tertentu untuk masalah spesifik, atau seluruh Project untuk kebutuhan bersama.</p></div>{form.scope !== "general" ? <div className="form-field"><label htmlFor="task-project">Project</label><Select id="task-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value, website_id: "" }))} options={[{ value: "", label: "Pilih Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /></div> : null}{form.scope === "website" ? <div className="form-field"><label htmlFor="task-website">Website</label><Select id="task-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Pilih Website" }, ...websites.map((website) => ({ value: website.id, label: website.name }))]} disabled={!form.project_id} /><p className="task-scope-help muted">{form.project_id ? "Website ini otomatis tetap berada di Project yang dipilih." : "Pilih Project terlebih dahulu."}</p></div> : null}<div className="form-field"><label htmlFor="task-category">Kategori</label><Select id="task-category" value={form.category} onChange={changeCategory} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div><div className="form-field"><label htmlFor="task-priority">Priority</label><Select id="task-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as Severity }))} options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} /></div></div><div className="form-field"><label htmlFor="task-description">Masalah / kebutuhan</label><textarea id="task-description" className="text-input" rows={4} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="task-expectation">Hasil yang diharapkan</label><textarea id="task-expectation" className="text-input" rows={3} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
 }

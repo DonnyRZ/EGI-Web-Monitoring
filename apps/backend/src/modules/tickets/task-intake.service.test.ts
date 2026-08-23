@@ -89,6 +89,29 @@ test("Task intake creates an internal Ticket and never creates a Legacy Task", a
   assert.equal(ticketCreates[0]?.assignedTo, null);
 });
 
+test("project-level Task intake does not require a Website", async () => {
+  const { prisma, ticketCreates, legacyTaskCreates } = makePrisma();
+  const service = new TicketsService(prisma as never);
+
+  const result = await service.createTaskIntake(
+    {
+      title: "Perbarui konten Project",
+      project_id: "project-1",
+      category: TicketCategory.help_desk,
+      description: "Ada kebutuhan umum untuk Project",
+      expectation: "Kebutuhan selesai ditindaklanjuti",
+    },
+    superadmin,
+  );
+
+  assert.equal(ticketCreates.length, 1);
+  assert.equal(legacyTaskCreates.length, 0);
+  assert.equal(result.project_id, "project-1");
+  assert.equal(result.website_id, null);
+  assert.equal(ticketCreates[0]?.projectId, "project-1");
+  assert.equal(ticketCreates[0]?.websiteId, undefined);
+});
+
 test("Task intake rejects developers even when called directly at the service boundary", async () => {
   const { prisma } = makePrisma();
   const service = new TicketsService(prisma as never);
