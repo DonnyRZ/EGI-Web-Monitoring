@@ -2632,7 +2632,6 @@ h1, h2, h3, .page-title {
   background: #fbfcfe;
 }
 .modal.project-create-drawer:has(#ticket-title) .story-form-grid .form-field:first-child label { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; }
-.modal.project-create-drawer:has(#ticket-title) .story-form-grid .form-field:first-child label .muted { font-size: .68rem; font-weight: 500; line-height: 1.35; }
 .modal.project-create-drawer:has(#ticket-title) .story-form-grid .select { width: 100%; }
 .modal.project-create-drawer:has(#ticket-title) textarea { min-height: 112px; resize: vertical; }
 .modal.project-create-drawer:has(#ticket-title) form > .form-field:last-of-type textarea { min-height: 88px; }
