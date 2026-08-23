@@ -71,6 +71,9 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!user || !canViewProjectRegistry(user.role)) return;
     let cancelled = false;
+    // Do not delay the first render. Keep a small debounce only while the
+    // user is actively typing a search term.
+    const delay = search.trim() ? 220 : 0;
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError("");
@@ -90,7 +93,7 @@ export default function ProjectsPage() {
         .finally(() => {
           if (!cancelled) setLoading(false);
         });
-    }, 220);
+    }, delay);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);

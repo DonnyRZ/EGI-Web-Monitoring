@@ -115,7 +115,7 @@ test("dashboard list uses batched queries without nested monitoringResults inclu
   assert.ok(calls.some((c) => c.method === "incident.findMany"));
 });
 
-test("keeps screenshot signing lazy so the dashboard response stays lightweight", async () => {
+test("includes a signed screenshot URL so cards avoid a client-side signing round trip", async () => {
   const { prisma } = makeFakePrisma();
   const service = new DashboardService(prisma as never);
 
@@ -124,10 +124,11 @@ test("keeps screenshot signing lazy so the dashboard response stays lightweight"
 
   assert.ok(alpha?.latest_result);
   assert.equal(alpha.latest_result.screenshot_url, "https://cdn.example.test/alpha.webp");
-  assert.equal("screenshot_signed_url" in alpha.latest_result, false);
+  assert.equal(alpha.latest_result.screenshot_signed_url, "https://cdn.example.test/alpha.webp");
+  assert.ok(alpha.latest_result.screenshot_expires_at);
 });
 
-test("status=active omits down cards and leaves screenshot signing to the client", async () => {
+test("status=active omits down cards and includes signed screenshot URLs", async () => {
   const { prisma } = makeFakePrisma({
     latestResults: [
       latestResult(SITE_OK, MonitoringStatus.normal, "https://cdn.example.test/alpha.webp"),
@@ -142,7 +143,7 @@ test("status=active omits down cards and leaves screenshot signing to the client
 
   assert.deepEqual(ids.sort(), [SITE_OK, SITE_WARN].sort());
   assert.ok(data.every((card) => card.latest_result?.status !== MonitoringStatus.down));
-  assert.ok(data.every((card) => !card.latest_result || !("screenshot_signed_url" in card.latest_result)));
+  assert.ok(data.every((card) => !card.latest_result || "screenshot_signed_url" in card.latest_result));
 });
 
 test("status=down returns only down cards", async () => {

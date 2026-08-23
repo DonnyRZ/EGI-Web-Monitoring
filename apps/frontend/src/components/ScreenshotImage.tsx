@@ -25,6 +25,7 @@ export function ScreenshotImage({
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (signedUrl) return;
     const el = wrapRef.current;
     if (!el) return;
     if (typeof IntersectionObserver === "undefined") {
@@ -42,7 +43,7 @@ export function ScreenshotImage({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [signedUrl]);
 
   const load = useCallback(async () => {
     if (signedUrl) return;
@@ -67,6 +68,18 @@ export function ScreenshotImage({
     if (!inView || signedUrl) return;
     void load();
   }, [inView, signedUrl, load]);
+
+  // Dashboard and website-detail responses now carry a short-lived signed
+  // URL. Let the browser's native lazy loader decide when to fetch it instead
+  // of waiting for a second client-side observer/request round trip.
+  if (signedUrl) {
+    return (
+      <div className={className} style={{ width: "100%", height: "100%" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={signedUrl} alt={alt} loading="lazy" decoding="async" />
+      </div>
+    );
+  }
 
   if (!signedUrl && (!resultId || !hasScreenshot)) {
     return <div className={`placeholder ${className || ""}`}>Belum ada screenshot</div>;

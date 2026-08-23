@@ -130,6 +130,7 @@ export default function WebsiteDetailPage() {
                 <ScreenshotImage
                   resultId={data.latest_result?.id}
                   hasScreenshot={Boolean(data.latest_result?.screenshot_url)}
+                  signedUrl={data.latest_result?.screenshot_signed_url}
                   alt={`Screenshot ${data.website.name}`}
                 />
               </div>

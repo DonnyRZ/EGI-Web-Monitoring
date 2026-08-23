@@ -121,7 +121,9 @@ let projectScopeCachedAt = 0;
 let projectScopeRequest: Promise<boolean> | null = null;
 let projectScopeCacheKey = "";
 
-const BACKGROUND_BADGE_DELAY_MS = 350;
+// Badges are secondary information; leave the first paint and page request
+// uncontested before loading their counters.
+const BACKGROUND_BADGE_DELAY_MS = 1_000;
 
 function scheduleBackground(callback: () => void) {
   const timer = window.setTimeout(callback, BACKGROUND_BADGE_DELAY_MS);

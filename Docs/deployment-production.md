@@ -1,5 +1,8 @@
 # EGI Web Monitoring production deployment
 
+Public production URL: `https://helloit.egiresources.com`. The `internal.egiresources.com`
+name is only a compatibility alias and is not the deployment target.
+
 Runbook deployment langsung ke VPS existing. Aplikasi dibuild dari source release di `/var/www/egi-web-monitoring`; PostgreSQL tetap berjalan sebagai service host, sedangkan Redis dan MinIO tetap menggunakan container serta volume Compose existing.
 
 Deployment ini tidak menggunakan AWS, S3-compatible offsite, GHCR, registry aplikasi, deploy user baru, wrapper root, atau konfigurasi Nginx tambahan. Backup deployment hanya disimpan lokal melalui systemd backup existing.

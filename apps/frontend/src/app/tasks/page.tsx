@@ -91,6 +91,9 @@ export default function TasksPage() {
     if (page === 1) setLoading(true);
     else setLoadingMore(true);
     setError("");
+    // Filters should feel immediate on first open; debounce only free-text
+    // search so typing does not create a request for every character.
+    const delay = search.trim() ? 180 : 0;
     const timer = window.setTimeout(() => {
       taskMonitoringApi.list({
         page,
@@ -119,7 +122,7 @@ export default function TasksPage() {
           setLoadingMore(false);
         }
       });
-    }, 180);
+    }, delay);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);

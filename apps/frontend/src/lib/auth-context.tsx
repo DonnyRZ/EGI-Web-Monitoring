@@ -17,6 +17,7 @@ import {
   setStoredUser,
   setTokens,
 } from "./auth-storage";
+import { clearApiCache } from "./api";
 import type { User } from "./types";
 
 interface AuthContextValue {
@@ -78,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       const refreshTimer = window.setTimeout(() => {
         void refreshUser();
-      }, 700);
+      }, 5_000);
       return () => window.clearTimeout(refreshTimer);
     }
     refreshUser().finally(() => {
@@ -88,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authApi.login(email, password);
+    clearApiCache();
     setTokens(res.access_token);
     setStoredUser(res.user);
     setUser(res.user);
@@ -95,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginAsGuest = useCallback(async () => {
     const res = await authApi.guest();
+    clearApiCache();
     setTokens(res.access_token);
     setStoredUser(res.user);
     setUser(res.user);
@@ -106,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore logout API errors
     }
+    clearApiCache();
     clearAuthStorage();
     setUser(null);
   }, []);

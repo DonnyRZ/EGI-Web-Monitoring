@@ -8,6 +8,7 @@ import {
   toWebsiteDto,
 } from "../../common/mappers";
 import { canOperateScopedResources, websiteVisibilityScope } from "../../common/resource-access";
+import { createScreenshotSignedUrl } from "../../common/s3";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 const ACTIVE_STATUSES = [
@@ -128,7 +129,18 @@ export class DashboardService {
         return true;
       });
 
-    return { data: cards };
+    return {
+      // Signing is local HMAC work; doing it with the dashboard response
+      // avoids one authenticated request per visible card in the browser.
+      data: await Promise.all(
+        cards.map(async (card) => ({
+          ...card,
+          latest_result: card.latest_result
+            ? await this.withScreenshotUrl(card.latest_result)
+            : null,
+        })),
+      ),
+    };
   }
 
   async detail(websiteId: string, historyLimit: number, user: AuthUser) {
@@ -183,11 +195,32 @@ export class DashboardService {
 
     return {
       website: toWebsiteDto(website),
-      latest_result: latestResult ? toMonitoringResultDto(latestResult) : null,
+      latest_result: latestResult
+        ? await this.withScreenshotUrl(toMonitoringResultDto(latestResult))
+        : null,
       monitoring_history: monitoringHistory.map(toMonitoringResultDto),
       active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
       incident_history: incidentHistory.map(toIncidentDto),
     };
+  }
+
+  private async withScreenshotUrl<
+    T extends { screenshot_url: string | null },
+  >(result: T): Promise<T & { screenshot_signed_url?: string; screenshot_expires_at?: Date }> {
+    if (!result.screenshot_url) return result;
+    try {
+      const signed = await createScreenshotSignedUrl(result.screenshot_url);
+      return {
+        ...result,
+        screenshot_signed_url: signed.url,
+        screenshot_expires_at: signed.expiresAt,
+      };
+    } catch {
+      // Keep the monitoring card usable if object storage signing is
+      // temporarily unavailable. The compatibility endpoint can still retry
+      // signing when the image is explicitly requested.
+      return result;
+    }
   }
 
   private websiteScope(user: AuthUser): Prisma.WebsiteWhereInput {
