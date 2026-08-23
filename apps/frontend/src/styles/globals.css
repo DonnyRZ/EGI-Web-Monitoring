@@ -2612,6 +2612,32 @@ h1, h2, h3, .page-title {
 .project-create-drawer { width: min(540px, calc(100vw - 32px)); }
 .project-create-drawer h2 { margin: 7px 0 8px; }
 .project-create-drawer > p { margin: 0 0 20px; line-height: 1.55; }
+.modal.project-create-drawer:has(#ticket-title) {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(780px, calc(100vh - 32px));
+  padding: 28px 30px 22px;
+}
+.modal.project-create-drawer:has(#ticket-title) h2 { margin: 8px 0 7px; font-size: 1.7rem; line-height: 1.15; }
+.modal.project-create-drawer:has(#ticket-title) > p { max-width: 590px; margin-bottom: 22px; color: var(--text-muted); font-size: .9rem; line-height: 1.55; }
+.modal.project-create-drawer:has(#ticket-title) form { display: grid; gap: 18px; }
+.modal.project-create-drawer:has(#ticket-title) form > .form-field { gap: 8px; }
+.modal.project-create-drawer:has(#ticket-title) form > .form-field label,
+.modal.project-create-drawer:has(#ticket-title) .story-form-grid label { color: var(--text-secondary); font-size: .8rem; font-weight: 700; }
+.modal.project-create-drawer:has(#ticket-title) .story-form-grid {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, .9fr);
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fbfcfe;
+}
+.modal.project-create-drawer:has(#ticket-title) .story-form-grid .form-field:first-child label { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; }
+.modal.project-create-drawer:has(#ticket-title) .story-form-grid .form-field:first-child label .muted { font-size: .68rem; font-weight: 500; line-height: 1.35; }
+.modal.project-create-drawer:has(#ticket-title) .story-form-grid .select { width: 100%; }
+.modal.project-create-drawer:has(#ticket-title) textarea { min-height: 112px; resize: vertical; }
+.modal.project-create-drawer:has(#ticket-title) form > .form-field:last-of-type textarea { min-height: 88px; }
+.modal.project-create-drawer:has(#ticket-title) .modal-actions { margin-top: 0; padding-top: 18px; border-top: 1px solid var(--border); }
+.modal.project-create-drawer:has(#ticket-title) .modal-actions .btn { min-width: 104px; min-height: 42px; height: 42px; }
 .project-settings-modal { width: min(620px, calc(100vw - 32px)); }
 .project-settings-description { margin: 0 0 18px; line-height: 1.5; }
 .project-settings-section { min-width: 0; margin: 0 0 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); }
