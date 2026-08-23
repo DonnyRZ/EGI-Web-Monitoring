@@ -129,8 +129,12 @@ jobs:
           tags: ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}
           push: false
           load: true
-          provenance: true
-          sbom: true
+          # Trivy and the SBOM step consume a locally loaded single-platform
+          # image. BuildKit's provenance/SBOM attestations turn that output
+          # into a manifest list, which the Docker exporter cannot load.
+          # SBOM generation remains explicit in the following step.
+          provenance: false
+          sbom: false
 
       - name: Scan image for high and critical vulnerabilities
         # v0.36.0; pin the immutable upstream release commit.
