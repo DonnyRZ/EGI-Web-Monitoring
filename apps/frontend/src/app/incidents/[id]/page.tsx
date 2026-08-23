@@ -24,6 +24,7 @@ import {
   incidentStatusLabel,
   ticketStatusLabel,
 } from "@/lib/format";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import type { Incident, IncidentStatus, Severity, Ticket, Website } from "@/lib/types";
 
 const TICKET_PAGE_SIZE = 5;
@@ -48,6 +49,8 @@ export default function IncidentDetailPage() {
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
   const [ticketPage, setTicketPage] = useState(1);
+
+  useUnsavedChanges(`incidents:${id}:update`, busy);
 
   useEffect(() => {
     if (!authLoading && user && !canViewIncidents(user.role)) {

@@ -9,6 +9,7 @@ import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { projectsApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   canManageProjects,
   canViewProjectRegistry,
@@ -58,6 +59,7 @@ export default function ProjectsPage() {
   const [createDescription, setCreateDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  useUnsavedChanges("projects:create", createOpen && Boolean(createName || createDescription));
 
   const activeFilters = useMemo(
     () => Object.entries(filters).filter(([, value]) => value).map(([key]) => key as ConfigFilter),

@@ -10,6 +10,7 @@ import { usersApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { USER_ROLES } from "@egi/shared-types";
 import { canManagePlatform, formatDateTime, roleLabel } from "@/lib/format";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import type { User, UserRole } from "@/lib/types";
 
 const roles: UserRole[] = [...USER_ROLES];
@@ -33,6 +34,10 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const formDirty = modalOpen && (editing
+    ? form.name !== editing.name || form.role !== editing.role || form.is_active !== editing.is_active || Boolean(form.password)
+    : form.name !== emptyForm.name || form.email !== emptyForm.email || Boolean(form.password) || form.role !== emptyForm.role);
+  useUnsavedChanges("admin-users:form", formDirty);
 
   useEffect(() => {
     if (!authLoading && user && !canManagePlatform(user.role)) {

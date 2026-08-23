@@ -10,6 +10,7 @@ import { ApiError } from "@/lib/api";
 import { taskIntakeApi, taskMonitoringApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canCreateTaskIntake, canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import type {
   Severity,
   TaskBusinessStatus,
@@ -274,6 +275,17 @@ function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitor
   const [form, setForm] = useState({ title: "", scope: "website" as TaskScope, project_id: "", website_id: "", category: "website" as TaskCategory, description: "", expectation: "", priority: "medium" as Severity });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const dirty = Boolean(
+    form.title ||
+    form.project_id ||
+    form.website_id ||
+    form.description ||
+    form.expectation ||
+    form.scope !== "website" ||
+    form.category !== "website" ||
+    form.priority !== "medium",
+  );
+  useUnsavedChanges("tasks:create", dirty);
   const websites = filters.websites.filter((website) => !form.project_id || website.project_id === form.project_id);
   const scopeOptions = [
     { value: "project", label: "Seluruh Project" },

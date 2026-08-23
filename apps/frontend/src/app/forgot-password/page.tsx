@@ -5,12 +5,15 @@ import { FormEvent, useState } from "react";
 import { authApi } from "@/lib/api-services";
 import { ApiError } from "@/lib/api";
 import { ErrorBanner, SuccessBanner } from "@/components/ui";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useUnsavedChanges("auth:forgot-password", Boolean(email) || submitting);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

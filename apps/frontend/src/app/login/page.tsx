@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { ErrorBanner } from "@/components/ui";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 
 export default function LoginPage() {
   const { user, loading, login, loginAsGuest } = useAuth();
@@ -14,6 +15,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useUnsavedChanges("auth:login", email !== "egi.egiholding@gmail.com" || Boolean(password) || submitting);
 
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");

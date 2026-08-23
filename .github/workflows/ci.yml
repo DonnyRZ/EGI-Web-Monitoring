@@ -126,6 +126,7 @@ jobs:
             BASE_IMAGE=${{ matrix.base == 'node' && env.NODE_BASE_IMAGE || env.PLAYWRIGHT_BASE_IMAGE }}
             SERVICE=${{ matrix.workspace }}
             NEXT_PUBLIC_API_URL=/api
+            NEXT_PUBLIC_APP_VERSION=${{ github.sha }}
           tags: ${{ steps.image.outputs.prefix }}/${{ matrix.service }}:${{ github.sha }}
           push: false
           load: true

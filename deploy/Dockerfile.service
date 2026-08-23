@@ -23,7 +23,10 @@ RUN npm run build -w @egi/database \
 
 ARG SERVICE
 ARG NEXT_PUBLIC_API_URL=/api
+ARG NEXT_PUBLIC_APP_VERSION=development
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
+ENV APP_BUILD_VERSION=${NEXT_PUBLIC_APP_VERSION}
 RUN npm run build -w ${SERVICE}
 
 FROM ${BASE_IMAGE} AS runtime
@@ -40,6 +43,9 @@ RUN case "${BASE_IMAGE}" in node:*) \
 COPY --from=build /app /app
 
 ARG SERVICE
+ARG NEXT_PUBLIC_APP_VERSION=development
+ENV NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
+ENV APP_BUILD_VERSION=${NEXT_PUBLIC_APP_VERSION}
 
 # Keep application images production-only. Prisma Client remains a runtime
 # dependency; Prisma CLI/engines are run only by the one-shot migration image.

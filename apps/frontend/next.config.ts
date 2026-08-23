@@ -24,16 +24,29 @@ const nextConfig: NextConfig = {
     return [
       ...shellRoutes.map((source) => ({
         source,
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "private, max-age=10, stale-while-revalidate=60",
-          },
-        ],
+        headers: shellCacheHeaders(),
       })),
       { source: "/projects/:path*", headers: shellCacheHeaders() },
       { source: "/incidents/:path*", headers: shellCacheHeaders() },
       { source: "/websites/:path*", headers: shellCacheHeaders() },
+      {
+        source: "/app-version",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store",
+          },
+        ],
+      },
+      {
+        source: "/logo-egi.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400",
+          },
+        ],
+      },
       {
         source: "/_next/static/:path*",
         headers: [
@@ -58,7 +71,7 @@ function shellCacheHeaders() {
   return [
     {
       key: "Cache-Control",
-      value: "private, max-age=10, stale-while-revalidate=60",
+      value: "private, no-cache, must-revalidate",
     },
   ];
 }

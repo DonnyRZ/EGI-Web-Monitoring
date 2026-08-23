@@ -126,6 +126,7 @@ services:
         BASE_IMAGE: node:20-bookworm-slim
         SERVICE: "@egi/frontend"
         NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_APP_VERSION: ${APP_BUILD_VERSION:-development}
     restart: unless-stopped
     logging: *egi-logging
     command: ["sh", "-c", "cd apps/frontend && exec node ../../node_modules/next/dist/bin/next start -p 3010"]

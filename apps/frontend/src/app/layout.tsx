@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/AppShell";
+import { BuildUpdateMonitor } from "@/components/BuildUpdateMonitor";
 import { AuthProvider } from "@/lib/auth-context";
+import { UnsavedChangesProvider } from "@/lib/unsaved-changes";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -12,9 +14,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="id">
       <body>
-        <AuthProvider>
-          <AppShell>{children}</AppShell>
-        </AuthProvider>
+        <UnsavedChangesProvider>
+          <AuthProvider>
+            <BuildUpdateMonitor />
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
+        </UnsavedChangesProvider>
       </body>
     </html>
   );

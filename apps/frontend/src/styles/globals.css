@@ -2464,6 +2464,8 @@ h1, h2, h3, .page-title {
 .sticky-save-bar strong { font-size: .82rem; }
 .sticky-save-bar small { color: var(--text-muted); font-size: .72rem; }
 .warning-banner { margin-bottom: 12px; padding: 11px 13px; border: 1px solid #f1d3a8; border-radius: var(--radius-sm); background: var(--warning-soft); color: #8c531c; font-size: .82rem; }
+.app-update-banner { position: fixed; right: 20px; bottom: 20px; z-index: 100; display: flex; align-items: center; gap: 12px; max-width: min(520px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid #c9d9ee; border-radius: 12px; background: #fff; box-shadow: 0 12px 30px rgba(30, 62, 100, .16); color: #183b68; font-size: .9rem; }
+@media (max-width: 640px) { .app-update-banner { right: 12px; bottom: 12px; left: 12px; max-width: none; justify-content: space-between; } }
 
 .ticket-project-list { margin-top: 18px; border-top: 1px solid var(--border); }
 .ticket-project-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--border); }

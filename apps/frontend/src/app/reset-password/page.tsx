@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/lib/api-services";
 import { ApiError } from "@/lib/api";
 import { ErrorBanner, SuccessBanner } from "@/components/ui";
+import { useUnsavedChanges } from "@/lib/unsaved-changes";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -16,6 +17,8 @@ function ResetPasswordForm() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useUnsavedChanges("auth:reset-password", Boolean(password || confirmPassword) || submitting);
 
   useEffect(() => {
     if (message) {
