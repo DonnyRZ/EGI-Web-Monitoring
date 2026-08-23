@@ -2385,8 +2385,8 @@ h1, h2, h3, .page-title {
 .project-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .project-title-line h2 { margin: 0; font-size: 2rem; }
 .project-description { margin: 8px 0 0; }
-.project-header-actions { display: grid; width: min(100%, 400px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; flex-shrink: 0; }
-.project-header-actions .btn { width: 100%; min-width: 0; min-height: 40px; height: 40px; padding: 0 16px; }
+.project-header-actions { display: flex; width: auto; gap: 8px; flex-shrink: 0; }
+.project-header-actions .btn { width: auto; min-width: 188px; min-height: 40px; height: 40px; padding: 0 16px; }
 .project-summary-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin-top: 20px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--border); }
 .project-summary-metric { display: flex; flex-direction: column; gap: 4px; min-height: 92px; padding: 15px 17px; background: var(--bg-surface); }
 .project-summary-metric .metric-label { font-size: .72rem; }
@@ -2680,7 +2680,6 @@ h1, h2, h3, .page-title {
 }
 
 @media (max-width: 520px) {
-  .project-header-actions { grid-template-columns: 1fr; }
   .project-card-grid { grid-template-columns: 1fr; }
   .project-title-line h2 { font-size: 1.55rem; }
   .project-tabs { margin-right: -14px; margin-left: -14px; padding: 0 8px; }

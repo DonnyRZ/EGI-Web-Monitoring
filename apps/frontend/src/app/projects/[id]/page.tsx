@@ -149,7 +149,6 @@ export default function ProjectDetailPage() {
           </div>
           <div className="project-header-actions">
             {canAdmin ? <button type="button" className="btn btn-neutral" onClick={() => setEditOpen(true)}>Pengaturan Project</button> : null}
-            {canAdmin ? <button type="button" className="btn btn-primary" onClick={() => setWebsiteOpen(true)}>Tambah Website</button> : null}
           </div>
         </div>
         <div className="project-summary-strip">
