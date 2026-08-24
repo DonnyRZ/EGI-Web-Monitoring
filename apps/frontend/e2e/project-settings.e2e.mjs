@@ -96,7 +96,7 @@ try {
 
   await page.goto(`${baseURL}/tasks`, { waitUntil: "domcontentloaded" });
   await assertVisible(page.getByLabel("Filter Project"), "Project filter");
-  await assertVisible(page.getByLabel("Filter Website"), "Website filter");
+  assert.equal(await page.getByLabel("Filter Website").count(), 0, "Task Monitoring should not show a Website filter");
   await page.getByRole("button", { name: "Buat Task" }).click();
   const taskDialog = page.getByRole("dialog", { name: "Buat Task" });
   await assertVisible(taskDialog, "Buat Task dialog");

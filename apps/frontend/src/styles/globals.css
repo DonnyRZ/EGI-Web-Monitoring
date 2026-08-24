@@ -3189,7 +3189,7 @@ body {
 .task-monitoring-intro h2 { margin: 7px 0 5px; }
 .task-monitoring-intro p { margin: 0; }
 .task-overview-filter-panel { margin-bottom: 18px; }
-.task-overview-filters { grid-template-columns: minmax(220px, 1.7fr) repeat(5, minmax(125px, 1fr)); }
+.task-overview-filters { grid-template-columns: minmax(220px, 1.7fr) repeat(4, minmax(125px, 1fr)); }
 .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 20px; }
 .task-overview-summary-grid .task-summary-card { min-height: 94px; }
 .task-overview-summary-grid .task-summary-card.progress strong { color: var(--egi-blue-dark); }
@@ -3229,7 +3229,7 @@ body {
 .task-project-drawer-summary > div { display: flex; min-height: 70px; flex-direction: column; justify-content: center; gap: 5px; padding: 12px 14px; background: #fbfcfe; }
 .task-project-drawer-summary strong { color: var(--egi-blue-dark); font-family: var(--font-serif); font-size: 1.35rem; line-height: 1; }
 .task-project-drawer-summary span { color: var(--text-muted); font-size: .7rem; }
-.task-drawer-filters { display: grid; flex-shrink: 0; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(120px, 1fr)); gap: 10px; align-items: end; }
+.task-drawer-filters { display: grid; flex-shrink: 0; grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(120px, 1fr)); gap: 10px; align-items: end; }
 .task-drawer-filters .filter-field { min-width: 0; }
 .task-drawer-search { grid-column: span 1; }
 .task-project-list { display: grid; min-height: 0; overflow-y: auto; border-top: 1px solid var(--border); }
@@ -3600,7 +3600,7 @@ body {
 }
 
 /* Keep the project overview rules above generic workspace media overrides. */
-body .task-overview-filters { grid-template-columns: minmax(220px, 1.7fr) repeat(5, minmax(125px, 1fr)); }
+body .task-overview-filters { grid-template-columns: minmax(220px, 1.7fr) repeat(4, minmax(125px, 1fr)); }
 body .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
 @media (max-width: 1180px) {

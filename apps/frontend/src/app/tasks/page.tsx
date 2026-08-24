@@ -72,7 +72,6 @@ export default function TasksPage() {
   const [filters, setFilters] = useState<TaskMonitoringFilters>({ projects: [], websites: [], developers: [] });
   const [period, setPeriod] = useState<TaskMonitoringPeriod>("30d");
   const [projectId, setProjectId] = useState("");
-  const [websiteId, setWebsiteId] = useState("");
   const [developerId, setDeveloperId] = useState("");
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -94,10 +93,6 @@ export default function TasksPage() {
     taskMonitoringApi.filters().then(setFilters).catch(() => undefined);
   }, [canMonitor, user?.id]);
 
-  const visibleWebsites = useMemo(
-    () => filters.websites.filter((website) => !projectId || website.project_id === projectId),
-    [filters.websites, projectId],
-  );
   const visibleDevelopers = useMemo(
     () => filters.developers.filter((developer) => !projectId || developer.project_ids.includes(projectId)),
     [filters.developers, projectId],
@@ -112,7 +107,6 @@ export default function TasksPage() {
       taskMonitoringApi.overview({
         period,
         project_id: projectId || undefined,
-        website_id: websiteId || undefined,
         developer_id: developerId || undefined,
         status: status || undefined,
         search: search.trim() || undefined,
@@ -132,12 +126,11 @@ export default function TasksPage() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [authLoading, canMonitor, developerId, period, projectId, refreshNonce, search, status, websiteId]);
+  }, [authLoading, canMonitor, developerId, period, projectId, refreshNonce, search, status]);
 
   function resetFilters() {
     setPeriod("30d");
     setProjectId("");
-    setWebsiteId("");
     setDeveloperId("");
     setStatus("");
     setSearch("");
@@ -164,15 +157,12 @@ export default function TasksPage() {
         filters={filters}
         period={period}
         projectId={projectId}
-        websiteId={websiteId}
         developerId={developerId}
         status={status}
         search={search}
-        visibleWebsites={visibleWebsites}
         visibleDevelopers={visibleDevelopers}
         onPeriodChange={setPeriod}
-        onProjectChange={(value) => { setProjectId(value); setWebsiteId(""); setDeveloperId(""); }}
-        onWebsiteChange={setWebsiteId}
+        onProjectChange={(value) => { setProjectId(value); setDeveloperId(""); }}
         onDeveloperChange={setDeveloperId}
         onStatusChange={setStatus}
         onSearchChange={setSearch}
@@ -207,15 +197,12 @@ function TaskOverviewFilters({
   filters,
   period,
   projectId,
-  websiteId,
   developerId,
   status,
   search,
-  visibleWebsites,
   visibleDevelopers,
   onPeriodChange,
   onProjectChange,
-  onWebsiteChange,
   onDeveloperChange,
   onStatusChange,
   onSearchChange,
@@ -224,15 +211,12 @@ function TaskOverviewFilters({
   filters: TaskMonitoringFilters;
   period: TaskMonitoringPeriod;
   projectId: string;
-  websiteId: string;
   developerId: string;
   status: string;
   search: string;
-  visibleWebsites: TaskMonitoringFilters["websites"];
   visibleDevelopers: TaskMonitoringFilters["developers"];
   onPeriodChange: (value: TaskMonitoringPeriod) => void;
   onProjectChange: (value: string) => void;
-  onWebsiteChange: (value: string) => void;
   onDeveloperChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onSearchChange: (value: string) => void;
@@ -259,10 +243,6 @@ function TaskOverviewFilters({
         <div className="filter-field">
           <span className="filter-field-label">Project</span>
           <Select value={projectId} onChange={onProjectChange} options={[{ value: "", label: "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
-        </div>
-        <div className="filter-field">
-          <span className="filter-field-label">Website</span>
-          <Select value={websiteId} onChange={onWebsiteChange} options={[{ value: "", label: "Semua Website" }, ...visibleWebsites.map((website) => ({ value: website.id, label: website.name }))]} aria-label="Filter Website" />
         </div>
         <div className="filter-field">
           <span className="filter-field-label">Developer</span>
@@ -362,7 +342,6 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
   const [rows, setRows] = useState<TaskMonitoringRow[]>([]);
   const [taskSearch, setTaskSearch] = useState("");
   const [taskStatus, setTaskStatus] = useState("");
-  const [taskWebsiteId, setTaskWebsiteId] = useState("");
   const [taskDeveloperId, setTaskDeveloperId] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -374,15 +353,11 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
   const [detailError, setDetailError] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const projectWebsites = useMemo(
-    () => filters.websites.filter((website) => project.key === "general" ? !website.project_id : website.project_id === project.key),
-    [filters.websites, project.key],
-  );
   const projectDevelopers = useMemo(
     () => project.key === "general" ? filters.developers : filters.developers.filter((developer) => developer.project_ids.includes(project.key)),
     [filters.developers, project.key],
   );
-  const taskQueryKey = `${project.key}|${taskSearch}|${taskStatus}|${taskWebsiteId}|${taskDeveloperId}`;
+  const taskQueryKey = `${project.key}|${taskSearch}|${taskStatus}|${taskDeveloperId}`;
 
   useEffect(() => {
     setPage(1);
@@ -400,7 +375,6 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
       limit: 50,
       project_id: project.key === "general" ? undefined : project.key,
       scope: project.key === "general" ? "general" : undefined,
-      website_id: taskWebsiteId || undefined,
       developer_id: taskDeveloperId || undefined,
       status: taskStatus || undefined,
       search: taskSearch.trim() || undefined,
@@ -417,7 +391,7 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
       }
     });
     return () => { cancelled = true; };
-  }, [page, project.key, taskDeveloperId, taskSearch, taskStatus, taskWebsiteId]);
+  }, [page, project.key, taskDeveloperId, taskSearch, taskStatus]);
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -477,7 +451,6 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
                 <input ref={searchRef} id="drawer-task-search" className="text-input" placeholder="Cari judul Task" value={taskSearch} onChange={(event) => setTaskSearch(event.target.value)} />
               </div>
               <div className="filter-field"><span className="filter-field-label">Status</span><Select value={taskStatus} onChange={setTaskStatus} options={[{ value: "", label: "Semua status" }, { value: "new", label: "Baru" }, { value: "in_progress", label: "Sedang dikerjakan" }, { value: "blocked", label: "Terkendala" }, { value: "done", label: "Selesai" }]} aria-label="Filter status Task di Project" /></div>
-              <div className="filter-field"><span className="filter-field-label">Website</span><Select value={taskWebsiteId} onChange={setTaskWebsiteId} options={[{ value: "", label: "Semua Website" }, ...projectWebsites.map((website) => ({ value: website.id, label: website.name }))]} aria-label="Filter Website di Project" /></div>
               <div className="filter-field"><span className="filter-field-label">Developer</span><Select value={taskDeveloperId} onChange={setTaskDeveloperId} options={[{ value: "", label: "Semua Developer" }, ...projectDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter Developer di Project" /></div>
             </div>
             {error ? <ErrorBanner message={error} /> : null}

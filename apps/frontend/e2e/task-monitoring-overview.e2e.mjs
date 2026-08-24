@@ -28,7 +28,7 @@ try {
   await page.goto(`${baseURL}/tasks`, { waitUntil: "domcontentloaded" });
   await assertVisible(page.getByRole("heading", { name: "Ringkasan pekerjaan" }), "overview heading");
   await assertVisible(page.getByLabel("Filter Project"), "Project filter");
-  await assertVisible(page.getByLabel("Filter Website"), "Website filter");
+  assert.equal(await page.getByLabel("Filter Website").count(), 0, "Task Monitoring should not show a Website filter");
   await assertVisible(page.getByLabel("Filter Developer"), "Developer filter");
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, "overview should not overflow horizontally");
   assert.equal(await page.locator(".task-monitoring-row").count(), 0, "the overview should not render a flat Task list");
