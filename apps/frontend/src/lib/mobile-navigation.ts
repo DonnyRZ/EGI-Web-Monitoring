@@ -101,22 +101,22 @@ export function buildNavigationCatalog(
   const primaryNav: NavigationItem[] = [item("dashboard", "/dashboard", "Dashboard")];
 
   if (role === "superadmin" || role === "bos_it" || role === "pic_web") {
-    primaryNav.push(item("tasks", "/tasks", "Task Monitoring"));
+    primaryNav.push(item("tasks", "/tasks", "Task"));
   }
 
   if (role === "developer") {
     if (context.scopeReady && context.isProjectPicDeveloper) {
-      primaryNav.push(item("tasks", "/tasks", "Task Monitoring"));
+      primaryNav.push(item("tasks", "/tasks", "Task"));
     }
-    primaryNav.push(item("my-work", "/me/work", "My Work", "my-work"));
+    primaryNav.push(item("my-work", "/me/work", "Work", "my-work"));
   }
 
   if (role === "superadmin" || role === "bos_it") {
-    primaryNav.push(item("projects", "/projects", "Kelola Project"));
+    primaryNav.push(item("projects", "/projects", "Project"));
   } else if (role === "pic_web") {
-    primaryNav.push(item("projects", "/projects", "Project Saya"));
+    primaryNav.push(item("projects", "/projects", "Project"));
   } else if (role === "developer" && !context.isProjectPicDeveloper) {
-    primaryNav.push(item("projects", "/projects", "Project Saya"));
+    primaryNav.push(item("projects", "/projects", "Project"));
   }
 
   if (role === "superadmin" || role === "bos_it" || role === "developer") {
@@ -126,10 +126,10 @@ export function buildNavigationCatalog(
 
   const menuNav: NavigationItem[] = [];
   if (role === "developer" && context.scopeReady && context.isProjectPicDeveloper) {
-    menuNav.push(item("projects", "/projects", "Project Saya"));
+    menuNav.push(item("projects", "/projects", "Project"));
   }
   if (role === "superadmin" || role === "bos_it" || role === "developer" || role === "pic_web") {
-    menuNav.push(withBadge(item("incidents", "/incidents", "Incidents", "incidents"), context));
+    menuNav.push(withBadge(item("incidents", "/incidents", "Insiden", "incidents"), context));
   }
   if (role === "superadmin") {
     menuNav.push(item("users", "/admin/users", "Users"));
