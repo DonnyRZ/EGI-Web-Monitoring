@@ -26,7 +26,7 @@ try {
   await page.waitForURL(/\/dashboard$/);
 
   await page.goto(`${baseURL}/tasks`, { waitUntil: "domcontentloaded" });
-  await assertVisible(page.getByRole("heading", { name: "Ringkasan pekerjaan" }), "overview heading");
+  await assertVisible(page.getByRole("heading", { name: "Task Monitoring", exact: true }), "Task Monitoring page heading");
   await assertVisible(page.getByLabel("Filter Project"), "Project filter");
   assert.equal(await page.getByLabel("Filter Website").count(), 0, "Task Monitoring should not show a Website filter");
   await assertVisible(page.getByLabel("Filter Developer"), "Developer filter");

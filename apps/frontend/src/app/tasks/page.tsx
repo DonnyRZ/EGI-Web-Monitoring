@@ -141,35 +141,33 @@ export default function TasksPage() {
   }
 
   const summary = overview?.summary ?? EMPTY_SUMMARY;
+  const hasActiveFilters = Boolean(period !== "30d" || projectId || developerId || status || search.trim());
 
   return (
     <AppShell title="Task Monitoring">
-      <section className="project-page-intro task-monitoring-intro">
-        <div>
-          <span className="eyebrow">Task Monitoring</span>
-          <h2>Ringkasan pekerjaan</h2>
-          <p className="muted">Ringkasan pekerjaan yang sedang berjalan di setiap Project.</p>
-        </div>
-        {canCreateTaskIntake(user.role) ? <button type="button" className="btn btn-primary task-page-cta" onClick={() => setCreateOpen(true)}>Buat Task</button> : null}
-      </section>
+      <TaskSearchBar
+        search={search}
+        hasActiveFilters={hasActiveFilters}
+        canCreateTask={canCreateTaskIntake(user.role)}
+        onSearchChange={setSearch}
+        onReset={resetFilters}
+        onCreateTask={() => setCreateOpen(true)}
+      />
+      <p className="task-summary-context">Metrik mengikuti pencarian dan filter yang dipilih.</p>
+      <TaskSummaryCards summary={summary} period={period} />
 
-      <TaskOverviewFilters
+      <TaskFilterDropdowns
         filters={filters}
         period={period}
         projectId={projectId}
         developerId={developerId}
         status={status}
-        search={search}
         visibleDevelopers={visibleDevelopers}
         onPeriodChange={setPeriod}
         onProjectChange={(value) => { setProjectId(value); setDeveloperId(""); }}
         onDeveloperChange={setDeveloperId}
         onStatusChange={setStatus}
-        onSearchChange={setSearch}
-        onReset={resetFilters}
       />
-
-      <TaskSummaryCards summary={summary} period={period} />
 
       {error ? <ErrorBanner message={error} onRetry={() => setRefreshNonce((value) => value + 1)} /> : null}
       {loading ? <LoadingState label="Memuat ringkasan pekerjaan…" /> : null}
@@ -193,49 +191,63 @@ export default function TasksPage() {
   );
 }
 
-function TaskOverviewFilters({
-  filters,
-  period,
-  projectId,
-  developerId,
-  status,
+function TaskSearchBar({
   search,
-  visibleDevelopers,
-  onPeriodChange,
-  onProjectChange,
-  onDeveloperChange,
-  onStatusChange,
+  hasActiveFilters,
+  canCreateTask,
   onSearchChange,
   onReset,
+  onCreateTask,
 }: {
+  search: string;
+  hasActiveFilters: boolean;
+  canCreateTask: boolean;
+  onSearchChange: (value: string) => void;
+  onReset: () => void;
+  onCreateTask: () => void;
+}) {
+  return (
+    <section className="task-search-panel panel" aria-label="Cari Task Monitoring">
+      <div className="task-search-field filter-field">
+        <label htmlFor="task-overview-search">Cari</label>
+        <input id="task-overview-search" className="text-input project-search" placeholder="Cari Project atau Task" value={search} onChange={(event) => onSearchChange(event.target.value)} />
+      </div>
+      <div className="task-search-actions">
+        {hasActiveFilters ? <button type="button" className="text-link filter-reset" onClick={onReset}>Hapus filter</button> : null}
+        {canCreateTask ? <button type="button" className="btn btn-primary task-page-cta" onClick={onCreateTask}>Buat Task</button> : null}
+      </div>
+    </section>
+  );
+}
+
+type TaskFilterDropdownProps = {
   filters: TaskMonitoringFilters;
   period: TaskMonitoringPeriod;
   projectId: string;
   developerId: string;
   status: string;
-  search: string;
   visibleDevelopers: TaskMonitoringFilters["developers"];
   onPeriodChange: (value: TaskMonitoringPeriod) => void;
   onProjectChange: (value: string) => void;
   onDeveloperChange: (value: string) => void;
   onStatusChange: (value: string) => void;
-  onSearchChange: (value: string) => void;
-  onReset: () => void;
-}) {
+};
+
+function TaskFilterDropdowns({
+  filters,
+  period,
+  projectId,
+  developerId,
+  status,
+  visibleDevelopers,
+  onPeriodChange,
+  onProjectChange,
+  onDeveloperChange,
+  onStatusChange,
+}: TaskFilterDropdownProps) {
   return (
     <section className="task-filter-panel panel task-overview-filter-panel" aria-label="Filter Task Monitoring">
-      <div className="filter-panel-header">
-        <div>
-          <span className="eyebrow">Saring ringkasan</span>
-          <h3 className="panel-title">Temukan pekerjaan yang ingin dipantau</h3>
-        </div>
-        <button type="button" className="text-link filter-reset" onClick={onReset}>Reset filter</button>
-      </div>
-      <div className="task-monitoring-filters task-overview-filters">
-        <div className="filter-field filter-field-search">
-          <label htmlFor="task-overview-search">Cari</label>
-          <input id="task-overview-search" className="text-input project-search" placeholder="Project, Website, atau Task" value={search} onChange={(event) => onSearchChange(event.target.value)} />
-        </div>
+      <div className="task-overview-filters">
         <div className="filter-field">
           <span className="filter-field-label">Periode selesai</span>
           <Select value={period} onChange={(value) => onPeriodChange(value as TaskMonitoringPeriod)} options={PERIOD_OPTIONS} aria-label="Filter periode selesai" />

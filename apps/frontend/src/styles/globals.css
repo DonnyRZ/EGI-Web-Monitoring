@@ -2319,6 +2319,8 @@ h1, h2, h3, .page-title {
 }
 
 .project-page-intro { margin: 4px 0 24px; }
+.project-page-actions { display: flex; justify-content: flex-end; margin: 4px 0 24px; }
+.project-page-intro-compact { justify-content: flex-end; }
 .project-page-intro h2,
 .project-detail-title-row h2,
 .assignment-intro h3,
@@ -3178,6 +3180,8 @@ body {
   .task-summary-grid, .work-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .page-intro-actions { flex-direction: column; }
   .page-intro-actions .btn { width: 100%; }
+  .project-page-actions { width: 100%; }
+  .project-page-actions .btn { width: 100%; }
   .dashboard-count-card { width: 100%; }
   .login-page { padding: 18px; }
   .login-card { padding: 28px 22px; }
@@ -3186,10 +3190,14 @@ body {
 }
 
 /* Task Monitoring overview — project-first view for business readers. */
-.task-monitoring-intro h2 { margin: 7px 0 5px; }
-.task-monitoring-intro p { margin: 0; }
-.task-overview-filter-panel { margin-bottom: 18px; }
-.task-overview-filters { grid-template-columns: minmax(220px, 1.7fr) repeat(4, minmax(125px, 1fr)); }
+.task-search-panel { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 12px; padding: 16px 18px; }
+.task-search-field { flex: 1; }
+.task-search-field .text-input { height: 46px; }
+.task-search-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-bottom: 1px; }
+.task-search-actions .filter-reset { white-space: nowrap; }
+.task-summary-context { margin: 0 0 8px; color: var(--text-muted); font-size: .74rem; }
+.task-overview-filter-panel { margin-bottom: 18px; padding: 14px 18px; }
+.task-overview-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 20px; }
 .task-overview-summary-grid .task-summary-card { min-height: 94px; }
 .task-overview-summary-grid .task-summary-card.progress strong { color: var(--egi-blue-dark); }
@@ -3251,8 +3259,7 @@ body {
 .task-progress-message { margin: 7px 0 0; color: var(--egi-blue-dark); font-size: 1.05rem; font-weight: 700; }
 
 @media (max-width: 1180px) {
-  .task-overview-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .task-overview-filters .filter-field-search { grid-column: span 2; }
+  .task-overview-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .task-overview-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .task-overview-table-header { display: none; }
   .task-overview-table-row { grid-template-columns: minmax(0, 1.4fr) minmax(120px, 1fr) minmax(120px, 1fr); grid-template-areas: "project project condition" "active attention done" "owner owner owner"; gap: 13px; }
@@ -3274,9 +3281,9 @@ body {
 }
 
 @media (max-width: 640px) {
-  .task-monitoring-intro { gap: 16px; }
+  .task-search-panel { align-items: stretch; flex-direction: column; gap: 12px; padding: 14px 16px; }
+  .task-search-actions { justify-content: flex-end; }
   .task-overview-filters { grid-template-columns: 1fr; }
-  .task-overview-filters .filter-field-search { grid-column: auto; }
   .task-overview-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .task-overview-table-heading { align-items: flex-start; flex-direction: column; gap: 6px; padding: 18px 16px 14px; }
   .task-overview-table-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; padding: 17px 16px; }
@@ -3600,12 +3607,111 @@ body {
 }
 
 /* Keep the project overview rules above generic workspace media overrides. */
-body .task-overview-filters { grid-template-columns: minmax(220px, 1.7fr) repeat(4, minmax(125px, 1fr)); }
+body .task-overview-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Keep User Stories focused on search, one scope count, and compact filters. */
+.story-search-panel {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 16px 18px;
+}
+
+.story-search-field {
+  flex: 1;
+}
+
+.story-search-field .text-input {
+  height: 46px;
+}
+
+.story-search-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 12px;
+  padding-bottom: 1px;
+}
+
+.story-search-actions .filter-reset {
+  white-space: nowrap;
+}
+
+.story-scope-summary {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 12px;
+}
+
+.story-scope-count {
+  min-width: 156px;
+}
+
+.story-filter-panel {
+  padding: 14px 18px;
+}
+
+.story-filter-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.project-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.incident-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 860px) {
+  .story-search-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .story-search-actions {
+    justify-content: flex-end;
+  }
+
+  .story-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .story-search-panel {
+    padding: 14px;
+  }
+
+  .story-search-actions {
+    justify-content: space-between;
+  }
+
+  .story-scope-summary {
+    justify-content: stretch;
+  }
+
+  .story-scope-count {
+    width: 100%;
+  }
+
+  .story-filter-panel {
+    padding: 14px;
+  }
+
+  .story-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
 body .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
 @media (max-width: 1180px) {
-  body .task-overview-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  body .task-overview-filters .filter-field-search { grid-column: span 2; }
+  body .task-overview-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body .task-overview-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   body .task-overview-table-header { display: none; }
   body .task-overview-table-row { grid-template-columns: minmax(0, 1.4fr) minmax(120px, 1fr) minmax(120px, 1fr); grid-template-areas: "project project condition" "active attention done" "owner owner owner"; gap: 13px; }
@@ -3625,7 +3731,6 @@ body .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1f
 
 @media (max-width: 640px) {
   body .task-overview-filters { grid-template-columns: 1fr; }
-  body .task-overview-filters .filter-field-search { grid-column: auto; }
   body .task-overview-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body .task-overview-table-row { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "project project" "active attention" "done condition" "owner owner"; gap: 14px 12px; padding: 17px 16px; }
   body .task-overview-condition { justify-self: end; align-self: center; }

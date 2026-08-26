@@ -124,50 +124,40 @@ export default function IncidentsPage() {
 
   return (
     <AppShell title="Incidents">
-      <section className="page-intro">
-        <div>
-          <span className="eyebrow">Operational health</span>
-          <p className="muted">
-            {isPicWeb
-              ? "Incident dari website yang menjadi tanggung jawab Anda."
-              : "Pantau gangguan yang terdeteksi monitoring dan tindak lanjutnya."}
-          </p>
-        </div>
+      <section className="page-intro page-intro-compact">
         <div className="dashboard-count-card incident-count-card">
           <strong>{loading ? "—" : displayItems.length}</strong>
           <span>{tab === "active" ? "incident aktif" : "incident ditemukan"}</span>
         </div>
       </section>
       <div className="page-tabs" role="tablist" aria-label="Tampilan incident">
-        <button
-          type="button"
-          className={`page-tab ${tab === "active" ? "active" : ""}`}
-          role="tab"
-          aria-selected={tab === "active"}
-          onClick={() => setTab("active")}
-        >
-          Aktif
-        </button>
-        <button
-          type="button"
-          className={`page-tab ${tab === "all" ? "active" : ""}`}
-          role="tab"
-          aria-selected={tab === "all"}
-          onClick={() => setTab("all")}
-        >
-          Semua
-        </button>
+        <div className="page-tabs-list">
+          <button
+            type="button"
+            className={`page-tab ${tab === "active" ? "active" : ""}`}
+            role="tab"
+            aria-selected={tab === "active"}
+            onClick={() => setTab("active")}
+          >
+            Aktif
+          </button>
+          <button
+            type="button"
+            className={`page-tab ${tab === "all" ? "active" : ""}`}
+            role="tab"
+            aria-selected={tab === "all"}
+            onClick={() => setTab("all")}
+          >
+            Semua
+          </button>
+        </div>
       </div>
 
       <section className="incident-filter-panel panel">
-        <div className="filter-panel-header">
-          <div>
-            <span className="eyebrow">Filter view</span>
-            <h3 className="panel-title">Saring incident</h3>
-          </div>
+        <div className="incident-filter-actions">
           <button type="button" className="text-link filter-reset" onClick={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}>Reset filter</button>
         </div>
-      <div className="toolbar">
+        <div className="toolbar">
         {isDeveloper ? (
           <button
             type="button"
@@ -211,7 +201,7 @@ export default function IncidentsPage() {
             { value: "low", label: "Low" },
           ]}
         />
-      </div>
+        </div>
       </section>
 
       {error ? <ErrorBanner message={error} /> : null}

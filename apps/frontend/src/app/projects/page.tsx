@@ -140,24 +140,10 @@ export default function ProjectsPage() {
 
   return (
     <AppShell title={title}>
-      <section className="project-page-intro">
-        <div>
-          <span className="eyebrow">Workspace</span>
-          <p className="muted">{technicalView ? "Satu ruang kerja untuk website, tanggung jawab, Task, dan pekerjaan teknis." : "Satu ruang kerja untuk website, PIC, Task, dan status pekerjaan."}</p>
-        </div>
-        {canManageProjects(user.role) ? (
-          <button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>
-            Tambah Project
-          </button>
-        ) : null}
-      </section>
+      {canManageProjects(user.role) ? <div className="project-page-actions"><button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>Tambah Project</button></div> : null}
 
       <section className="project-filter-panel panel" aria-label="Filter Project">
-        <div className="filter-panel-header">
-          <div>
-            <span className="eyebrow">Project registry</span>
-            <h3 className="panel-title">Cari dan saring Project</h3>
-          </div>
+        <div className="project-filter-actions">
           <button
             type="button"
             className="text-link filter-reset"

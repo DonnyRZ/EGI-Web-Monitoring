@@ -132,7 +132,6 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
         <div>
           <span className="eyebrow">Project configuration</span>
           <h3>PIC &amp; Assignment</h3>
-          <p className="muted">Atur penanggung jawab non-teknis, tech lead, dan tim yang mengerjakan User Story Project ini.</p>
         </div>
         <span className="assignment-rule">Perubahan disimpan sekaligus</span>
       </div>
