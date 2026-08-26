@@ -81,12 +81,12 @@ export function IconBell(props: IconProps) {
   );
 }
 
-export function IconMenu(props: IconProps) {
+export function IconMore(props: IconProps) {
   return (
-    <IconBase size={20} {...props}>
-      <path d="M4.5 7h15" />
-      <path d="M4.5 12h15" />
-      <path d="M4.5 17h15" />
+    <IconBase {...props}>
+      <circle cx="5.5" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="18.5" cy="12" r="1" fill="currentColor" />
     </IconBase>
   );
 }

@@ -14,27 +14,17 @@ import {
 } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
-  canManagePlatform,
   canViewIncidents,
-  canViewProjectRegistry,
-  canViewTaskMonitoring,
-  canViewUserStories,
   initials,
   isEndUserPublicDashboard,
   roleLabel,
 } from "@/lib/format";
-import { incidentsApi, projectsApi, userStoriesApi } from "@/lib/api-services";
+import { loadActiveIncidents, loadMyOpenTasks } from "@/lib/navigation-badges";
 import { NotificationBell } from "./NotificationBell";
-import { useBodyScrollLock, useDialogFocus } from "./ResponsiveOverlay";
-import {
-  IconAlert,
-  IconDashboard,
-  IconGlobe,
-  IconLogout,
-  IconMenu,
-  IconTasks,
-  IconUsers,
-} from "./icons";
+import { MobileBottomNav, MobileNavigationSkeleton, MobileTopNav, NavigationIcon } from "./MobileNavigation";
+import { buildNavigationCatalog } from "@/lib/mobile-navigation";
+import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
+import { IconLogout } from "./icons";
 
 interface AppShellProps {
   title?: string;
@@ -55,72 +45,13 @@ function routeTitle(pathname: string) {
   if (pathname === "/projects") return "Project";
   if (pathname.startsWith("/projects/")) return "Project";
   if (pathname === "/user-stories") return "User Stories";
+  if (pathname === "/menu") return "Menu";
   if (pathname === "/incidents") return "Incidents";
   if (pathname.startsWith("/incidents/")) return "Detail Incident";
   if (pathname.startsWith("/websites/")) return "Detail Website";
   if (pathname === "/admin/users") return "Users";
   return "Dashboard";
 }
-
-let activeIncidentsCache = 0;
-let activeIncidentsCachedAt = 0;
-let activeIncidentsRequest: Promise<number> | null = null;
-let activeIncidentsCacheKey = "";
-
-function loadActiveIncidents(user: { id: string; role: string }) {
-  const now = Date.now();
-  const key = `${user.id}:${user.role}`;
-  if (key === activeIncidentsCacheKey && now - activeIncidentsCachedAt < 30_000) {
-    return Promise.resolve(activeIncidentsCache);
-  }
-  if (!activeIncidentsRequest) {
-    activeIncidentsRequest = incidentsApi
-      .activeCount()
-      .then((res) => {
-        activeIncidentsCache = res.count;
-        activeIncidentsCacheKey = key;
-        activeIncidentsCachedAt = Date.now();
-        return activeIncidentsCache;
-      })
-      .finally(() => {
-        activeIncidentsRequest = null;
-      });
-  }
-  return activeIncidentsRequest;
-}
-
-let myOpenTasksCache = 0;
-let myOpenTasksCachedAt = 0;
-let myOpenTasksRequest: Promise<number> | null = null;
-let myOpenTasksCacheKey = "";
-
-/** Developer's own pending + in_progress task count, shown as a nav badge so they see workload before opening the page. */
-function loadMyOpenTasks(user: { id: string }) {
-  const now = Date.now();
-  if (user.id === myOpenTasksCacheKey && now - myOpenTasksCachedAt < 30_000) {
-    return Promise.resolve(myOpenTasksCache);
-  }
-  if (!myOpenTasksRequest) {
-    myOpenTasksRequest = userStoriesApi
-      .meWorkSummary()
-      .then((res) => {
-        const count = res.pending + res.in_progress;
-        myOpenTasksCache = count;
-        myOpenTasksCacheKey = user.id;
-        myOpenTasksCachedAt = Date.now();
-        return myOpenTasksCache;
-      })
-      .finally(() => {
-        myOpenTasksRequest = null;
-      });
-  }
-  return myOpenTasksRequest;
-}
-
-let projectScopeCache = false;
-let projectScopeCachedAt = 0;
-let projectScopeRequest: Promise<boolean> | null = null;
-let projectScopeCacheKey = "";
 
 // Badges are secondary information; leave the first paint and page request
 // uncontested before loading their counters.
@@ -129,25 +60,6 @@ const BACKGROUND_BADGE_DELAY_MS = 1_000;
 function scheduleBackground(callback: () => void) {
   const timer = window.setTimeout(callback, BACKGROUND_BADGE_DELAY_MS);
   return () => window.clearTimeout(timer);
-}
-
-function loadProjectScope(user: { id: string }) {
-  const now = Date.now();
-  if (user.id === projectScopeCacheKey && now - projectScopeCachedAt < 60_000) return Promise.resolve(projectScopeCache);
-  if (!projectScopeRequest) {
-    projectScopeRequest = projectsApi
-      .scopeSummary()
-      .then((res) => {
-        projectScopeCache = res.has_pic_developer;
-        projectScopeCacheKey = user.id;
-        projectScopeCachedAt = Date.now();
-        return projectScopeCache;
-      })
-      .finally(() => {
-        projectScopeRequest = null;
-      });
-  }
-  return projectScopeRequest;
 }
 
 export function AppShell({ title, children }: AppShellProps) {
@@ -170,15 +82,12 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeIncidents, setActiveIncidents] = useState(0);
   const [myOpenTasks, setMyOpenTasks] = useState(0);
   const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
+  const [projectScopeReady, setProjectScopeReady] = useState(false);
   const [pageTitle, setPageTitleState] = useState(() => initialTitle || routeTitle(pathname));
   const titleOverrideRef = useRef<{ pathname: string; title: string } | null>(null);
-  const menuToggleRef = useRef<HTMLButtonElement | null>(null);
-  const sidebarRef = useRef<HTMLElement | null>(null);
-  const menuCloseRef = useRef<HTMLButtonElement | null>(null);
   const isGallery = isEndUserPublicDashboard(user?.role);
 
   const setPageTitle = useCallback((nextTitle: string) => {
@@ -197,19 +106,6 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
-
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
-
-  useBodyScrollLock(sidebarOpen && !isGallery);
-  useDialogFocus(
-    sidebarOpen && !isGallery,
-    sidebarRef,
-    menuToggleRef,
-    () => setSidebarOpen(false),
-    menuCloseRef,
-  );
 
   useEffect(() => {
     if (loading || !user || !canViewIncidents(user.role)) return;
@@ -246,16 +142,24 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   useEffect(() => {
     if (loading || !user || user.role !== "developer") {
       setIsProjectPicDeveloper(false);
+      setProjectScopeReady(Boolean(user && user.role !== "developer"));
       return;
     }
+    setProjectScopeReady(false);
     let cancelled = false;
     const cancelSchedule = scheduleBackground(() => {
-      loadProjectScope(user)
+      loadProjectPicDeveloperScope(user.id)
         .then((response) => {
-          if (!cancelled) setIsProjectPicDeveloper(response);
+          if (!cancelled) {
+            setIsProjectPicDeveloper(response);
+            setProjectScopeReady(true);
+          }
         })
         .catch(() => {
-          if (!cancelled) setIsProjectPicDeveloper(false);
+          if (!cancelled) {
+            setIsProjectPicDeveloper(false);
+            setProjectScopeReady(true);
+          }
         });
     });
     return () => {
@@ -286,57 +190,27 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
     );
   }
 
-  const nav = [
-    { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-    ...(canViewTaskMonitoring(user.role) && (user.role !== "developer" || isProjectPicDeveloper)
-      ? [
-          {
-            href: "/tasks",
-            label: "Task Monitoring",
-            icon: IconTasks,
-          },
-        ]
-      : []),
-    ...(user.role === "developer"
-      ? [{ href: "/me/work", label: "My Work", icon: IconTasks, badge: myOpenTasks > 0 ? myOpenTasks : undefined }]
-      : []),
-    ...(canViewProjectRegistry(user.role)
-      ? [{ href: "/projects", label: user.role === "superadmin" || user.role === "bos_it" ? "Kelola Project" : "Project Saya", icon: IconGlobe }]
-      : []),
-    ...(canViewUserStories(user.role)
-      ? [{ href: "/user-stories", label: "User Stories", icon: IconTasks }]
-      : []),
-    ...(canViewIncidents(user.role)
-      ? [
-          {
-            href: "/incidents",
-            label: "Incidents",
-            icon: IconAlert,
-            badge: activeIncidents > 0 ? activeIncidents : undefined,
-          },
-        ]
-      : []),
-    ...(canManagePlatform(user.role)
-      ? [
-          { href: "/admin/users", label: "Users", icon: IconUsers },
-        ]
-      : []),
-  ];
+  const navigation = buildNavigationCatalog(user.role, {
+    isProjectPicDeveloper,
+    scopeReady: projectScopeReady,
+    activeIncidents,
+    myOpenTasks,
+  });
 
   const navSections = [
     {
       label: "Workspace",
-      items: nav.filter((item) =>
+      items: navigation.desktopNav.filter((item) =>
         ["/dashboard", "/tasks", "/me/work", "/projects"].includes(item.href),
       ),
     },
     {
       label: "Delivery",
-      items: nav.filter((item) => ["/user-stories", "/incidents"].includes(item.href)),
+      items: navigation.desktopNav.filter((item) => ["/user-stories", "/incidents"].includes(item.href)),
     },
     {
       label: "Administration",
-      items: nav.filter((item) => item.href === "/admin/users"),
+      items: navigation.desktopNav.filter((item) => item.href === "/admin/users"),
     },
   ].filter((section) => section.items.length > 0);
 
@@ -348,27 +222,8 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   return (
     <AppShellHostContext.Provider value={host}>
       <div className={`app-shell${isGallery ? " gallery" : ""}`}>
-        {!isGallery && sidebarOpen ? (
-        <button
-          type="button"
-          className="sidebar-overlay"
-          aria-label="Tutup menu"
-          onClick={() => setSidebarOpen(false)}
-        />
-      ) : null}
-
         {!isGallery ? (
-        <aside
-          ref={sidebarRef}
-          className={`sidebar ${sidebarOpen ? "open" : ""}`}
-          role={sidebarOpen ? "dialog" : undefined}
-          aria-modal={sidebarOpen ? "true" : undefined}
-          aria-label={sidebarOpen ? "Menu navigasi" : undefined}
-        >
-        <div className="mobile-sidebar-header">
-          <strong>Menu</strong>
-          <button ref={menuCloseRef} type="button" className="icon-btn" onClick={() => setSidebarOpen(false)} aria-label="Tutup menu">×</button>
-        </div>
+        <aside className="sidebar">
         <div className="sidebar-brand">
           <img src="/logo-egi.png" alt="EGResources" />
           <div className="sidebar-brand-text">
@@ -384,18 +239,16 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
               {section.items.map((item) => {
                 const active =
                   pathname === item.href || pathname.startsWith(`${item.href}/`);
-                const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={`nav-item ${active ? "active" : ""}`}
+                    aria-current={active ? "page" : undefined}
                   >
-                    <span className="nav-icon" aria-hidden>
-                      <Icon />
-                    </span>
+                    <NavigationIcon item={item} />
                     <span>{item.label}</span>
-                    {"badge" in item && item.badge ? (
+                    {item.badge ? (
                       <span className="nav-badge">{item.badge > 99 ? "99+" : item.badge}</span>
                     ) : null}
                   </Link>
@@ -420,15 +273,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
         <header className="top-header">
           <div className="header-left">
             {!isGallery ? (
-            <button
-              type="button"
-              ref={menuToggleRef}
-              className="icon-btn menu-toggle"
-              aria-label="Buka menu"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <IconMenu />
-            </button>
+              <span className="mobile-brand-mark" aria-hidden>EGI</span>
             ) : (
               <img src="/logo-egi.png" alt="EGResources" className="gallery-header-logo" />
             )}
@@ -459,7 +304,11 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
             )}
           </div>
         </header>
+        {!isGallery ? (
+          navigation.ready ? <MobileTopNav items={navigation.primaryNav} pathname={pathname} /> : <MobileNavigationSkeleton />
+        ) : null}
         <main className="content">{children}</main>
+        {!isGallery && navigation.ready ? <MobileBottomNav items={navigation.primaryNav} pathname={pathname} /> : null}
       </div>
       </div>
     </AppShellHostContext.Provider>

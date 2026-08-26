@@ -32,15 +32,19 @@ try {
       await login(page);
       await assertNoPageOverflow(page, `${viewport.label} dashboard`);
 
-      if (viewport.width < 1100) {
-        const menu = page.getByRole("button", { name: "Buka menu" });
-        await assertVisible(menu, `${viewport.label} menu button`);
-        await menu.click();
-        const nav = page.getByRole("dialog", { name: "Menu navigasi" });
-        await assertVisible(nav, `${viewport.label} navigation drawer`);
-        assert.equal(await page.evaluate(() => document.body.style.overflow), "hidden", `${viewport.label} should lock body while menu is open`);
-        await nav.getByRole("button", { name: "Tutup menu" }).click();
-        assert.equal(await page.getByRole("dialog", { name: "Menu navigasi" }).count(), 0, `${viewport.label} navigation drawer should close`);
+      const isPublicGallery = await page.locator(".app-shell.gallery").count() > 0;
+      if (viewport.width < 1100 && !isPublicGallery) {
+        assert.equal(await page.getByRole("button", { name: "Buka menu" }).count(), 0, `${viewport.label} should not show a hamburger menu`);
+        assert.equal(await page.getByRole("dialog", { name: "Menu navigasi" }).count(), 0, `${viewport.label} should not render a navigation drawer`);
+        assert.equal(await page.locator(".sidebar-overlay").count(), 0, `${viewport.label} should not render a navigation backdrop`);
+        if (viewport.width < 768) {
+          await assertVisible(page.locator(".mobile-bottom-nav:not(.mobile-nav-skeleton)"), `${viewport.label} bottom navigation`);
+          assert.equal(await page.locator(".mobile-top-nav:not(.mobile-nav-skeleton)").isVisible().catch(() => false), false, `${viewport.label} should not show tablet navigation`);
+        } else {
+          await assertVisible(page.locator(".mobile-top-nav:not(.mobile-nav-skeleton)"), `${viewport.label} tablet navigation`);
+          assert.equal(await page.locator(".mobile-bottom-nav:not(.mobile-nav-skeleton)").isVisible().catch(() => false), false, `${viewport.label} should not show bottom navigation`);
+        }
+        await checkMenu(page, viewport);
       }
 
       await checkTaskMonitoring(page, viewport);
@@ -52,7 +56,7 @@ try {
       await context.close();
     }
   }
-  console.log("PASS adaptive mobile layout, overlay, filter, and overflow E2E");
+  console.log("PASS adaptive mobile layout, role navigation, filter, and overflow E2E");
 } finally {
   await browser.close();
 }
@@ -91,6 +95,13 @@ async function checkTaskMonitoring(page, viewport) {
     await assertNoPageOverflow(page, `${viewport.label} Task drawer`);
     await drawer.getByRole("button", { name: /Tutup detail Project/ }).click();
   }
+}
+
+async function checkMenu(page, viewport) {
+  if (!await gotoIfAccessible(page, "/menu", "Menu")) return;
+  await assertNoPageOverflow(page, `${viewport.label} Menu`);
+  await assertVisible(page.locator(".mobile-menu-page"), `${viewport.label} Menu page`);
+  assert.equal(await page.locator(".sidebar-overlay").count(), 0, `${viewport.label} Menu should not use a backdrop`);
 }
 
 async function checkProjects(page, viewport) {
@@ -137,5 +148,6 @@ async function assertNoPageOverflow(page, label) {
 }
 
 async function assertVisible(locator, label) {
+  await locator.waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await locator.isVisible(), true, `${label} should be visible`);
 }

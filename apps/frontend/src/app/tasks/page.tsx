@@ -11,6 +11,7 @@ import { taskIntakeApi, taskMonitoringApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canCreateTaskIntake, canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
 import { useUnsavedChanges } from "@/lib/unsaved-changes";
+import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
 import type {
   Severity,
   TaskBusinessStatus,
@@ -82,13 +83,47 @@ export default function TasksPage() {
   const [selectedProject, setSelectedProject] = useState<OverviewProject | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [projectScopeReady, setProjectScopeReady] = useState(false);
+  const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
 
   const showTechnicalDetail = user?.role === "bos_it" || user?.role === "developer";
-  const canMonitor = Boolean(user && canViewTaskMonitoring(user.role));
+  const scopePending = user?.role === "developer" && !projectScopeReady;
+  const canMonitor = Boolean(
+    user
+    && canViewTaskMonitoring(user.role)
+    && (user.role !== "developer" || (projectScopeReady && isProjectPicDeveloper)),
+  );
 
   useEffect(() => {
-    if (!authLoading && user && !canMonitor) window.location.replace("/dashboard");
-  }, [authLoading, canMonitor, user]);
+    if (authLoading || !user) return;
+    if (user.role !== "developer") {
+      setProjectScopeReady(true);
+      setIsProjectPicDeveloper(false);
+      return;
+    }
+    let cancelled = false;
+    setProjectScopeReady(false);
+    loadProjectPicDeveloperScope(user.id)
+      .then((value) => {
+        if (!cancelled) {
+          setIsProjectPicDeveloper(value);
+          setProjectScopeReady(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsProjectPicDeveloper(false);
+          setProjectScopeReady(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (!authLoading && user && !scopePending && !canMonitor) window.location.replace("/dashboard");
+  }, [authLoading, canMonitor, scopePending, user]);
 
   useEffect(() => {
     if (!canMonitor) return;
@@ -138,7 +173,7 @@ export default function TasksPage() {
     setSearch("");
   }
 
-  if (!user || !canMonitor) {
+  if (!user || scopePending || !canMonitor) {
     return <AppShell title="Task Monitoring"><LoadingState /></AppShell>;
   }
 
