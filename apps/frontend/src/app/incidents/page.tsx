@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { FilterSheet } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import {
   EmptyState,
@@ -34,6 +35,7 @@ export default function IncidentsPage() {
   const [websiteId, setWebsiteId] = useState("");
   const [tab, setTab] = useState<"active" | "all">("active");
   const [onlyMySites, setOnlyMySites] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const isDeveloper = user?.role === "developer";
   const isPicWeb = user?.role === "pic_web";
 
@@ -113,6 +115,7 @@ export default function IncidentsPage() {
     ? websites.filter((w) => mySiteIds.has(w.id))
     : websites;
   const displayItems = onlyMySites ? items.filter((inc) => mySiteIds.has(inc.website_id)) : items;
+  const activeFilterCount = [websiteId, status, severity].filter(Boolean).length + (onlyMySites ? 1 : 0);
 
   function toggleOnlyMySites() {
     const next = !onlyMySites;
@@ -145,6 +148,14 @@ export default function IncidentsPage() {
             Semua
           </button>
         </div>
+      </div>
+
+      <div className="mobile-page-toolbar incident-mobile-toolbar">
+        <span className="muted">{tab === "active" ? "Incident aktif" : "Semua incident"}</span>
+        <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={() => setFilterOpen(true)}>
+          Filter{activeFilterCount ? ` · ${activeFilterCount} aktif` : ""}
+        </button>
+        <button type="button" className="text-link mobile-reset-filter" onClick={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}>Reset</button>
       </div>
 
       <section className="incident-filter-panel panel">
@@ -197,6 +208,23 @@ export default function IncidentsPage() {
         />
         </div>
       </section>
+
+      <FilterSheet
+        open={filterOpen}
+        title="Filter Incident"
+        description="Persempit daftar incident berdasarkan situs, status, dan tingkat keparahan."
+        activeCount={activeFilterCount}
+        onClose={() => setFilterOpen(false)}
+        onReset={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}
+        onApply={() => setFilterOpen(false)}
+      >
+        <div className="filter-sheet-fields incident-mobile-filter-fields">
+          {isDeveloper ? <button type="button" className={`filter-toggle ${onlyMySites ? "active" : ""}`} aria-pressed={onlyMySites} onClick={toggleOnlyMySites}>{onlyMySites ? "Hanya situs saya · Aktif" : "Hanya situs saya"}</button> : null}
+          <div className="filter-field"><span className="filter-field-label">Website</span><Select value={websiteId} onChange={setWebsiteId} aria-label="Filter website" options={[{ value: "", label: onlyMySites || isPicWeb ? "Semua situs saya" : "Semua website" }, ...websiteOptions.map((w) => ({ value: w.id, label: w.name }))]} /></div>
+          <div className="filter-field"><span className="filter-field-label">Status</span><Select value={status} onChange={(v) => setStatus(v as IncidentStatus | "")} aria-label="Filter status" options={[{ value: "", label: "Semua status" }, { value: "open", label: "Open" }, { value: "in_progress", label: "In Progress" }, { value: "resolved", label: "Resolved" }, { value: "closed", label: "Closed" }]} /></div>
+          <div className="filter-field"><span className="filter-field-label">Severity</span><Select value={severity} onChange={(v) => setSeverity(v as Severity | "")} aria-label="Filter severity" options={[{ value: "", label: "Semua severity" }, { value: "critical", label: "Critical" }, { value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }]} /></div>
+        </div>
+      </FilterSheet>
 
       {error ? <ErrorBanner message={error} /> : null}
       {websitesError ? <ErrorBanner message={websitesError} /> : null}

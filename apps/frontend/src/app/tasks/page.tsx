@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { FilterSheet, useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -80,6 +81,7 @@ export default function TasksPage() {
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [selectedProject, setSelectedProject] = useState<OverviewProject | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const showTechnicalDetail = user?.role === "bos_it" || user?.role === "developer";
   const canMonitor = Boolean(user && canViewTaskMonitoring(user.role));
@@ -152,9 +154,11 @@ export default function TasksPage() {
         onSearchChange={setSearch}
         onReset={resetFilters}
         onCreateTask={() => setCreateOpen(true)}
+        onOpenFilters={() => setFilterOpen(true)}
       />
       <p className="task-summary-context">Metrik mengikuti pencarian dan filter yang dipilih.</p>
       <TaskSummaryCards summary={summary} period={period} />
+      <TaskMobileSummary summary={summary} period={period} />
 
       <TaskFilterDropdowns
         filters={filters}
@@ -168,6 +172,27 @@ export default function TasksPage() {
         onDeveloperChange={setDeveloperId}
         onStatusChange={setStatus}
       />
+      <FilterSheet
+        open={filterOpen}
+        title="Filter Task Monitoring"
+        activeCount={[period !== "30d", Boolean(projectId), Boolean(developerId), Boolean(status)].filter(Boolean).length}
+        onClose={() => setFilterOpen(false)}
+        onApply={() => setFilterOpen(false)}
+        onReset={resetFilters}
+      >
+        <TaskFilterFields
+          filters={filters}
+          period={period}
+          projectId={projectId}
+          developerId={developerId}
+          status={status}
+          visibleDevelopers={visibleDevelopers}
+          onPeriodChange={setPeriod}
+          onProjectChange={(value) => { setProjectId(value); setDeveloperId(""); }}
+          onDeveloperChange={setDeveloperId}
+          onStatusChange={setStatus}
+        />
+      </FilterSheet>
 
       {error ? <ErrorBanner message={error} onRetry={() => setRefreshNonce((value) => value + 1)} /> : null}
       {loading ? <LoadingState label="Memuat ringkasan pekerjaan…" /> : null}
@@ -198,6 +223,7 @@ function TaskSearchBar({
   onSearchChange,
   onReset,
   onCreateTask,
+  onOpenFilters,
 }: {
   search: string;
   hasActiveFilters: boolean;
@@ -205,6 +231,7 @@ function TaskSearchBar({
   onSearchChange: (value: string) => void;
   onReset: () => void;
   onCreateTask: () => void;
+  onOpenFilters: () => void;
 }) {
   return (
     <section className="task-search-panel panel" aria-label="Cari Task Monitoring">
@@ -213,6 +240,7 @@ function TaskSearchBar({
         <input id="task-overview-search" className="text-input project-search" placeholder="Cari Project atau Task" value={search} onChange={(event) => onSearchChange(event.target.value)} />
       </div>
       <div className="task-search-actions">
+        <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={onOpenFilters}>Filter</button>
         {hasActiveFilters ? <button type="button" className="text-link filter-reset" onClick={onReset}>Hapus filter</button> : null}
         {canCreateTask ? <button type="button" className="btn btn-primary task-page-cta" onClick={onCreateTask}>Buat Task</button> : null}
       </div>
@@ -247,25 +275,42 @@ function TaskFilterDropdowns({
 }: TaskFilterDropdownProps) {
   return (
     <section className="task-filter-panel panel task-overview-filter-panel" aria-label="Filter Task Monitoring">
-      <div className="task-overview-filters">
-        <div className="filter-field">
-          <span className="filter-field-label">Periode selesai</span>
-          <Select value={period} onChange={(value) => onPeriodChange(value as TaskMonitoringPeriod)} options={PERIOD_OPTIONS} aria-label="Filter periode selesai" />
-        </div>
-        <div className="filter-field">
-          <span className="filter-field-label">Project</span>
-          <Select value={projectId} onChange={onProjectChange} options={[{ value: "", label: "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
-        </div>
-        <div className="filter-field">
-          <span className="filter-field-label">Developer</span>
-          <Select value={developerId} onChange={onDeveloperChange} options={[{ value: "", label: "Semua Developer" }, ...visibleDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter Developer" />
-        </div>
-        <div className="filter-field">
-          <span className="filter-field-label">Status</span>
-          <Select value={status} onChange={onStatusChange} options={[{ value: "", label: "Semua status" }, { value: "new", label: "Baru" }, { value: "in_progress", label: "Sedang dikerjakan" }, { value: "blocked", label: "Terkendala" }, { value: "done", label: "Selesai" }]} aria-label="Filter status Task" />
-        </div>
-      </div>
+      <TaskFilterFields filters={filters} period={period} projectId={projectId} developerId={developerId} status={status} visibleDevelopers={visibleDevelopers} onPeriodChange={onPeriodChange} onProjectChange={onProjectChange} onDeveloperChange={onDeveloperChange} onStatusChange={onStatusChange} />
     </section>
+  );
+}
+
+function TaskFilterFields({
+  filters,
+  period,
+  projectId,
+  developerId,
+  status,
+  visibleDevelopers,
+  onPeriodChange,
+  onProjectChange,
+  onDeveloperChange,
+  onStatusChange,
+}: TaskFilterDropdownProps) {
+  return (
+    <div className="task-overview-filters">
+      <div className="filter-field">
+        <span className="filter-field-label">Periode selesai</span>
+        <Select value={period} onChange={(value) => onPeriodChange(value as TaskMonitoringPeriod)} options={PERIOD_OPTIONS} aria-label="Filter periode selesai" />
+      </div>
+      <div className="filter-field">
+        <span className="filter-field-label">Project</span>
+        <Select value={projectId} onChange={onProjectChange} options={[{ value: "", label: "Semua Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
+      </div>
+      <div className="filter-field">
+        <span className="filter-field-label">Developer</span>
+        <Select value={developerId} onChange={onDeveloperChange} options={[{ value: "", label: "Semua Developer" }, ...visibleDevelopers.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter Developer" />
+      </div>
+      <div className="filter-field">
+        <span className="filter-field-label">Status</span>
+        <Select value={status} onChange={onStatusChange} options={[{ value: "", label: "Semua status" }, { value: "new", label: "Baru" }, { value: "in_progress", label: "Sedang dikerjakan" }, { value: "blocked", label: "Terkendala" }, { value: "done", label: "Selesai" }]} aria-label="Filter status Task" />
+      </div>
+    </div>
   );
 }
 
@@ -285,6 +330,17 @@ function TaskSummaryCards({ summary, period }: { summary: TaskMonitoringOverview
 
 function SummaryCard({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return <div className={`task-summary-card ${tone ?? ""}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function TaskMobileSummary({ summary, period }: { summary: TaskMonitoringOverviewResponse["summary"]; period: TaskMonitoringPeriod }) {
+  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? "periode terpilih";
+  return (
+    <section className="task-mobile-summary" aria-label="Ringkasan singkat pekerjaan">
+      <div><strong>{summary.active}</strong><span>Task aktif</span></div>
+      <div><strong>{summary.attention_projects}</strong><span>Project perlu perhatian</span></div>
+      <div><strong>{summary.completed_period}</strong><span>Selesai · {periodLabel}</span></div>
+    </section>
+  );
 }
 
 function ProjectTaskTable({ projects, onOpen }: { projects: OverviewProject[]; onOpen: (project: OverviewProject) => void }) {
@@ -364,6 +420,7 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
 
   const projectDevelopers = useMemo(
     () => project.key === "general" ? filters.developers : filters.developers.filter((developer) => developer.project_ids.includes(project.key)),
@@ -405,18 +462,8 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
     return () => { cancelled = true; };
   }, [page, project.key, taskDeveloperId, taskSearch, taskStatus]);
 
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    window.setTimeout(() => searchRef.current?.focus(), 20);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      previous?.focus?.();
-    };
-  }, [onClose]);
+  useBodyScrollLock(true);
+  useDialogFocus(true, drawerRef, undefined, onClose, searchRef);
 
   async function openTask(row: TaskMonitoringRow) {
     setDetailError("");
@@ -439,7 +486,7 @@ function ProjectTaskDrawer({ project, filters, technicalView, canOverride, onClo
 
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
-      <aside className="task-project-drawer" role="dialog" aria-modal="true" aria-label={`Task pada ${project.project?.name ?? "Task Umum"}`} onClick={(event) => event.stopPropagation()}>
+      <aside ref={drawerRef} className="task-project-drawer" role="dialog" aria-modal="true" aria-label={`Task pada ${project.project?.name ?? "Task Umum"}`} onClick={(event) => event.stopPropagation()}>
         {selectedTask ? (
           <div className="task-detail-drawer-content"><TaskDetailView row={selectedTask} technicalView={technicalView} canOverride={canOverride} loading={detailLoading} error={detailError} onBack={() => setSelectedTask(null)} onClose={onClose} onUpdated={updateRow} /></div>
         ) : (
@@ -541,8 +588,11 @@ function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitor
   const [form, setForm] = useState({ title: "", scope: "website" as TaskScope, project_id: "", website_id: "", category: "website" as TaskCategory, description: "", expectation: "", priority: "medium" as Severity });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const dirty = Boolean(form.title || form.project_id || form.website_id || form.description || form.expectation || form.scope !== "website" || form.category !== "website" || form.priority !== "medium");
   useUnsavedChanges("tasks:create", dirty);
+  useBodyScrollLock(true);
+  useDialogFocus(true, modalRef, undefined, onClose);
   const websites = filters.websites.filter((website) => !form.project_id || website.project_id === form.project_id);
   const scopeOptions = [
     { value: "project", label: "Seluruh Project" },
@@ -577,5 +627,5 @@ function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitor
     }
   }
 
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal task-create-modal" role="dialog" aria-modal="true" aria-label="Buat Task" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Buat Task</div><h2 id="create-task-title">Catat kebutuhan pekerjaan</h2><p className="muted">Catat kebutuhan atau masalah yang perlu ditindaklanjuti. Developer tidak dipilih di form ini; Task terkait Project akan ditindaklanjuti oleh penanggung jawab Project.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="task-title">Judul Task</label><input id="task-title" className="text-input" required maxLength={255} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: Perbaiki form kontak" /></div><div className="form-grid task-scope-grid"><div className="form-field"><label htmlFor="task-scope">Task ini untuk</label><Select id="task-scope" value={form.scope} onChange={changeScope} options={scopeOptions} /><p className="task-scope-help muted">Pilih Website tertentu untuk masalah spesifik, atau seluruh Project untuk kebutuhan bersama.</p></div>{form.scope !== "general" ? <div className="form-field"><label htmlFor="task-project">Project</label><Select id="task-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value, website_id: "" }))} options={[{ value: "", label: "Pilih Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /></div> : null}{form.scope === "website" ? <div className="form-field"><label htmlFor="task-website">Website</label><Select id="task-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Pilih Website" }, ...websites.map((website) => ({ value: website.id, label: website.name }))]} disabled={!form.project_id} /><p className="task-scope-help muted">{form.project_id ? "Website ini berada di dalam Project yang dipilih." : "Pilih Project terlebih dahulu."}</p></div> : null}{/* The two remaining fields keep the existing business intake contract unchanged. */}<div className="form-field"><label htmlFor="task-category">Kategori</label><Select id="task-category" value={form.category} onChange={changeCategory} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div><div className="form-field"><label htmlFor="task-priority">Priority</label><Select id="task-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as Severity }))} options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} /></div></div><div className="form-field"><label htmlFor="task-description">Masalah / kebutuhan</label><textarea id="task-description" className="text-input" rows={4} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="task-expectation">Hasil yang diharapkan</label><textarea id="task-expectation" className="text-input" rows={3} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
+  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div ref={modalRef} className="modal task-create-modal" role="dialog" aria-modal="true" aria-label="Buat Task" tabIndex={-1} onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Buat Task</div><h2 id="create-task-title">Catat kebutuhan pekerjaan</h2><p className="muted">Catat kebutuhan atau masalah yang perlu ditindaklanjuti. Developer tidak dipilih di form ini; Task terkait Project akan ditindaklanjuti oleh penanggung jawab Project.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="task-title">Judul Task</label><input id="task-title" className="text-input" required maxLength={255} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: Perbaiki form kontak" /></div><div className="form-grid task-scope-grid"><div className="form-field"><label htmlFor="task-scope">Task ini untuk</label><Select id="task-scope" value={form.scope} onChange={changeScope} options={scopeOptions} /><p className="task-scope-help muted">Pilih Website tertentu untuk masalah spesifik, atau seluruh Project untuk kebutuhan bersama.</p></div>{form.scope !== "general" ? <div className="form-field"><label htmlFor="task-project">Project</label><Select id="task-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value, website_id: "" }))} options={[{ value: "", label: "Pilih Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /></div> : null}{form.scope === "website" ? <div className="form-field"><label htmlFor="task-website">Website</label><Select id="task-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Pilih Website" }, ...websites.map((website) => ({ value: website.id, label: website.name }))]} disabled={!form.project_id} /><p className="task-scope-help muted">{form.project_id ? "Website ini berada di dalam Project yang dipilih." : "Pilih Project terlebih dahulu."}</p></div> : null}{/* The two remaining fields keep the existing business intake contract unchanged. */}<div className="form-field"><label htmlFor="task-category">Kategori</label><Select id="task-category" value={form.category} onChange={changeCategory} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div><div className="form-field"><label htmlFor="task-priority">Priority</label><Select id="task-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as Severity }))} options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} /></div></div><div className="form-field"><label htmlFor="task-description">Masalah / kebutuhan</label><textarea id="task-description" className="text-input" rows={4} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="task-expectation">Hasil yang diharapkan</label><textarea id="task-expectation" className="text-input" rows={3} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
 }

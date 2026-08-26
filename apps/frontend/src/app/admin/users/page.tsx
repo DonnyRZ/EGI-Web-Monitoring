@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -34,10 +35,17 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const formDirty = modalOpen && (editing
     ? form.name !== editing.name || form.role !== editing.role || form.is_active !== editing.is_active || Boolean(form.password)
     : form.name !== emptyForm.name || form.email !== emptyForm.email || Boolean(form.password) || form.role !== emptyForm.role);
+  function requestClose() {
+    if (formDirty && !window.confirm("Perubahan belum disimpan. Tutup form?")) return;
+    setModalOpen(false);
+  }
   useUnsavedChanges("admin-users:form", formDirty);
+  useBodyScrollLock(modalOpen);
+  useDialogFocus(modalOpen, modalRef, undefined, requestClose);
 
   useEffect(() => {
     if (!authLoading && user && !canManagePlatform(user.role)) {
@@ -138,7 +146,7 @@ export default function AdminUsersPage() {
       ) : null}
 
       {!loading && items.length > 0 ? (
-        <div className="panel table-wrap" style={{ padding: 0 }}>
+        <div className="panel table-wrap admin-users-table" style={{ padding: 0 }}>
           <table className="table">
             <thead>
               <tr>
@@ -174,12 +182,33 @@ export default function AdminUsersPage() {
         </div>
       ) : null}
 
+      {!loading && items.length > 0 ? (
+        <div className="user-card-list" aria-label="Daftar user">
+          {items.map((u) => (
+            <article className="user-card" key={u.id}>
+              <div className="user-card-identity">
+                <strong>{u.name}</strong>
+                <span>{u.email}</span>
+              </div>
+              <div className="user-card-meta">
+                <span>{roleLabel(u.role)}</span>
+                <span className={`badge-soft ${u.is_active ? "" : "user-card-inactive"}`}>{u.is_active ? "Aktif" : "Nonaktif"}</span>
+              </div>
+              <button type="button" className="btn btn-neutral user-card-action" onClick={() => openEdit(u)}>Edit</button>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
       {modalOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setModalOpen(false)}>
+        <div className="modal-backdrop" role="presentation" onClick={requestClose}>
           <div
+            ref={modalRef}
             className="modal"
             role="dialog"
             aria-modal="true"
+            aria-label={editing ? "Edit User" : "Tambah User"}
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
             <h2>{editing ? "Edit User" : "Tambah User"}</h2>
@@ -254,7 +283,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setModalOpen(false)}>
+                  <button type="button" className="btn" onClick={requestClose}>
                   Batal
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>

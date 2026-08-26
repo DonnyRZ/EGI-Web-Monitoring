@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { FilterSheet } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -23,12 +24,13 @@ export default function UserStoriesPage() {
   const [developerFilters, setDeveloperFilters] = useState<TaskMonitoringFilters["developers"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"board" | "list">("board");
+  const [view, setView] = useState<"board" | "list">("list");
   const [status, setStatus] = useState("");
   const [priority, setPriority] = useState("");
   const [projectId, setProjectId] = useState("");
   const [developerId, setDeveloperId] = useState("");
   const [search, setSearch] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   async function load() {
     setLoading(true); setError("");
@@ -83,6 +85,7 @@ export default function UserStoriesPage() {
           />
         </div>
         <div className="story-search-actions">
+          <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={() => setFilterOpen(true)}>Filter</button>
           {hasActiveFilters ? (
             <button
               type="button"
@@ -106,33 +109,74 @@ export default function UserStoriesPage() {
       </section>
 
       <section className="story-filter-panel panel" aria-label="Filter User Story">
-        <div className="story-filter-grid">
-          <div className="filter-field">
-            <span className="filter-field-label">Project</span>
-            <Select value={projectId} onChange={setProjectId} options={[{ value: "", label: user.role === "developer" ? "Semua Project Saya" : "Semua Project" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
-          </div>
-          {developerFilters.length > 0 ? (
-            <div className="filter-field">
-              <span className="filter-field-label">Developer</span>
-              <Select value={developerId} onChange={setDeveloperId} options={[{ value: "", label: "Semua developer" }, ...developerFilters.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" />
-            </div>
-          ) : null}
-          <div className="filter-field">
-            <span className="filter-field-label">Status</span>
-            <Select value={status} onChange={setStatus} options={[{ value: "", label: "Semua status" }, ...COLUMNS.map((value) => ({ value, label: LABELS[value] }))]} aria-label="Filter status" />
-          </div>
-          <div className="filter-field">
-            <span className="filter-field-label">Priority</span>
-            <Select value={priority} onChange={setPriority} options={[{ value: "", label: "Semua priority" }, ...["critical", "high", "medium", "low"].map((value) => ({ value, label: value }))]} aria-label="Filter priority" />
-          </div>
-        </div>
+        <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} status={status} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onStatusChange={setStatus} onPriorityChange={setPriority} />
       </section>
+      <FilterSheet
+        open={filterOpen}
+        title="Filter User Story"
+        activeCount={[Boolean(projectId), Boolean(developerId), Boolean(status), Boolean(priority)].filter(Boolean).length}
+        onClose={() => setFilterOpen(false)}
+        onApply={() => setFilterOpen(false)}
+        onReset={() => { setProjectId(""); setDeveloperId(""); setStatus(""); setPriority(""); }}
+      >
+        <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} status={status} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onStatusChange={setStatus} onPriorityChange={setPriority} />
+      </FilterSheet>
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading ? <LoadingState label="Memuat User Stories…" /> : null}
       {!loading && filtered.length === 0 ? <EmptyState title="Belum ada User Story" description={user.role === "developer" ? "Story yang ditugaskan kepada Anda akan muncul di sini." : "Buat story dari halaman detail Project."} /> : null}
-      {!loading && filtered.length > 0 ? <div className="story-project-groups">{groups.map((group) => <section className="story-project-group" key={group.name}><div className="panel-heading-row"><div><span className="eyebrow">Project</span><h3 className="panel-title">{group.name}</h3></div><span className="muted">{group.stories.length} story</span></div>{view === "board" ? <div className="story-board standalone-story-board">{COLUMNS.map((column) => <div key={column} className="story-column"><div className="story-column-header"><span>{LABELS[column]}</span><strong>{group.stories.filter((story) => story.status === column).length}</strong></div><div className="story-column-cards">{group.stories.filter((story) => story.status === column).map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={load} />)}</div></div>)}</div> : <div className="story-list standalone-story-list">{group.stories.map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={load} list />)}</div>}</section>)}</div> : null}
+      {!loading && filtered.length > 0 ? <div className="story-project-groups">{groups.map((group) => <section className="story-project-group" key={group.name}><div className="panel-heading-row"><div><span className="eyebrow">Project</span><h3 className="panel-title">{group.name}</h3></div><span className="muted">{group.stories.length} story</span></div>{view === "board" ? <><div className="story-board standalone-story-board desktop-story-board">{COLUMNS.map((column) => <div key={column} className="story-column"><div className="story-column-header"><span>{LABELS[column]}</span><strong>{group.stories.filter((story) => story.status === column).length}</strong></div><div className="story-column-cards">{group.stories.filter((story) => story.status === column).map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={load} />)}</div></div>)}</div><MobileStoryBoard stories={group.stories} onUpdated={load} /></> : <div className="story-list standalone-story-list">{group.stories.map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={load} list />)}</div>}</section>)}</div> : null}
     </AppShell>
+  );
+}
+
+function StoryFilterFields({
+  userRole,
+  projects,
+  developerFilters,
+  projectId,
+  developerId,
+  status,
+  priority,
+  onProjectChange,
+  onDeveloperChange,
+  onStatusChange,
+  onPriorityChange,
+}: {
+  userRole: string;
+  projects: Array<{ id: string; name: string }>;
+  developerFilters: TaskMonitoringFilters["developers"];
+  projectId: string;
+  developerId: string;
+  status: string;
+  priority: string;
+  onProjectChange: (value: string) => void;
+  onDeveloperChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+  onPriorityChange: (value: string) => void;
+}) {
+  return (
+    <div className="story-filter-grid">
+      <div className="filter-field">
+        <span className="filter-field-label">Project</span>
+        <Select value={projectId} onChange={onProjectChange} options={[{ value: "", label: userRole === "developer" ? "Semua Project Saya" : "Semua Project" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
+      </div>
+      {developerFilters.length > 0 ? <div className="filter-field"><span className="filter-field-label">Developer</span><Select value={developerId} onChange={onDeveloperChange} options={[{ value: "", label: "Semua developer" }, ...developerFilters.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" /></div> : null}
+      <div className="filter-field"><span className="filter-field-label">Status</span><Select value={status} onChange={onStatusChange} options={[{ value: "", label: "Semua status" }, ...COLUMNS.map((value) => ({ value, label: LABELS[value] }))]} aria-label="Filter status" /></div>
+      <div className="filter-field"><span className="filter-field-label">Priority</span><Select value={priority} onChange={onPriorityChange} options={[{ value: "", label: "Semua priority" }, ...["critical", "high", "medium", "low"].map((value) => ({ value, label: value }))]} aria-label="Filter priority" /></div>
+    </div>
+  );
+}
+
+function MobileStoryBoard({ stories, onUpdated }: { stories: UserStory[]; onUpdated: () => Promise<void> }) {
+  const firstStatus = COLUMNS.find((column) => stories.some((story) => story.status === column)) ?? COLUMNS[0];
+  const [status, setStatus] = useState(firstStatus);
+  const visible = stories.filter((story) => story.status === status);
+  return (
+    <div className="story-mobile-board">
+      <div className="filter-field"><span className="filter-field-label">Tampilkan status</span><Select value={status} onChange={setStatus} options={COLUMNS.map((value) => ({ value, label: `${LABELS[value]} (${stories.filter((story) => story.status === value).length})` }))} aria-label="Status Board mobile" /></div>
+      <div className="story-mobile-status-content">{visible.length ? visible.map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={onUpdated} />) : <p className="muted">Belum ada story pada status ini.</p>}</div>
+    </div>
   );
 }
 

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { AssignmentWorkspace } from "@/components/projects/AssignmentWorkspace";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState, SuccessBanner } from "@/components/ui";
@@ -19,8 +20,21 @@ import type {
   UserStory,
 } from "@/lib/types";
 
-type ProjectTab = "overview" | "websites" | "assignments" | "tasks" | "stories";
+type ProjectTab = "overview" | "websites" | "assignments" | "tasks" | "stories" | "work";
 type StoryView = "list" | "board";
+
+const PROJECT_TAB_LABELS: Record<ProjectTab, string> = {
+  overview: "Overview",
+  websites: "Websites & Monitoring",
+  assignments: "PIC & Assignment",
+  tasks: "Tasks",
+  stories: "User Stories",
+  work: "Work Monitoring",
+};
+
+function readProjectTab(value: string | null): ProjectTab {
+  return value && value in PROJECT_TAB_LABELS ? value as ProjectTab : "overview";
+}
 
 const STATUS_LABELS: Record<ProjectStatus, string> = { draft: "Draft", active: "Aktif", archived: "Archived" };
 const STATUS_HELP: Record<ProjectStatus, { title: string; description: string }> = {
@@ -46,14 +60,14 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<ProjectTab>("overview");
+  const [tab, setTab] = useState<ProjectTab>(() => typeof window === "undefined" ? "overview" : readProjectTab(new URLSearchParams(window.location.search).get("tab")));
   const [editOpen, setEditOpen] = useState(false);
   const [websiteOpen, setWebsiteOpen] = useState(false);
   const [ticketList, setTicketList] = useState<Ticket[]>([]);
   const [stories, setStories] = useState<UserStory[]>([]);
   const [storiesLoading, setStoriesLoading] = useState(false);
   const [ticketsLoading, setTicketsLoading] = useState(false);
-  const [storyView, setStoryView] = useState<StoryView>("board");
+  const [storyView, setStoryView] = useState<StoryView>("list");
   const [storyComposerOpen, setStoryComposerOpen] = useState(false);
   const [storyFromTicket, setStoryFromTicket] = useState<Ticket | null>(null);
   const [ticketComposerOpen, setTicketComposerOpen] = useState(false);
@@ -116,7 +130,7 @@ export default function ProjectDetailPage() {
   }, [projectId]);
 
   useEffect(() => {
-    if (tab === "stories") void loadStories();
+    if (tab === "stories" || tab === "work") void loadStories();
     if (tab === "tasks") void loadTickets();
   }, [tab, loadStories, loadTickets]);
 
@@ -131,7 +145,18 @@ export default function ProjectDetailPage() {
     ...(canAdmin ? [{ id: "assignments" as const, label: "PIC & Assignment" }] : []),
     { id: "tasks", label: "Tasks" },
     ...(user.role === "bos_it" || user.role === "developer" ? [{ id: "stories" as const, label: "User Stories" }] : []),
+    { id: "work", label: "Work Monitoring" },
   ];
+
+  function selectTab(next: ProjectTab) {
+    if (!tabs.some((item) => item.id === next)) return;
+    setTab(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", next);
+      window.history.replaceState(window.history.state, "", url);
+    }
+  }
 
   function refreshAfterMutation(nextProject: Project) {
     setProject(nextProject);
@@ -154,23 +179,28 @@ export default function ProjectDetailPage() {
         <div className="project-summary-strip">
           <SummaryMetric label="Website" value={String(project.websites_count)} detail={`${project.active_websites_count} aktif`} />
           <SummaryMetric label="Health" value={healthSummaryLabel(project.health_summary.status)} tone={project.health_summary.status} detail={`${project.health_summary.down} down · ${project.health_summary.warning} warning`} />
-          <SummaryMetric label="Task aktif" value={String(project.active_tickets_count)} detail={`${project.untriaged_tickets_count} belum ditriase`} />
+          <SummaryMetric label="Task aktif" value={String(project.active_tickets_count)} detail={`${project.untriaged_tickets_count} perlu ditindaklanjuti`} />
           {technicalView ? <SummaryMetric label="Pekerjaan teknis aktif" value={String(project.active_stories_count)} tone={project.overdue_count ? "down" : undefined} detail={project.overdue_count ? `${project.overdue_count} overdue` : "Tidak ada overdue"} /> : <SummaryMetric label="Task perlu perhatian" value={String(project.overdue_count)} tone={project.overdue_count ? "down" : undefined} detail={project.overdue_count ? "Perlu ditindaklanjuti" : "Tidak ada overdue"} />}
         </div>
       </div>
 
-      <nav className="project-tabs" aria-label="Navigasi Project">
-        {tabs.map((item) => <button key={item.id} type="button" className={`project-tab ${tab === item.id ? "active" : ""}`} onClick={() => setTab(item.id)}>{item.label}{item.id === "tasks" && project.active_tickets_count > 0 ? <span className="tab-count">{project.active_tickets_count}</span> : null}{item.id === "stories" && project.active_stories_count > 0 ? <span className="tab-count">{project.active_stories_count}</span> : null}</button>)}
+      <div className="project-mobile-tab-picker">
+        <label htmlFor="project-section-select">Bagian Project</label>
+        <Select id="project-section-select" value={tab} onChange={(value) => selectTab(value as ProjectTab)} options={tabs.map((item) => ({ value: item.id, label: item.label }))} aria-label="Bagian Project" />
+      </div>
+      <nav className="project-tabs desktop-project-tabs" aria-label="Navigasi Project">
+        {tabs.map((item) => <button key={item.id} type="button" className={`project-tab ${tab === item.id ? "active" : ""}`} onClick={() => selectTab(item.id)}>{item.label}{item.id === "tasks" && project.active_tickets_count > 0 ? <span className="tab-count">{project.active_tickets_count}</span> : null}{item.id === "stories" && project.active_stories_count > 0 ? <span className="tab-count">{project.active_stories_count}</span> : null}</button>)}
       </nav>
 
       {error ? <ErrorBanner message={error} /> : null}
       {notice ? <SuccessBanner message={notice} /> : null}
 
-      {tab === "overview" ? <OverviewTab project={project} onOpenTab={setTab} showAssignments={canAdmin} showStories={technicalView} /> : null}
+      {tab === "overview" ? <OverviewTab project={project} onOpenTab={selectTab} showAssignments={canAdmin} showStories={technicalView} /> : null}
       {tab === "websites" ? <WebsitesTab project={project} canAdmin={canAdmin} onChange={refreshAfterMutation} onAdd={() => setWebsiteOpen(true)} /> : null}
       {tab === "assignments" && canAdmin ? <AssignmentWorkspace project={project} onSaved={(next, message) => { refreshAfterMutation(next); setNotice(message); }} /> : null}
       {tab === "tasks" ? <TicketsTab tickets={ticketList} loading={ticketsLoading} technicalView={technicalView} canManageStories={canManageStories} canCreateTicket={canCreateProjectTicket} onCreateTicket={() => setTicketComposerOpen(true)} onCreateStory={(ticket) => { setStoryFromTicket(ticket); setStoryComposerOpen(true); }} /> : null}
       {tab === "stories" ? <StoriesTab project={project} stories={stories} loading={storiesLoading} canManage={canManageStories} view={storyView} onViewChange={setStoryView} onRefresh={loadStories} onCreate={() => { setStoryFromTicket(null); setStoryComposerOpen(true); }} /> : null}
+      {tab === "work" ? <WorkTab project={project} stories={stories} loading={storiesLoading} canManage={canManageStories} onOpenStories={() => selectTab("stories")} /> : null}
 
       {editOpen ? <EditProjectModal project={project} onClose={() => setEditOpen(false)} onSaved={(next) => { refreshAfterMutation(next); setEditOpen(false); }} /> : null}
       {websiteOpen ? <AddWebsiteModal projectId={project.id} onClose={() => setWebsiteOpen(false)} onSaved={(next) => { refreshAfterMutation(next); setWebsiteOpen(false); }} /> : null}
@@ -266,6 +296,7 @@ function EditProjectModal({ project, onClose, onSaved }: { project: Project; onC
   const [archiveConfirmed, setArchiveConfirmed] = useState(project.status === "archived");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
   const dirty = name !== project.name || description !== (project.description || "") || status !== project.status;
   useUnsavedChanges(`projects:${project.id}:edit`, dirty);
@@ -281,16 +312,8 @@ function EditProjectModal({ project, onClose, onSaved }: { project: Project; onC
     if (!dirty || saving || window.confirm("Perubahan belum disimpan. Tutup Pengaturan Project?")) onClose();
   }, [dirty, onClose, saving]);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        requestClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [requestClose]);
+  useBodyScrollLock(true);
+  useDialogFocus(true, modalRef, undefined, requestClose);
 
   function handleStatusChange(value: string) {
     const next = value as ProjectStatus;
@@ -322,7 +345,7 @@ function EditProjectModal({ project, onClose, onSaved }: { project: Project; onC
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={requestClose}>
-      <div className="modal project-create-drawer project-settings-modal" role="dialog" aria-modal="true" aria-labelledby="project-settings-title" aria-describedby="project-settings-description" onClick={(event) => event.stopPropagation()}>
+      <div ref={modalRef} className="modal project-create-drawer project-settings-modal" role="dialog" aria-modal="true" aria-labelledby="project-settings-title" aria-describedby="project-settings-description" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
         <div className="drawer-kicker">Project settings</div>
         <h2 id="project-settings-title">Pengaturan Project</h2>
         <p id="project-settings-description" className="muted project-settings-description">Kelola identitas dan lifecycle Project. Website serta PIC & Assignment diatur pada tab masing-masing.</p>
@@ -365,15 +388,61 @@ function EditProjectModal({ project, onClose, onSaved }: { project: Project; onC
   );
 }
 
-function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: (project: Project) => void }) { const [form, setForm] = useState({ name: "", domain: "", url: "" }); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const dirty = Boolean(form.name || form.domain || form.url); useUnsavedChanges(`projects:${projectId}:website`, dirty); async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); setError(""); try { onSaved(await projectsApi.addWebsite(projectId, form)); } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal menambahkan Website"); } finally { setSaving(false); } } return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal project-create-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Monitoring source</div><h2>Tambah Website</h2><p className="muted">Website langsung ditempatkan di Project ini. Histori monitoring existing tetap menggunakan Website ID-nya.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="website-name">Nama Website</label><input id="website-name" className="text-input" required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></div><div className="form-field"><label htmlFor="website-domain">Domain</label><input id="website-domain" className="text-input" required value={form.domain} onChange={(event) => setForm((current) => ({ ...current, domain: event.target.value }))} placeholder="example.com" /></div><div className="form-field"><label htmlFor="website-url">URL</label><input id="website-url" className="text-input" type="url" required value={form.url} onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://example.com" /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menambahkan…" : "Tambahkan Website"}</button></div></form></div></div>; }
+function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; onClose: () => void; onSaved: (project: Project) => void }) {
+  const [form, setForm] = useState({ name: "", domain: "", url: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const dirty = Boolean(form.name || form.domain || form.url);
+  useUnsavedChanges(`projects:${projectId}:website`, dirty);
+  useBodyScrollLock(true);
+  useDialogFocus(true, modalRef, undefined, () => {
+    if (!dirty || window.confirm("Perubahan belum disimpan. Tutup form?")) onClose();
+  });
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      onSaved(await projectsApi.addWebsite(projectId, form));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal menambahkan Website");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function requestClose() {
+    if (!dirty || window.confirm("Perubahan belum disimpan. Tutup form?")) onClose();
+  }
+
+  return <div className="modal-backdrop" role="presentation" onClick={requestClose}>
+    <div ref={modalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Tambah Website" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+      <div className="drawer-kicker">Monitoring source</div>
+      <h2>Tambah Website</h2>
+      <p className="muted">Website langsung ditempatkan di Project ini. Histori monitoring existing tetap menggunakan Website ID-nya.</p>
+      {error ? <ErrorBanner message={error} /> : null}
+      <form onSubmit={submit}>
+        <div className="form-field"><label htmlFor="website-name">Nama Website</label><input id="website-name" className="text-input" required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></div>
+        <div className="form-field"><label htmlFor="website-domain">Domain</label><input id="website-domain" className="text-input" required value={form.domain} onChange={(event) => setForm((current) => ({ ...current, domain: event.target.value }))} placeholder="example.com" /></div>
+        <div className="form-field"><label htmlFor="website-url">URL</label><input id="website-url" className="text-input" type="url" required value={form.url} onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://example.com" /></div>
+        <div className="modal-actions"><button type="button" className="btn" onClick={requestClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menambahkan…" : "Tambahkan Website"}</button></div>
+      </form>
+    </div>
+  </div>;
+}
 
 function TicketComposer({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: () => void }) {
   const initialWebsiteId = project.websites[0]?.id || "";
   const [form, setForm] = useState({ title: "", website_id: initialWebsiteId, category: "website" as "website" | "help_desk" | "procurement", description: "", expectation: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const modalRef = useRef<HTMLDivElement | null>(null);
   const dirty = Boolean(form.title || form.description || form.expectation || form.category !== "website" || form.website_id !== initialWebsiteId);
   useUnsavedChanges(`projects:${project.id}:task`, dirty);
+  useBodyScrollLock(true);
+  useDialogFocus(true, modalRef, undefined, onClose);
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError("");
     if (form.category === "website" && !form.website_id) {
@@ -385,9 +454,53 @@ function TicketComposer({ project, onClose, onSaved }: { project: Project; onClo
     catch (err) { setError(err instanceof ApiError ? err.message : "Gagal membuat Task"); }
     finally { setSaving(false); }
   }
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal project-create-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Project intake</div><h2>Buat Task</h2><p className="muted">Task masuk sebagai intake. PIC Developer dapat memecahnya menjadi User Story bila membutuhkan coding.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="ticket-title">Judul</label><input id="ticket-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></div><div className="story-form-grid"><div className="form-field"><label htmlFor="ticket-website">Website</label><Select id="ticket-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Tanpa Website" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} /></div><div className="form-field"><label htmlFor="ticket-category">Kategori</label><Select id="ticket-category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value as typeof current.category }))} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div></div><div className="form-field"><label htmlFor="ticket-description">Masalah / kebutuhan</label><textarea id="ticket-description" className="text-input" rows={5} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="ticket-expectation">Hasil yang diharapkan</label><textarea id="ticket-expectation" className="text-input" rows={4} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
+  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div ref={modalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Buat Task" tabIndex={-1} onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Project intake</div><h2>Buat Task</h2><p className="muted">Task masuk sebagai intake. PIC Developer dapat memecahnya menjadi User Story bila membutuhkan coding.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="ticket-title">Judul</label><input id="ticket-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></div><div className="story-form-grid"><div className="form-field"><label htmlFor="ticket-website">Website</label><Select id="ticket-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Tanpa Website" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} /></div><div className="form-field"><label htmlFor="ticket-category">Kategori</label><Select id="ticket-category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value as typeof current.category }))} options={[{ value: "website", label: "Website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div></div><div className="form-field"><label htmlFor="ticket-description">Masalah / kebutuhan</label><textarea id="ticket-description" className="text-input" rows={5} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="ticket-expectation">Hasil yang diharapkan</label><textarea id="ticket-expectation" className="text-input" rows={4} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
 }
 
-function StoryComposer({ project, ticket, onClose, onSaved }: { project: Project; ticket: Ticket | null; onClose: () => void; onSaved: () => void }) { const initialTitle = ticket?.title || ""; const initialDescription = ticket?.description || ""; const initialAcceptanceCriteria = ticket?.expectation || ""; const initialWebsiteId = ticket?.website_id || ""; const [form, setForm] = useState({ title: initialTitle, description: initialDescription, acceptance_criteria: initialAcceptanceCriteria, website_id: initialWebsiteId, priority: "medium", primary_developer_id: "", collaborator_ids: [] as string[], due_date: "" }); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const dirty = form.title !== initialTitle || form.description !== initialDescription || form.acceptance_criteria !== initialAcceptanceCriteria || form.website_id !== initialWebsiteId || form.priority !== "medium" || Boolean(form.primary_developer_id) || form.collaborator_ids.length > 0 || Boolean(form.due_date); useUnsavedChanges(`projects:${project.id}:story`, dirty); function toggleCollaborator(id: string) { setForm((current) => ({ ...current, collaborator_ids: current.collaborator_ids.includes(id) ? current.collaborator_ids.filter((value) => value !== id) : [...current.collaborator_ids, id] })); } async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); setError(""); try { const body = { ...form, website_id: form.website_id || null, primary_developer_id: form.primary_developer_id || null, due_date: form.due_date ? new Date(form.due_date).toISOString() : null }; if (ticket) await userStoriesApi.createFromTicket(ticket.id, body); else await userStoriesApi.create(project.id, body); onSaved(); } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal menyimpan User Story"); } finally { setSaving(false); } } return <div className="modal-backdrop" role="presentation" onClick={onClose}><div className="modal story-composer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">{ticket ? "Pecah Task" : "Project work"}</div><h2>{ticket ? "Buat User Story dari Task" : "Tambah User Story"}</h2>{ticket ? <p className="muted">Task akan ditautkan ke User Story ini. Task yang sama dapat memiliki beberapa User Story.</p> : null}{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="story-title">Judul</label><input id="story-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></div><div className="story-form-grid"><div className="form-field"><label htmlFor="story-website">Website <span className="muted">(opsional)</span></label><Select id="story-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Seluruh Project" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} /></div><div className="form-field"><label htmlFor="story-priority">Priority</label><Select id="story-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value }))} options={["critical", "high", "medium", "low"].map((value) => ({ value, label: value }))} /></div><div className="form-field"><label htmlFor="story-primary">Primary developer</label><Select id="story-primary" value={form.primary_developer_id} onChange={(value) => setForm((current) => ({ ...current, primary_developer_id: value }))} options={[{ value: "", label: "Belum ditentukan" }, ...project.developers.map((developer) => ({ value: developer.id, label: developer.name }))]} /></div><div className="form-field"><label htmlFor="story-due">Deadline <span className="muted">(opsional)</span></label><input id="story-due" className="text-input" type="datetime-local" value={form.due_date} onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))} /></div></div><div className="form-field"><label htmlFor="story-description">Deskripsi</label><textarea id="story-description" className="text-input" rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div><div className="form-field"><label htmlFor="story-acceptance">Acceptance criteria</label><textarea id="story-acceptance" className="text-input" rows={4} value={form.acceptance_criteria} onChange={(event) => setForm((current) => ({ ...current, acceptance_criteria: event.target.value }))} /></div><div className="form-field"><span className="form-label">Collaborator</span><div className="story-collaborator-grid">{project.developers.map((developer) => <label key={developer.id} className="collaborator-option"><input type="checkbox" checked={form.collaborator_ids.includes(developer.id)} onChange={() => toggleCollaborator(developer.id)} />{developer.name}</label>)}</div></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan User Story"}</button></div></form></div></div>; }
+function StoryComposer({ project, ticket, onClose, onSaved }: { project: Project; ticket: Ticket | null; onClose: () => void; onSaved: () => void }) {
+  const initialTitle = ticket?.title || "";
+  const initialDescription = ticket?.description || "";
+  const initialAcceptanceCriteria = ticket?.expectation || "";
+  const initialWebsiteId = ticket?.website_id || "";
+  const [form, setForm] = useState({ title: initialTitle, description: initialDescription, acceptance_criteria: initialAcceptanceCriteria, website_id: initialWebsiteId, priority: "medium", primary_developer_id: "", collaborator_ids: [] as string[], due_date: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const dirty = form.title !== initialTitle || form.description !== initialDescription || form.acceptance_criteria !== initialAcceptanceCriteria || form.website_id !== initialWebsiteId || form.priority !== "medium" || Boolean(form.primary_developer_id) || form.collaborator_ids.length > 0 || Boolean(form.due_date);
+  useUnsavedChanges(`projects:${project.id}:story`, dirty);
+  useBodyScrollLock(true);
+  function requestClose() { if (!dirty || window.confirm("Perubahan belum disimpan. Tutup form?")) onClose(); }
+  useDialogFocus(true, modalRef, undefined, requestClose);
+  function toggleCollaborator(id: string) { setForm((current) => ({ ...current, collaborator_ids: current.collaborator_ids.includes(id) ? current.collaborator_ids.filter((value) => value !== id) : [...current.collaborator_ids, id] })); }
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("");
+    try {
+      const body = { ...form, website_id: form.website_id || null, primary_developer_id: form.primary_developer_id || null, due_date: form.due_date ? new Date(form.due_date).toISOString() : null };
+      if (ticket) await userStoriesApi.createFromTicket(ticket.id, body); else await userStoriesApi.create(project.id, body);
+      onSaved();
+    } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal menyimpan User Story"); } finally { setSaving(false); }
+  }
+  return <div className="modal-backdrop" role="presentation" onClick={requestClose}>
+    <div ref={modalRef} className="modal story-composer" role="dialog" aria-modal="true" aria-label={ticket ? "Buat User Story dari Task" : "Tambah User Story"} tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+      <div className="drawer-kicker">{ticket ? "Pecah Task" : "Project work"}</div>
+      <h2>{ticket ? "Buat User Story dari Task" : "Tambah User Story"}</h2>
+      {ticket ? <p className="muted">Task akan ditautkan ke User Story ini. Task yang sama dapat memiliki beberapa User Story.</p> : null}
+      {error ? <ErrorBanner message={error} /> : null}
+      <form onSubmit={submit}>
+        <div className="form-field"><label htmlFor="story-title">Judul</label><input id="story-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></div>
+        <div className="story-form-grid">
+          <div className="form-field"><label htmlFor="story-website">Website <span className="muted">(opsional)</span></label><Select id="story-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Seluruh Project" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} /></div>
+          <div className="form-field"><label htmlFor="story-priority">Priority</label><Select id="story-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value }))} options={["critical", "high", "medium", "low"].map((value) => ({ value, label: value }))} /></div>
+          <div className="form-field"><label htmlFor="story-primary">Primary developer</label><Select id="story-primary" value={form.primary_developer_id} onChange={(value) => setForm((current) => ({ ...current, primary_developer_id: value }))} options={[{ value: "", label: "Belum ditentukan" }, ...project.developers.map((developer) => ({ value: developer.id, label: developer.name }))]} /></div>
+          <div className="form-field"><label htmlFor="story-due">Deadline <span className="muted">(opsional)</span></label><input id="story-due" className="text-input" type="datetime-local" value={form.due_date} onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))} /></div>
+        </div>
+        <div className="form-field"><label htmlFor="story-description">Deskripsi</label><textarea id="story-description" className="text-input" rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div>
+        <div className="form-field"><label htmlFor="story-acceptance">Acceptance criteria</label><textarea id="story-acceptance" className="text-input" rows={4} value={form.acceptance_criteria} onChange={(event) => setForm((current) => ({ ...current, acceptance_criteria: event.target.value }))} /></div>
+        <div className="form-field"><span className="form-label">Collaborator</span><div className="story-collaborator-grid">{project.developers.map((developer) => <label key={developer.id} className="collaborator-option"><input type="checkbox" checked={form.collaborator_ids.includes(developer.id)} onChange={() => toggleCollaborator(developer.id)} />{developer.name}</label>)}</div></div>
+        <div className="modal-actions"><button type="button" className="btn" onClick={requestClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan User Story"}</button></div>
+      </form>
+    </div>
+  </div>;
+}
 
 function healthSummaryLabel(status?: string | null) { if (status === "normal") return "Sehat"; if (status === "warning") return "Warning"; if (status === "down") return "Down"; return "Unknown"; }

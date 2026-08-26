@@ -25,6 +25,7 @@ import {
 } from "@/lib/format";
 import { incidentsApi, projectsApi, userStoriesApi } from "@/lib/api-services";
 import { NotificationBell } from "./NotificationBell";
+import { useBodyScrollLock, useDialogFocus } from "./ResponsiveOverlay";
 import {
   IconAlert,
   IconDashboard,
@@ -175,6 +176,10 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
   const [pageTitle, setPageTitleState] = useState(() => initialTitle || routeTitle(pathname));
   const titleOverrideRef = useRef<{ pathname: string; title: string } | null>(null);
+  const menuToggleRef = useRef<HTMLButtonElement | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const menuCloseRef = useRef<HTMLButtonElement | null>(null);
+  const isGallery = isEndUserPublicDashboard(user?.role);
 
   const setPageTitle = useCallback((nextTitle: string) => {
     titleOverrideRef.current = { pathname, title: nextTitle };
@@ -196,6 +201,15 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  useBodyScrollLock(sidebarOpen && !isGallery);
+  useDialogFocus(
+    sidebarOpen && !isGallery,
+    sidebarRef,
+    menuToggleRef,
+    () => setSidebarOpen(false),
+    menuCloseRef,
+  );
 
   useEffect(() => {
     if (loading || !user || !canViewIncidents(user.role)) return;
@@ -272,8 +286,6 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
     );
   }
 
-  const isGallery = isEndUserPublicDashboard(user.role);
-
   const nav = [
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     ...(canViewTaskMonitoring(user.role) && (user.role !== "developer" || isProjectPicDeveloper)
@@ -346,7 +358,17 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
       ) : null}
 
         {!isGallery ? (
-        <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        <aside
+          ref={sidebarRef}
+          className={`sidebar ${sidebarOpen ? "open" : ""}`}
+          role={sidebarOpen ? "dialog" : undefined}
+          aria-modal={sidebarOpen ? "true" : undefined}
+          aria-label={sidebarOpen ? "Menu navigasi" : undefined}
+        >
+        <div className="mobile-sidebar-header">
+          <strong>Menu</strong>
+          <button ref={menuCloseRef} type="button" className="icon-btn" onClick={() => setSidebarOpen(false)} aria-label="Tutup menu">×</button>
+        </div>
         <div className="sidebar-brand">
           <img src="/logo-egi.png" alt="EGResources" />
           <div className="sidebar-brand-text">
@@ -400,6 +422,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
             {!isGallery ? (
             <button
               type="button"
+              ref={menuToggleRef}
               className="icon-btn menu-toggle"
               aria-label="Buka menu"
               onClick={() => setSidebarOpen(true)}

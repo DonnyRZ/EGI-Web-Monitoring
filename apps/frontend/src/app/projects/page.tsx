@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { FilterSheet, useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -54,17 +55,23 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "">("");
   const [filters, setFilters] = useState<Partial<Record<ConfigFilter, boolean>>>({});
+  const [filterOpen, setFilterOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const createModalRef = useRef<HTMLDivElement | null>(null);
   useUnsavedChanges("projects:create", createOpen && Boolean(createName || createDescription));
+  useBodyScrollLock(createOpen);
+  useDialogFocus(createOpen, createModalRef, undefined, requestCreateClose);
 
   const activeFilters = useMemo(
     () => Object.entries(filters).filter(([, value]) => value).map(([key]) => key as ConfigFilter),
     [filters],
   );
+
+  const activeFilterCount = activeFilters.length + (status ? 1 : 0);
 
   useEffect(() => {
     if (!authLoading && user && !canViewProjectRegistry(user.role)) router.replace("/dashboard");
@@ -127,6 +134,11 @@ export default function ProjectsPage() {
     }
   }
 
+  function requestCreateClose() {
+    if ((createName || createDescription) && !window.confirm("Perubahan belum disimpan. Tutup form?")) return;
+    setCreateOpen(false);
+  }
+
   if (!user || !canViewProjectRegistry(user.role)) {
     return (
       <AppShell title="Project">
@@ -174,6 +186,19 @@ export default function ProjectsPage() {
         </div>
       </section>
 
+      <div className="mobile-page-toolbar project-mobile-toolbar">
+        <div className="project-mobile-search">
+          <label htmlFor="project-mobile-search">Cari Project</label>
+          <input id="project-mobile-search" className="text-input" placeholder="Nama Project atau domain" value={search} onChange={(event) => setSearch(event.target.value)} />
+        </div>
+        <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={() => setFilterOpen(true)}>
+          Filter{activeFilterCount ? ` · ${activeFilterCount} aktif` : ""}
+        </button>
+        <button type="button" className="text-link mobile-reset-filter" onClick={() => { setSearch(""); setStatus(""); setFilters({}); }}>
+          Reset
+        </button>
+      </div>
+
       <section className="project-filter-chips" aria-label="Filter konfigurasi tambahan">
         {(Object.keys(FILTER_LABELS) as ConfigFilter[]).map((filter) => (
           <label key={filter} className={`filter-chip ${filters[filter] ? "selected" : ""}`}>
@@ -182,6 +207,32 @@ export default function ProjectsPage() {
           </label>
         ))}
       </section>
+
+      <FilterSheet
+        open={filterOpen}
+        title="Filter Project"
+        description="Pilih status dan kondisi Project yang ingin ditampilkan."
+        activeCount={activeFilterCount}
+        onClose={() => setFilterOpen(false)}
+        onReset={() => { setStatus(""); setFilters({}); }}
+        onApply={() => setFilterOpen(false)}
+      >
+        <div className="filter-sheet-fields project-mobile-filter-fields">
+          <div className="filter-field">
+            <span className="filter-field-label">Status Project</span>
+            <Select value={status} onChange={(value) => setStatus(value as ProjectStatus | "")} options={[{ value: "", label: "Semua status" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]} aria-label="Filter status Project" />
+          </div>
+          <fieldset className="mobile-filter-checks">
+            <legend className="filter-field-label">Kondisi Project</legend>
+            {(Object.keys(FILTER_LABELS) as ConfigFilter[]).map((filter) => (
+              <label key={filter} className="mobile-filter-check">
+                <input type="checkbox" checked={Boolean(filters[filter])} onChange={() => toggleFilter(filter)} />
+                <span>{FILTER_LABELS[filter]}</span>
+              </label>
+            ))}
+          </fieldset>
+        </div>
+      </FilterSheet>
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading ? <LoadingState label="Memuat Project…" /> : null}
@@ -228,7 +279,7 @@ export default function ProjectsPage() {
                     <td>
                       <div className="project-work-cell">
                         <strong>{technicalView ? project.active_stories_count : project.active_tickets_count}</strong><span>{technicalView ? " pekerjaan teknis aktif" : " Task aktif"}</span>
-                        {technicalView && project.active_tickets_count > 0 ? <small>{project.active_tickets_count} Task intake</small> : null}
+                        {technicalView && project.active_tickets_count > 0 ? <small>{project.active_tickets_count} Task masuk</small> : null}
                         {project.overdue_count > 0 ? <small className="text-danger">{project.overdue_count} overdue</small> : null}
                       </div>
                     </td>
@@ -245,8 +296,10 @@ export default function ProjectsPage() {
                 <div className="project-card-top"><span className={`project-status-pill ${project.status}`}>{STATUS_LABELS[project.status]}</span><span className={healthClass(project.health)}><span className="project-health-dot" />{healthLabel(project.health)}</span></div>
                 <h3>{project.name}</h3>
                 <p>{project.websites_count ? `${project.websites_count} website` : "Draft — belum ada website"}</p>
-                <div className="project-card-stats"><span>{technicalView ? `${project.active_stories_count} pekerjaan teknis aktif` : `${project.active_tickets_count} Task aktif`}</span>{technicalView && project.active_tickets_count > 0 ? <span>{project.active_tickets_count} Task intake</span> : null}{project.overdue_count ? <span className="text-danger">{project.overdue_count} overdue</span> : null}</div>
-                <div className="project-card-footer"><MemberStack members={project.pic_web} empty="Belum ada PIC Web" /><span className={`configuration-pill ${project.configuration_status}`}>{project.configuration_status === "ready" ? "Siap" : "Perlu setup"}</span></div>
+                <div className="project-card-stats"><span>{technicalView ? `${project.active_stories_count} pekerjaan teknis aktif` : `${project.active_tickets_count} Task aktif`}</span>{project.overdue_count ? <span className="text-danger">{project.overdue_count} perlu perhatian</span> : null}<span>{project.developers.length} developer</span></div>
+                <div className="project-card-team"><span className="project-card-team-label">PIC Web</span><MemberStack members={project.pic_web} empty="Belum ditentukan" /></div>
+                <div className="project-card-team"><span className="project-card-team-label">PIC Developer</span><MemberStack members={project.pic_developer ? [project.pic_developer] : []} empty="Opsional" /></div>
+                <div className="project-card-footer"><span className="muted">Buka detail Project</span><span className={`configuration-pill ${project.configuration_status}`}>{project.configuration_status === "ready" ? "Siap" : "Perlu setup"}</span></div>
               </Link>
             ))}
           </div>
@@ -254,8 +307,8 @@ export default function ProjectsPage() {
       ) : null}
 
       {createOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setCreateOpen(false)}>
-          <div className="modal project-create-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop" role="presentation" onClick={requestCreateClose}>
+          <div ref={createModalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Tambah Project" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
             <div className="drawer-kicker">Project baru</div>
             <h2>Tambah Project</h2>
             <p className="muted">Mulai dari konteks kerja. Website dan assignment dapat diatur setelah Project dibuat.</p>
@@ -270,7 +323,7 @@ export default function ProjectsPage() {
                 <textarea id="new-project-description" className="text-input" rows={5} value={createDescription} onChange={(event) => setCreateDescription(event.target.value)} placeholder="Tujuan, batasan, atau konteks Project…" />
               </div>
               <div className="draft-note"><span className="project-status-pill draft">Draft</span><span>Project dibuat sebagai Draft dan boleh belum memiliki Website.</span></div>
-              <div className="modal-actions"><button type="button" className="btn" onClick={() => setCreateOpen(false)}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving || !createName.trim()}>{saving ? "Membuat…" : "Buat Project"}</button></div>
+              <div className="modal-actions"><button type="button" className="btn" onClick={requestCreateClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving || !createName.trim()}>{saving ? "Membuat…" : "Buat Project"}</button></div>
             </form>
           </div>
         </div>

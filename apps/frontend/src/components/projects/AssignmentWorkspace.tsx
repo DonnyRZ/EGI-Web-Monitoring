@@ -162,7 +162,7 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
           className="assignment-card-pic-developer"
           eyebrow="Tech lead"
           title="PIC Developer"
-          description="Satu PIC teknis yang memimpin triase dan User Story Project ini."
+          description="Satu PIC teknis yang memimpin penilaian pekerjaan dan User Story Project ini."
           count={draft.pic_developer_id ? 1 : 0}
           countLabel="orang"
           actionLabel={picDeveloper ? "Ganti PIC Developer" : "Pilih PIC Developer"}
@@ -230,7 +230,7 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
 
       {picker === "pic_web" ? <MemberPickerDrawer title="Kelola PIC Web" description="Pilih satu atau beberapa PIC Web yang memantau kebutuhan Project ini." rows={picWebRows} selectedIds={draft.pic_web_ids} mode="multi" kind="pic_web" onApply={(ids) => { updateMulti("pic_web_ids", ids); closePicker(); }} onClose={closePicker} /> : null}
       {picker === "developer_team" ? <MemberPickerDrawer title="Kelola Developer Team" description="Pilih developer yang dapat menerima dan mengerjakan User Story Project ini." rows={developerRows} selectedIds={draft.developer_ids} mode="multi" kind="developer_team" onApply={(ids) => { updateMulti("developer_ids", ids); closePicker(); }} onClose={closePicker} /> : null}
-      {picker === "pic_developer" ? <MemberPickerDrawer title="Pilih PIC Developer" description="Tentukan satu tech lead untuk triase Task dan memimpin User Story Project ini." rows={developerRows} selectedIds={draft.pic_developer_id ? [draft.pic_developer_id] : []} mode="single" kind="pic_developer" onApply={(ids) => { setDraft((current) => ({ ...current, pic_developer_id: ids[0] ?? null })); closePicker(); }} onClose={closePicker} /> : null}
+      {picker === "pic_developer" ? <MemberPickerDrawer title="Pilih PIC Developer" description="Tentukan satu tech lead untuk menilai Task dan memimpin User Story Project ini." rows={developerRows} selectedIds={draft.pic_developer_id ? [draft.pic_developer_id] : []} mode="single" kind="pic_developer" onApply={(ids) => { setDraft((current) => ({ ...current, pic_developer_id: ids[0] ?? null })); closePicker(); }} onClose={closePicker} /> : null}
 
       {confirmRemoval ? <AssignmentRemovalDialog members={removedDevelopers} onCancel={() => setConfirmRemoval(false)} onConfirm={() => { setConfirmRemoval(false); void performSave(); }} /> : null}
     </section>

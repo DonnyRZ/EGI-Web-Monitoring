@@ -145,6 +145,10 @@ services:
       start_period: 10s
 
   scheduler:
+    # Monitoring jobs are intentionally opt-in while the production VPS is
+    # capacity-constrained. Start explicitly with --profile monitoring only
+    # after the Playwright worker has been approved for reactivation.
+    profiles: ["monitoring"]
     build:
       <<: *app-build
       args:
@@ -166,6 +170,8 @@ services:
         condition: service_healthy
 
   worker:
+    # Keep the Playwright worker off by default on the constrained VPS.
+    profiles: ["monitoring"]
     build:
       <<: *app-build
       args:

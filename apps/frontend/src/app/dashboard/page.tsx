@@ -15,6 +15,15 @@ import { ApiError } from "@/lib/api";
 
 type StatusFilter = "active" | "down" | "my_tasks";
 
+function dashboardPriority(card: DashboardWebsiteCard) {
+  if (card.active_incident) return 0;
+  const status = card.latest_result?.status;
+  if (status === "down") return 1;
+  if (status === "warning") return 2;
+  if (status === "unknown") return 3;
+  return 4;
+}
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const isDeveloper = user?.role === "developer";
@@ -76,11 +85,14 @@ export default function DashboardPage() {
   }, [authLoading, user, statusFilter, isDeveloper, myTaskWebsiteIds]);
 
   const filtered = useMemo(() => {
+    let result: DashboardWebsiteCard[];
     if (statusFilter === "my_tasks") {
       if (!myTaskWebsiteIds) return [];
-      return cards.filter((c) => myTaskWebsiteIds.has(c.website.id));
+      result = cards.filter((c) => myTaskWebsiteIds.has(c.website.id));
+    } else {
+      result = cards;
     }
-    return cards;
+    return [...result].sort((a, b) => dashboardPriority(a) - dashboardPriority(b));
   }, [cards, statusFilter, myTaskWebsiteIds]);
 
   return (
