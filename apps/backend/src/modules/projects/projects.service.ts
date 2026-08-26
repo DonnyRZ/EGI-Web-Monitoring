@@ -83,8 +83,6 @@ const projectDetailInclude = (now: Date) => ({
           status: true,
           httpStatus: true,
           responseTimeMs: true,
-          renderTimeMs: true,
-          screenshotUrl: true,
           errorMessage: true,
           createdAt: true,
         },

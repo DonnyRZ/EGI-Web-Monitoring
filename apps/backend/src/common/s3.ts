@@ -39,22 +39,23 @@ export function isHttpUrl(value: string): boolean {
 }
 
 /**
- * Private-bucket signed URL for a screenshot object key.
- * Absolute http(s) values (legacy/test fixtures) are returned as-is.
+ * Private-bucket signed URL for an object key.
+ * Absolute http(s) values are returned as-is for compatibility with existing
+ * attachment fixtures and migration-safe records.
  */
-export async function createScreenshotSignedUrl(
-  screenshotRef: string,
+export async function createSignedObjectUrl(
+  objectRef: string,
   expiresInSeconds = 15 * 60,
 ): Promise<{ url: string; expiresAt: Date }> {
   const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
 
-  if (isHttpUrl(screenshotRef)) {
-    return { url: screenshotRef, expiresAt };
+  if (isHttpUrl(objectRef)) {
+    return { url: objectRef, expiresAt };
   }
 
   const client = createS3Client();
   const bucket = getBucket();
-  const key = screenshotRef.replace(/^\//, "");
+  const key = objectRef.replace(/^\//, "");
 
   const url = await getSignedUrl(
     client,

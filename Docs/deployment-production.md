@@ -91,7 +91,7 @@ Validasi tanpa membuat data baru:
 - redirect `/admin/websites` ke `/projects`;
 - redirect `/admin/assignments` ke `/projects`;
 - scope Project, User Story, Ticket, Incident, Monitoring, dan Legacy Task per role;
-- Redis, MinIO, screenshot, dan signed URL;
+- Redis, MinIO untuk lampiran tiket;
 - scheduler interval dan worker queue;
 - log Prisma, Redis, queue, dan database;
 - tidak ada 5xx berulang atau restart loop.

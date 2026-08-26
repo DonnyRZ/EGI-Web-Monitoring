@@ -1,33 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isBrowserInfrastructureError, waitForVisualStability } from "./probes";
+import { runProbes } from "./probes";
 
-test("recognizes Chromium infrastructure failures", () => {
-  assert.equal(
-    isBrowserInfrastructureError("browserType.launch: Target page, context or browser has been closed"),
-    true,
-  );
-  assert.equal(isBrowserInfrastructureError("page.goto: net::ERR_NAME_NOT_RESOLVED"), false);
+test("invalid target is aborted before any HTTP request", async () => {
+  const result = await runProbes({
+    url: "http://127.0.0.1:3000/private",
+    httpTimeoutMs: 1_000,
+  });
+
+  assert.equal(result.probeAborted, true);
+  assert.equal(result.infrastructureFailure, false);
+  assert.equal(result.httpStatus, null);
 });
 
-test("visual stability waits for bounded network idle and final settle", async () => {
-  const calls: string[] = [];
-  await waitForVisualStability(
-    {
-      evaluate: async () => {
-        calls.push("document");
-        return undefined;
-      },
-      waitForLoadState: async (_state, options) => {
-        calls.push(`network:${options.timeout}`);
-        throw new Error("persistent analytics connection");
-      },
-      waitForTimeout: async (ms) => {
-        calls.push(`settle:${ms}`);
-      },
-    },
-    45_000,
-  );
+test("HTTP-only probe returns a health result without visual fields", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response("ok", { status: 200 })) as typeof fetch;
 
-  assert.deepEqual(calls, ["document", "network:5000", "settle:1500"]);
+  try {
+    const result = await runProbes({
+      url: "https://1.1.1.1",
+      httpTimeoutMs: 1_000,
+    });
+
+    assert.equal(result.httpOk, true);
+    assert.equal(result.httpStatus, 200);
+    assert.equal(result.errorMessage, null);
+    assert.equal("screenshotBuffer" in result, false);
+    assert.equal("renderTimeMs" in result, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

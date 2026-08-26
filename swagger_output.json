@@ -202,13 +202,6 @@
           "status": { "$ref": "#/components/schemas/MonitoringStatus" },
           "http_status": { "type": "integer", "nullable": true, "example": 200 },
           "response_time_ms": { "type": "integer", "nullable": true, "example": 820 },
-          "render_time_ms": { "type": "integer", "nullable": true, "example": 2400 },
-          "screenshot_url": {
-            "type": "string",
-            "nullable": true,
-            "description": "Object storage path or signed URL. Screenshots are not stored in PostgreSQL.",
-            "example": "website/abc123/2026/07/19/10-00.webp"
-          },
           "error_message": { "type": "string", "nullable": true },
           "created_at": { "$ref": "#/components/schemas/Timestamp" }
         }
@@ -967,33 +960,6 @@
         }
       }
     },
-    "/monitoring-results/{id}/screenshot": {
-      "get": {
-        "tags": ["Monitoring"],
-        "summary": "Get temporary signed screenshot URL",
-        "description": "Screenshots live in private object storage. Backend returns a short-lived signed URL.",
-        "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
-        "responses": {
-          "200": {
-            "description": "Signed URL issued",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["url", "expires_at"],
-                  "properties": {
-                    "url": { "type": "string", "format": "uri" },
-                    "expires_at": { "$ref": "#/components/schemas/Timestamp" }
-                  }
-                }
-              }
-            }
-          },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
-        }
-      }
-    },
     "/incidents": {
       "get": {
         "tags": ["Incidents"],
@@ -1455,7 +1421,7 @@
       "get": {
         "tags": ["Dashboard"],
         "summary": "Main dashboard cards",
-        "description": "For each website: website data + latest monitoring result (including screenshot) + active incident.",
+        "description": "For each website: website data + latest HTTP health result + active incident.",
         "responses": {
           "200": {
             "description": "Dashboard cards",

@@ -3,7 +3,6 @@ import { Prisma } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toMonitoringResultDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
-import { createScreenshotSignedUrl } from "../../common/s3";
 import { MonitoringHistoryQueryDto } from "./monitoring.dto";
 import { canOperateScopedResources, monitoringResultScope, websiteVisibilityScope } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
@@ -69,7 +68,7 @@ export class MonitoringService {
   }
 
   async get(id: string, user: AuthUser) {
-    // Dashboard cards (including end_user) need result/screenshot access for active sites.
+    // Dashboard cards (including end_user) need health-result access for active sites.
     const result = await this.prisma.monitoringResult.findFirst({
       where: {
         id,
@@ -80,22 +79,4 @@ export class MonitoringService {
     return toMonitoringResultDto(result);
   }
 
-  async getScreenshotSignedUrl(id: string, user: AuthUser) {
-    const result = await this.prisma.monitoringResult.findFirst({
-      where: {
-        id,
-        ...monitoringResultScope(user),
-      },
-    });
-    if (!result) throw new NotFoundException("Monitoring result not found");
-    if (!result.screenshotUrl) {
-      throw new NotFoundException("Screenshot not available");
-    }
-
-    const signed = await createScreenshotSignedUrl(result.screenshotUrl);
-    return {
-      url: signed.url,
-      expires_at: signed.expiresAt,
-    };
-  }
 }

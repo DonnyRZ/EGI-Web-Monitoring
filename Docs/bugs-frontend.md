@@ -168,7 +168,7 @@ Route detail mengambil data setelah komponen mount. Dalam mode dev, compile rout
 
 ### Solusi
 
-Production build menghilangkan compile-on-demand. Endpoint detail juga telah diverifikasi cepat. Screenshot dimuat terpisah melalui signed URL sehingga kegagalan storage tidak memblokir seluruh detail.
+Production build menghilangkan compile-on-demand. Endpoint detail juga telah diverifikasi cepat. Detail website sekarang hanya memuat data health dan tidak bergantung pada object storage visual.
 
 ## 10. API client dan refresh loop
 
@@ -227,7 +227,7 @@ Hasil validasi:
 2. Gunakan `next build` lalu `next start` untuk preview performa.
 3. Jangan menjalankan build dan dev bersamaan.
 4. Pertahankan timeout API.
-5. Tambahkan browser smoke test untuk login dan seluruh navigasi utama.
+5. Tambahkan smoke test manual/local untuk login dan seluruh navigasi utama.
 6. Ukur waktu dari klik sampai content utama terlihat, bukan hanya status HTTP route.
 7. Pisahkan cold-start API dan warm API dalam benchmark.
 8. Pertahankan cache data global yang tidak perlu diambil ulang pada setiap route.

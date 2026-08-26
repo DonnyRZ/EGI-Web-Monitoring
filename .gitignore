@@ -54,7 +54,6 @@ Thumbs.db
 !.vscode/settings.json
 
 # Testing / tooling
-playwright-report/
 test-results/
 .turbo/
 .eslintcache

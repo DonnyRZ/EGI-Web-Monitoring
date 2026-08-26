@@ -82,10 +82,6 @@ export const dashboardApi = {
 };
 
 export const monitoringApi = {
-  screenshot: (id: string) =>
-    apiFetch<{ url: string; expires_at: string }>(
-      `/monitoring-results/${id}/screenshot`,
-    ),
   get: (id: string) => apiFetch<MonitoringResult>(`/monitoring-results/${id}`),
 };
 

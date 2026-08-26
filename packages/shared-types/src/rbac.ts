@@ -185,11 +185,6 @@ export function opensWebsiteExternallyFromDashboard(role?: string | null): boole
   return isEndUserPublicDashboard(role);
 }
 
-/** Dashboard card screenshots are visible to every authenticated role. */
-export function canViewDashboardScreenshots(role?: string | null): boolean {
-  return Boolean(role);
-}
-
 export function roleLabel(role: UserRole): string {
   switch (role) {
     case "superadmin":

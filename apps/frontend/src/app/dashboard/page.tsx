@@ -1,15 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { IconExternal } from "@/components/icons";
 import { Select } from "@/components/Select";
-import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
+import { WebsiteWall } from "@/components/website/WebsiteWall";
 import { dashboardApi, legacyTasksApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { formatRelative, isEndUserPublicDashboard, opensWebsiteExternallyFromDashboard, statusLabel } from "@/lib/format";
+import { isEndUserPublicDashboard } from "@/lib/format";
 import type { DashboardWebsiteCard } from "@/lib/types";
 import { ApiError } from "@/lib/api";
 
@@ -33,7 +31,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [myTaskWebsiteIds, setMyTaskWebsiteIds] = useState<Set<string> | null>(null);
-  const openExternally = opensWebsiteExternallyFromDashboard(user?.role);
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !user) return;
@@ -95,6 +93,12 @@ export default function DashboardPage() {
     return [...result].sort((a, b) => dashboardPriority(a) - dashboardPriority(b));
   }, [cards, statusFilter, myTaskWebsiteIds]);
 
+  useEffect(() => {
+    if (selectedWebsiteId && !filtered.some((card) => card.website.id === selectedWebsiteId)) {
+      setSelectedWebsiteId(null);
+    }
+  }, [filtered, selectedWebsiteId]);
+
   return (
     <AppShell title="Dashboard">
       {isGallery ? <section className="dashboard-intro gallery-intro">
@@ -144,88 +148,21 @@ export default function DashboardPage() {
       ) : null}
 
       {!loading && filtered.length > 0 ? (
-        <div className="card-grid">
-          {filtered.map((card) => {
-            const isPic = isDeveloper && card.website.it_pic_id === user?.id;
-            const isBackupPic = isDeveloper && !isPic && card.website.backup_it_pic_id === user?.id;
-            const monitoringStatus = card.latest_result?.status ?? "unknown";
-            const body = (
-              <>
-                <div className="website-card-shot">
-                  <ScreenshotImage
-                    resultId={card.latest_result?.id}
-                    hasScreenshot={Boolean(card.latest_result?.screenshot_url)}
-                    signedUrl={card.latest_result?.screenshot_signed_url}
-                    alt={`Screenshot ${card.website.name}`}
-                  />
-                </div>
-                <div className="website-card-body">
-                  <div className="website-card-top">
-                    <h3>{card.website.name}</h3>
-                  </div>
-                  <div className="website-card-meta">
-                    <span>{card.website.domain}</span>
-                    {openExternally ? (
-                      <span className="website-card-external" aria-hidden>
-                        <IconExternal />
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="website-card-meta">
-                    <span className={`project-health ${monitoringStatus}`}>
-                      <span className={`project-health-dot ${monitoringStatus}`} />
-                      {statusLabel(monitoringStatus)}
-                    </span>
-                    <span className="website-card-checked">
-                      {card.latest_result
-                        ? formatRelative(card.latest_result.checked_at)
-                        : "Belum pernah dicek"}
-                    </span>
-                    {card.active_incident ? (
-                      <span className="priority-tag high">
-                        Incident aktif
-                      </span>
-                    ) : null}
-                    {isPic ? (
-                      <span className="priority-tag">
-                        Anda PIC
-                      </span>
-                    ) : null}
-                    {isBackupPic ? (
-                      <span className="priority-tag">
-                        Anda backup PIC
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </>
-            );
-
-            if (openExternally) {
-              return (
-                <a
-                  key={card.website.id}
-                  href={card.website.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="website-card"
-                >
-                  {body}
-                </a>
-              );
-            }
-
-            return (
-              <Link
-                key={card.website.id}
-                href={`/websites/${card.website.id}`}
-                className="website-card"
-              >
-                {body}
-              </Link>
-            );
-          })}
-        </div>
+        <WebsiteWall
+          cards={filtered}
+          selectedWebsiteId={selectedWebsiteId}
+          publicView={isGallery}
+          isCurrentPic={(card) =>
+            isDeveloper && "it_pic_id" in card.website && card.website.it_pic_id === user?.id
+          }
+          isBackupPic={(card) =>
+            isDeveloper &&
+            "backup_it_pic_id" in card.website &&
+            card.website.backup_it_pic_id === user?.id &&
+            !("it_pic_id" in card.website && card.website.it_pic_id === user?.id)
+          }
+          onSelect={setSelectedWebsiteId}
+        />
       ) : null}
     </AppShell>
   );

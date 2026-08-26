@@ -52,6 +52,26 @@ export function toWebsiteDto(website: {
   };
 }
 
+/**
+ * Public dashboard projection. Keep project ownership, legacy assignments,
+ * monitoring configuration, and timestamps out of the guest gallery.
+ */
+export function toPublicWebsiteDto(website: {
+  id: string;
+  name: string;
+  domain: string;
+  url: string;
+  isActive: boolean;
+}) {
+  return {
+    id: website.id,
+    name: website.name,
+    domain: website.domain,
+    url: website.url,
+    is_active: website.isActive,
+  };
+}
+
 export function toMonitoringResultDto(result: {
   id: string;
   websiteId: string;
@@ -60,8 +80,6 @@ export function toMonitoringResultDto(result: {
   status: string;
   httpStatus: number | null;
   responseTimeMs: number | null;
-  renderTimeMs: number | null;
-  screenshotUrl: string | null;
   errorMessage: string | null;
   createdAt: Date;
 }) {
@@ -73,10 +91,19 @@ export function toMonitoringResultDto(result: {
     status: result.status,
     http_status: result.httpStatus,
     response_time_ms: result.responseTimeMs,
-    render_time_ms: result.renderTimeMs,
-    screenshot_url: result.screenshotUrl,
     error_message: result.errorMessage,
     created_at: result.createdAt,
+  };
+}
+
+/** Minimal health snapshot used by the public website gallery. */
+export function toPublicMonitoringSnapshot(result: {
+  status: string;
+  checkedAt: Date;
+}) {
+  return {
+    status: result.status,
+    checked_at: result.checkedAt,
   };
 }
 

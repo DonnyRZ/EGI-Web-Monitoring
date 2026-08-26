@@ -7,7 +7,7 @@
     "dev": "next dev -p 3010",
     "build": "next build",
     "start": "next start -p 3010",
-    "test": "tsx --test src/lib/api.test.ts src/lib/assignment-utils.test.ts src/lib/build-update.test.ts src/lib/cache-policy.test.ts src/lib/mobile-navigation.test.ts src/app/app-version/route.test.ts",
+    "test": "tsx --test src/lib/api.test.ts src/lib/assignment-utils.test.ts src/lib/build-update.test.ts src/lib/cache-policy.test.ts src/lib/mobile-navigation.test.ts src/lib/website-experience.test.ts src/app/app-version/route.test.ts",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },

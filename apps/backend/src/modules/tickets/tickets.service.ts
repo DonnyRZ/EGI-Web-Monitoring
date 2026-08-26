@@ -18,7 +18,7 @@ import { CreateTicketDto, TicketsQueryDto, UpdateTicketDto } from "./tickets.dto
 import { CreateTaskIntakeDto } from "./task-intake.dto";
 import { canOperateScopedResources, projectVisibilityWhere } from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
-import { createScreenshotSignedUrl, uploadObject } from "../../common/s3";
+import { createSignedObjectUrl, uploadObject } from "../../common/s3";
 
 const TICKET_INCLUDE = {
   assignee: { select: { id: true, name: true } },
@@ -140,7 +140,7 @@ export class TicketsService {
     if (!ticket.attachmentUrl) {
       throw new NotFoundException("Attachment not available");
     }
-    const signed = await createScreenshotSignedUrl(ticket.attachmentUrl);
+    const signed = await createSignedObjectUrl(ticket.attachmentUrl);
     return { url: signed.url, expires_at: signed.expiresAt };
   }
 

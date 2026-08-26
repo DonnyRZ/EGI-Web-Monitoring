@@ -5,10 +5,11 @@ import { PrismaService } from "../../prisma/prisma.service";
 import {
   toIncidentDto,
   toMonitoringResultDto,
+  toPublicMonitoringSnapshot,
+  toPublicWebsiteDto,
   toWebsiteDto,
 } from "../../common/mappers";
 import { canOperateScopedResources, websiteVisibilityScope } from "../../common/resource-access";
-import { createScreenshotSignedUrl } from "../../common/s3";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 const ACTIVE_STATUSES = [
@@ -26,8 +27,6 @@ type LatestResultRow = {
   status: MonitoringStatus;
   httpStatus: number | null;
   responseTimeMs: number | null;
-  renderTimeMs: number | null;
-  screenshotUrl: string | null;
   errorMessage: string | null;
   createdAt: Date;
 };
@@ -37,6 +36,7 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async main(user: AuthUser, statusFilter?: DashboardStatusFilter) {
+    const endUserView = isEndUserPublicDashboard(user.role);
     const websiteScope = this.websiteScope(user);
     const websites = await this.prisma.website.findMany({
       where: { isActive: true, ...websiteScope },
@@ -62,8 +62,7 @@ export class DashboardService {
     }
 
     const ids = websites.map((website) => website.id);
-    const [latestRows, incidents] = await Promise.all([
-      this.prisma.$queryRaw<LatestResultRow[]>`
+    const latestRowsPromise = this.prisma.$queryRaw<LatestResultRow[]>`
         SELECT DISTINCT ON (website_id)
           id,
           website_id AS "websiteId",
@@ -72,22 +71,22 @@ export class DashboardService {
           status,
           http_status AS "httpStatus",
           response_time_ms AS "responseTimeMs",
-          render_time_ms AS "renderTimeMs",
-          screenshot_url AS "screenshotUrl",
           error_message AS "errorMessage",
           created_at AS "createdAt"
         FROM monitoring_results
         WHERE website_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
         ORDER BY website_id, checked_at DESC
-      `,
-      this.prisma.incident.findMany({
+      `;
+    const incidentsPromise = endUserView
+      ? Promise.resolve([])
+      : this.prisma.incident.findMany({
         where: {
           websiteId: { in: ids },
           status: { in: [...ACTIVE_STATUSES] },
         },
         orderBy: { startedAt: "desc" },
-      }),
-    ]);
+      });
+    const [latestRows, incidents] = await Promise.all([latestRowsPromise, incidentsPromise]);
 
     const latestByWebsite = new Map(latestRows.map((row) => [row.websiteId, row]));
     const incidentByWebsite = new Map<string, (typeof incidents)[number]>();
@@ -97,16 +96,16 @@ export class DashboardService {
       }
     }
 
-    const endUserView = isEndUserPublicDashboard(user.role);
-
     const cards = websites
       .map((website) => {
         const latestResult = latestByWebsite.get(website.id) ?? null;
-        const activeIncident = incidentByWebsite.get(website.id) ?? null;
+        const activeIncident = endUserView ? null : incidentByWebsite.get(website.id) ?? null;
         return {
-          website: toWebsiteDto(website),
+          website: endUserView ? toPublicWebsiteDto(website) : toWebsiteDto(website),
           latest_result: latestResult
-            ? toMonitoringResultDto(latestResult)
+            ? endUserView
+              ? toPublicMonitoringSnapshot(latestResult)
+              : toMonitoringResultDto(latestResult)
             : null,
           active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
         };
@@ -129,18 +128,7 @@ export class DashboardService {
         return true;
       });
 
-    return {
-      // Signing is local HMAC work; doing it with the dashboard response
-      // avoids one authenticated request per visible card in the browser.
-      data: await Promise.all(
-        cards.map(async (card) => ({
-          ...card,
-          latest_result: card.latest_result
-            ? await this.withScreenshotUrl(card.latest_result)
-            : null,
-        })),
-      ),
-    };
+    return { data: cards };
   }
 
   async detail(websiteId: string, historyLimit: number, user: AuthUser) {
@@ -196,31 +184,12 @@ export class DashboardService {
     return {
       website: toWebsiteDto(website),
       latest_result: latestResult
-        ? await this.withScreenshotUrl(toMonitoringResultDto(latestResult))
+        ? toMonitoringResultDto(latestResult)
         : null,
       monitoring_history: monitoringHistory.map(toMonitoringResultDto),
       active_incident: activeIncident ? toIncidentDto(activeIncident) : null,
       incident_history: incidentHistory.map(toIncidentDto),
     };
-  }
-
-  private async withScreenshotUrl<
-    T extends { screenshot_url: string | null },
-  >(result: T): Promise<T & { screenshot_signed_url?: string; screenshot_expires_at?: Date }> {
-    if (!result.screenshot_url) return result;
-    try {
-      const signed = await createScreenshotSignedUrl(result.screenshot_url);
-      return {
-        ...result,
-        screenshot_signed_url: signed.url,
-        screenshot_expires_at: signed.expiresAt,
-      };
-    } catch {
-      // Keep the monitoring card usable if object storage signing is
-      // temporarily unavailable. The compatibility endpoint can still retry
-      // signing when the image is explicitly requested.
-      return result;
-    }
   }
 
   private websiteScope(user: AuthUser): Prisma.WebsiteWhereInput {

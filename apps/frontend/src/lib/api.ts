@@ -94,7 +94,6 @@ export function clearApiCache() {
 
 function getCacheTtl(path: string) {
   if (path.startsWith("/dashboard")) return 15_000;
-  if (path.includes("/screenshot")) return 30_000;
   if (
     path.startsWith("/projects/roster") ||
     path.startsWith("/projects/summary/scope") ||

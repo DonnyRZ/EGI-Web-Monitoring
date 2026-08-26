@@ -138,7 +138,6 @@ export {
   receivesLifecycleNotifications,
   isEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard,
-  canViewDashboardScreenshots,
   canViewDeveloperWorkload,
   roleLabel,
 } from "./rbac";

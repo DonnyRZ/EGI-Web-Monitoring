@@ -91,12 +91,11 @@ jobs:
             base: node
           - service: worker
             workspace: "@egi/worker"
-            base: playwright
+            base: node
     env:
       # Repository variables remain the rotation point; these audited immutable
       # fallbacks prevent a missing variable from selecting a mutable tag.
       NODE_BASE_IMAGE: ${{ vars.NODE_BASE_IMAGE_DIGEST || 'node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0' }}
-      PLAYWRIGHT_BASE_IMAGE: ${{ vars.PLAYWRIGHT_BASE_IMAGE_DIGEST || 'mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48' }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -104,9 +103,7 @@ jobs:
       - name: Require verified immutable base image refs
         run: |
           test -n "$NODE_BASE_IMAGE" || { echo "NODE_BASE_IMAGE_DIGEST repository variable is required"; exit 1; }
-          test -n "$PLAYWRIGHT_BASE_IMAGE" || { echo "PLAYWRIGHT_BASE_IMAGE_DIGEST repository variable is required"; exit 1; }
           [[ "$NODE_BASE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || { echo "Node base image must include sha256 digest"; exit 1; }
-          [[ "$PLAYWRIGHT_BASE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || { echo "Playwright base image must include sha256 digest"; exit 1; }
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -123,7 +120,7 @@ jobs:
           context: .
           file: deploy/Dockerfile.service
           build-args: |
-            BASE_IMAGE=${{ matrix.base == 'node' && env.NODE_BASE_IMAGE || env.PLAYWRIGHT_BASE_IMAGE }}
+            BASE_IMAGE=${{ env.NODE_BASE_IMAGE }}
             SERVICE=${{ matrix.workspace }}
             NEXT_PUBLIC_API_URL=/api
             NEXT_PUBLIC_APP_VERSION=${{ github.sha }}

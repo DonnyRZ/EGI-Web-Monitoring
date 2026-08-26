@@ -101,6 +101,15 @@ export function IconExternal(props: IconProps) {
   );
 }
 
+export function IconRefresh(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M19.2 8.5A7.5 7.5 0 1 0 19.5 14" />
+      <path d="M19.5 4.8v4.7h-4.7" />
+    </IconBase>
+  );
+}
+
 export function IconLogout(props: IconProps) {
   return (
     <IconBase {...props}>

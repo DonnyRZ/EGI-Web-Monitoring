@@ -4,9 +4,6 @@ export interface CheckProbeResult {
   httpOk: boolean;
   httpStatus: number | null;
   responseTimeMs: number | null;
-  browserOk: boolean;
-  renderTimeMs: number | null;
-  screenshotOk: boolean;
   errorMessage: string | null;
   /** True when the worker could not even start probes (bad URL, internal error). */
   probeAborted?: boolean;
@@ -15,13 +12,13 @@ export interface CheckProbeResult {
 }
 
 /**
- * Derive per-check monitoring status from HTTP + browser probes.
+ * Derive per-check monitoring status from the lightweight HTTP health probe.
  *
  * MVP thresholds (blueprint §5 + §8):
- * - normal: HTTP + browser succeed
- * - warning: partial success / slow / screenshot fail while site reachable
+ * - normal: HTTP succeeds within the latency threshold
+ * - warning: HTTP succeeds but is slow
  * - unknown: probe aborted before checks ran
- * - down: both HTTP and browser failed (hard failure on this poll)
+ * - down: HTTP health check fails on this poll
  *
  * Consecutive-failure → incident/down is handled separately by evaluateIncidentRules.
  */
@@ -30,23 +27,14 @@ export function deriveCheckStatus(probe: CheckProbeResult): MonitoringStatus {
     return "unknown";
   }
 
-  const httpFail = !probe.httpOk;
-  const browserFail = !probe.browserOk;
-
-  if (httpFail && browserFail) {
+  if (!probe.httpOk) {
     return "down";
-  }
-
-  if (httpFail || browserFail) {
-    return "warning";
   }
 
   const slowHttp =
     probe.responseTimeMs != null && probe.responseTimeMs >= 5_000;
-  const slowRender =
-    probe.renderTimeMs != null && probe.renderTimeMs >= 10_000;
 
-  if (slowHttp || slowRender || !probe.screenshotOk) {
+  if (slowHttp) {
     return "warning";
   }
 

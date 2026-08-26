@@ -2,15 +2,13 @@
   "name": "@egi/worker",
   "version": "0.1.0",
   "private": true,
-  "description": "EGI Website Monitoring worker (HTTP + Playwright + notifications)",
+  "description": "EGI Website Monitoring worker (HTTP health checks + notifications)",
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
-    "postinstall": "playwright install chromium",
-    "playwright:install": "playwright install chromium",
-    "test": "tsx --test src/probes.test.ts src/target-safety.test.ts src/storage/s3.test.ts src/retention.test.ts",
+    "test": "tsx --test src/probes.test.ts src/target-safety.test.ts src/retention.test.ts",
     "test:notifications": "tsx --experimental-test-module-mocks --test src/notifications/email.test.ts src/notifications/dispatch.test.ts",
     "test:integration:rules": "tsx --test src/rules-apply.integration.test.ts",
     "test:integration:notifications": "tsx --test src/notifications/reconcile.integration.test.ts",
@@ -18,8 +16,6 @@
     "lint": "echo \"@egi/worker: no lint configured yet\""
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.848.0",
-    "@aws-sdk/s3-request-presigner": "^3.848.0",
     "@egi/database": "*",
     "@egi/logging": "*",
     "@egi/monitoring-rules": "*",
@@ -28,8 +24,7 @@
     "bullmq": "^5.56.1",
     "dotenv": "^16.6.1",
     "ioredis": "^5.6.1",
-    "nodemailer": "^9.0.3",
-    "playwright": "^1.54.1"
+    "nodemailer": "^9.0.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.15",

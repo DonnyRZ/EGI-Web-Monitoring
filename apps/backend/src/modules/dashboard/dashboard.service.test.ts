@@ -24,18 +24,16 @@ function website(id: string, name: string) {
   };
 }
 
-function latestResult(websiteId: string, status: MonitoringStatus, screenshotUrl: string | null) {
+function latestResult(websiteId: string, status: MonitoringStatus) {
   return {
     id: `result-${websiteId}`,
     websiteId,
     scheduledAt: now,
     checkedAt: now,
     status,
-    httpStatus: 200,
+    httpStatus: status === MonitoringStatus.down ? 503 : 200,
     responseTimeMs: 100,
-    renderTimeMs: 200,
-    screenshotUrl,
-    errorMessage: null,
+    errorMessage: status === MonitoringStatus.down ? "HTTP 503" : null,
     createdAt: now,
   };
 }
@@ -60,9 +58,9 @@ const SITE_DOWN = "22222222-2222-4222-8222-222222222222";
 const SITE_WARN = "33333333-3333-4333-8333-333333333333";
 
 function makeFakePrisma(options?: {
-  websites?: ReturnType<typeof website>[];
-  latestResults?: ReturnType<typeof latestResult>[];
-  incidents?: ReturnType<typeof incident>[];
+  websites?: Array<ReturnType<typeof website>>;
+  latestResults?: Array<ReturnType<typeof latestResult>>;
+  incidents?: Array<ReturnType<typeof incident>>;
 }) {
   const calls: Array<{ method: string; args: unknown }> = [];
   const websites = options?.websites ?? [
@@ -71,9 +69,9 @@ function makeFakePrisma(options?: {
     website(SITE_WARN, "Charlie"),
   ];
   const latestResults = options?.latestResults ?? [
-    latestResult(SITE_OK, MonitoringStatus.normal, "https://cdn.example.test/alpha.webp"),
-    latestResult(SITE_DOWN, MonitoringStatus.down, "https://cdn.example.test/bravo.webp"),
-    latestResult(SITE_WARN, MonitoringStatus.warning, "https://cdn.example.test/charlie.webp"),
+    latestResult(SITE_OK, MonitoringStatus.normal),
+    latestResult(SITE_DOWN, MonitoringStatus.down),
+    latestResult(SITE_WARN, MonitoringStatus.warning),
   ];
   const incidents = options?.incidents ?? [incident(SITE_DOWN)];
 
@@ -99,7 +97,7 @@ function makeFakePrisma(options?: {
   return { prisma, calls };
 }
 
-test("dashboard list uses batched queries without nested monitoringResults include", async () => {
+test("dashboard list uses batched health queries without nested monitoring include", async () => {
   const { prisma, calls } = makeFakePrisma();
   const service = new DashboardService(prisma as never);
 
@@ -115,7 +113,7 @@ test("dashboard list uses batched queries without nested monitoringResults inclu
   assert.ok(calls.some((c) => c.method === "incident.findMany"));
 });
 
-test("includes a signed screenshot URL so cards avoid a client-side signing round trip", async () => {
+test("dashboard health response contains no visual evidence fields", async () => {
   const { prisma } = makeFakePrisma();
   const service = new DashboardService(prisma as never);
 
@@ -123,19 +121,16 @@ test("includes a signed screenshot URL so cards avoid a client-side signing roun
   const alpha = data.find((card) => card.website.id === SITE_OK);
 
   assert.ok(alpha?.latest_result);
-  assert.equal(alpha.latest_result.screenshot_url, "https://cdn.example.test/alpha.webp");
-  assert.equal(alpha.latest_result.screenshot_signed_url, "https://cdn.example.test/alpha.webp");
-  assert.ok(alpha.latest_result.screenshot_expires_at);
+  assert.ok(alpha?.latest_result && "http_status" in alpha.latest_result);
+  if (alpha?.latest_result && "http_status" in alpha.latest_result) {
+    assert.equal(alpha.latest_result.http_status, 200);
+    assert.equal("screenshot_url" in alpha.latest_result, false);
+    assert.equal("render_time_ms" in alpha.latest_result, false);
+  }
 });
 
-test("status=active omits down cards and includes signed screenshot URLs", async () => {
-  const { prisma } = makeFakePrisma({
-    latestResults: [
-      latestResult(SITE_OK, MonitoringStatus.normal, "https://cdn.example.test/alpha.webp"),
-      latestResult(SITE_DOWN, MonitoringStatus.down, "screenshots/must-not-be-signed.webp"),
-      latestResult(SITE_WARN, MonitoringStatus.warning, "https://cdn.example.test/charlie.webp"),
-    ],
-  });
+test("status=active omits down cards", async () => {
+  const { prisma } = makeFakePrisma();
   const service = new DashboardService(prisma as never);
 
   const { data } = await service.main(developer, "active");
@@ -143,7 +138,6 @@ test("status=active omits down cards and includes signed screenshot URLs", async
 
   assert.deepEqual(ids.sort(), [SITE_OK, SITE_WARN].sort());
   assert.ok(data.every((card) => card.latest_result?.status !== MonitoringStatus.down));
-  assert.ok(data.every((card) => !card.latest_result || "screenshot_signed_url" in card.latest_result));
 });
 
 test("status=down returns only down cards", async () => {
@@ -167,26 +161,29 @@ test("omitted status returns every active website for developer my-tasks", async
   assert.equal(data.length, 3);
 });
 
-test("end-user gallery still hides down and unknown after mapping", async () => {
+test("end-user gallery still hides down and unknown after health mapping", async () => {
   const unknownSite = "44444444-4444-4444-8444-444444444444";
-  const { prisma } = makeFakePrisma({
-    websites: [
-      website(SITE_OK, "Alpha"),
-      website(SITE_DOWN, "Bravo"),
-      website(unknownSite, "Delta"),
-    ],
+  const { prisma, calls } = makeFakePrisma({
+    websites: [website(SITE_OK, "Alpha"), website(SITE_DOWN, "Bravo"), website(unknownSite, "Delta")],
     latestResults: [
-      latestResult(SITE_OK, MonitoringStatus.normal, "https://cdn.example.test/alpha.webp"),
-      latestResult(SITE_DOWN, MonitoringStatus.down, "https://cdn.example.test/bravo.webp"),
-      latestResult(unknownSite, MonitoringStatus.unknown, null),
+      latestResult(SITE_OK, MonitoringStatus.normal),
+      latestResult(SITE_DOWN, MonitoringStatus.down),
+      latestResult(unknownSite, MonitoringStatus.unknown),
     ],
     incidents: [],
   });
   const service = new DashboardService(prisma as never);
 
   const { data } = await service.main(endUser);
+  const publicCard = data[0];
 
   assert.deepEqual(data.map((card) => card.website.id), [SITE_OK]);
+  assert.ok(publicCard);
+  assert.equal("owner_id" in publicCard.website, false);
+  assert.equal("project_id" in publicCard.website, false);
+  assert.equal("http_status" in (publicCard.latest_result ?? {}), false);
+  assert.equal(publicCard.active_incident, null);
+  assert.ok(!calls.some((c) => c.method === "incident.findMany"));
 });
 
 test("skips latest-result and incident queries when there are no websites", async () => {

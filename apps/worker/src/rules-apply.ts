@@ -33,14 +33,13 @@ export interface PersistCheckInput {
   websiteName: string;
   scheduledAt: Date;
   probe: CheckProbeResult;
-  screenshotUrl: string | null;
   enqueueNotification: (notificationId: string) => Promise<void>;
 }
 
 export async function persistCheckAndEvaluate(
   input: PersistCheckInput,
 ): Promise<{ resultId: string; status: MonitoringStatus }> {
-  const { prisma, websiteId, scheduledAt, probe, screenshotUrl } = input;
+  const { prisma, websiteId, scheduledAt, probe } = input;
   const checkedAt = new Date();
 
   const checkStatus = deriveCheckStatus(probe);
@@ -80,15 +79,11 @@ export async function persistCheckAndEvaluate(
         rawStatus: checkStatus,
         status: finalStatus,
         httpOk: probe.httpOk,
-        browserOk: probe.browserOk,
-        screenshotOk: probe.screenshotOk,
         probeAborted: probe.probeAborted ?? false,
         infrastructureFailure: probe.infrastructureFailure ?? false,
         statusReason: getStatusReason(probe, checkStatus),
         httpStatus: probe.httpStatus,
         responseTimeMs: probe.responseTimeMs,
-        renderTimeMs: probe.renderTimeMs,
-        screenshotUrl,
         errorMessage: probe.errorMessage,
       },
     });
@@ -139,12 +134,9 @@ function getStatusReason(
       ? "monitoring_infrastructure_failure"
       : "probe_aborted";
   }
-  if (status === "down") return "http_and_browser_failed";
+  if (status === "down") return "http_failed";
   if (!probe.httpOk) return "http_failed";
-  if (!probe.browserOk) return "browser_failed";
-  if (!probe.screenshotOk) return "screenshot_failed";
   if ((probe.responseTimeMs ?? 0) >= 5_000) return "slow_http";
-  if ((probe.renderTimeMs ?? 0) >= 10_000) return "slow_render";
   return "healthy";
 }
 

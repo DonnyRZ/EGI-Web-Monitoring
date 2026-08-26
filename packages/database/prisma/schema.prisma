@@ -239,15 +239,11 @@ model MonitoringResult {
   rawStatus      MonitoringStatus? @map("raw_status")
   status         MonitoringStatus
   httpOk         Boolean?         @map("http_ok")
-  browserOk      Boolean?         @map("browser_ok")
-  screenshotOk   Boolean?         @map("screenshot_ok")
   probeAborted   Boolean?         @map("probe_aborted")
   infrastructureFailure Boolean?  @map("infrastructure_failure")
   statusReason   String?          @map("status_reason")
   httpStatus     Int?             @map("http_status")
   responseTimeMs Int?             @map("response_time_ms")
-  renderTimeMs   Int?             @map("render_time_ms")
-  screenshotUrl  String?          @map("screenshot_url")
   errorMessage   String?          @map("error_message")
   createdAt      DateTime         @default(now()) @map("created_at")
 

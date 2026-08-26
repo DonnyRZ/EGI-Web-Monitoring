@@ -1,6 +1,6 @@
 # EGI Website Monitoring
 
-Internal platform for monitoring EGI websites: availability checks, screenshots, incidents, tickets, and notifications.
+Internal platform for monitoring EGI websites: HTTP health checks, incidents, tickets, and notifications.
 
 ## Workspace layout
 
@@ -9,7 +9,7 @@ apps/
   frontend     @egi/frontend    Next.js dashboard
   backend      @egi/backend     NestJS API + Swagger UI
   scheduler    @egi/scheduler   Enqueues monitoring jobs (BullMQ)
-  worker       @egi/worker      HTTP + Playwright checks, notifications, retention
+  worker       @egi/worker      HTTP health checks, notifications, retention
 
 packages/
   database          @egi/database
@@ -38,7 +38,6 @@ npm run db:migrate
 npm run db:seed
 npm run build:database
 npm run build -w @egi/shared-types -w @egi/queue -w @egi/monitoring-rules
-npm run playwright:install -w @egi/worker
 ```
 
 Seed logins default to admin `egi.egiholding@gmail.com`, Bos IT `bos.it@egiresources.com`,
@@ -68,15 +67,13 @@ npm run dev:worker
 - Swagger UI: `http://localhost:3001/docs`
 - MinIO console: `http://localhost:9001` (minioadmin / change_me_minio)
 
-### Windows / Playwright
+### Monitoring model
 
-The worker uses Playwright Chromium. After `npm install`, run:
-
-```bash
-npm run playwright:install -w @egi/worker
-```
-
-If browser launch fails, install [Playwright system deps](https://playwright.dev/docs/browsers) for your OS.
+The background worker performs lightweight HTTP health checks only. Live Website
+interaction is an explicit user action: the dashboard opens one direct iframe at
+a time and keeps a tab-new fallback when framing is blocked. The VPS does not
+render, proxy, or screenshot every website. MinIO remains available for private
+ticket attachments.
 
 ## Deploy to a VPS (Windows or Linux)
 
@@ -87,13 +84,8 @@ frontend/API through a reverse proxy with HTTPS. On the VPS, set
 `DATABASE_URL`, `REDIS_PASSWORD`, both JWT secrets, and both S3 credentials.
 The backend, worker, and scheduler intentionally refuse unsafe default
 credentials in production. Set `ENABLE_SWAGGER=false` unless docs need
-controlled access.
-
-For Linux, install Playwright's system dependencies before starting the worker.
-For Windows, run `npm run playwright:install -w @egi/worker`; if endpoint
-security blocks the default Headless Shell, set `PLAYWRIGHT_EXECUTABLE_PATH`
-to the installed Chromium executable. The worker validates every monitoring
-target and HTTP redirect to prevent private-network monitoring requests.
+controlled access. The worker validates every monitoring target and HTTP
+redirect to prevent private-network monitoring requests.
 
 `infra/nginx/nginx.conf` is a working reverse-proxy template for containerized
 frontend/backend services. Validate it with `nginx -t`, replace the upstream
@@ -121,16 +113,14 @@ For the controlled Docker/Compose production path, use [Docs/deployment-producti
 ## Pipeline overview
 
 ```text
-Scheduler → Redis/BullMQ → Worker (HTTP + Playwright)
-  → MinIO screenshot → monitoring_results → rules
+Scheduler → Redis/BullMQ → Worker (HTTP health check)
+  → monitoring_results → rules
   → incidents/tickets → notifications (dashboard/email/Telegram)
 ```
 
 - Job id: `website_id + scheduled_at` (no duplicate slot)
 - Retry: 10s, then 30s, max 3 attempts; jobs older than 4 minutes may skip
-- Screenshots: object key `website/{id}/{yyyy}/{mm}/{dd}/{HH-mm}.webp` (UTC); upload failure still saves result with `screenshot_url=null`
-- API `GET /monitoring-results/:id/screenshot` returns a short-lived **signed URL** for private MinIO objects
-- Retention (daily): monitoring_results 90d, screenshots 1d, notifications 90d; incidents/tickets forever
+- Retention (daily): monitoring_results 90d, notifications 90d; incidents/tickets forever
 
 ## Telegram
 
@@ -142,6 +132,7 @@ See `apps/worker/TELEGRAM.md`. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (
 - `Docs/data-pipeline-blueprint-website-monitoring.md`
 - `Docs/EGI Website List.txt`
 - `swagger_output.json`
+- `Docs/website-experience-separation.md` — preparation boundary for Live Website and Health Monitoring
 
 ## Deep API tests
 

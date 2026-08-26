@@ -26,21 +26,12 @@ import {
   markNotificationFailed,
 } from "./notifications/dispatch";
 import { reconcilePendingNotifications } from "./notifications/reconcile";
-import { runProbes, closeBrowser } from "./probes";
+import { runProbes } from "./probes";
 import { persistCheckAndEvaluate } from "./rules-apply";
 import { runRetentionCleanup } from "./retention";
-import {
-  createS3Client,
-  assertS3ProductionConfig,
-  ensureBucket,
-  getBucket,
-  screenshotObjectKey,
-  uploadScreenshot,
-} from "./storage/s3";
 import { acquireWebsiteLock, releaseWebsiteLock } from "./website-lock";
 
 assertRedisProductionConfig();
-assertS3ProductionConfig();
 const prisma = createPrismaClient();
 const connection = getRedisConnectionOptions();
 const redis = createRedisConnection();
@@ -52,7 +43,6 @@ const retentionQueue = new Queue<RetentionJobPayload>(QUEUE_NAMES.retention, {
 
 const CONCURRENCY = Math.max(1, Number(process.env.WORKER_CONCURRENCY || 5));
 const HTTP_TIMEOUT_MS = Number(process.env.HTTP_TIMEOUT_MS || 15_000);
-const BROWSER_TIMEOUT_MS = Number(process.env.BROWSER_TIMEOUT_MS || 45_000);
 const LATE_JOB_SKIP_MS = Number(process.env.LATE_JOB_SKIP_MS || 4 * 60_000);
 const RETENTION_CRON = process.env.RETENTION_CRON || "0 2 * * *";
 
@@ -107,23 +97,7 @@ async function processMonitoringJob(
     const probe = await runProbes({
       url: payload.url || website.url,
       httpTimeoutMs: HTTP_TIMEOUT_MS,
-      browserTimeoutMs: BROWSER_TIMEOUT_MS,
     });
-
-    const maxAttempts = job.opts.attempts ?? 1;
-    const attemptNumber = job.attemptsMade + 1;
-    let pipelineError = probe.infrastructureError ?? null;
-
-    if (pipelineError) {
-      log("browser_infrastructure_failed", meta({
-        error: pipelineError,
-        attempt: attemptNumber,
-        max_attempts: maxAttempts,
-      }));
-      if (attemptNumber < maxAttempts) {
-        throw new Error(`Monitoring browser infrastructure failure: ${pipelineError}`);
-      }
-    }
 
     log(
       "http_check_completed",
@@ -133,48 +107,6 @@ async function processMonitoringJob(
         response_time_ms: probe.responseTimeMs,
       }),
     );
-    log(
-      "browser_check_completed",
-      meta({
-        browser_ok: probe.browserOk,
-        render_time_ms: probe.renderTimeMs,
-        screenshot_ok: probe.screenshotOk,
-      }),
-    );
-
-    let screenshotUrl: string | null = null;
-    if (!pipelineError && probe.screenshotBuffer) {
-      const key = screenshotObjectKey(websiteId, scheduledAt);
-      try {
-        await uploadScreenshot(
-          createS3Client(),
-          getBucket(),
-          key,
-          probe.screenshotBuffer,
-        );
-        screenshotUrl = key;
-        log("screenshot_uploaded", meta({ screenshot_key: key }));
-      } catch (error) {
-        pipelineError = error instanceof Error ? error.message : String(error);
-        log("screenshot_upload_failed", meta({ error: pipelineError }));
-        screenshotUrl = null;
-      }
-    }
-
-    if (pipelineError && attemptNumber < maxAttempts) {
-      throw new Error(`Monitoring pipeline failure: ${pipelineError}`);
-    }
-
-    // After all retries, preserve an explicit unknown result for observability
-    // without turning a broken browser/storage dependency into a site outage.
-    const resultProbe = pipelineError
-      ? {
-          ...probe,
-          infrastructureFailure: true,
-          errorMessage: [probe.errorMessage, pipelineError].filter(Boolean).join("; "),
-          screenshotBuffer: null,
-        }
-      : probe;
 
     await persistCheckAndEvaluate({
       prisma,
@@ -182,8 +114,7 @@ async function processMonitoringJob(
       websiteId,
       websiteName: website.name,
       scheduledAt,
-      probe: resultProbe,
-      screenshotUrl,
+      probe,
       enqueueNotification: async (notificationId) => {
         try {
           await enqueueNotificationJob(notificationQueue, notificationId);
@@ -257,18 +188,8 @@ async function main() {
   log("worker_started", {
     concurrency: CONCURRENCY,
     http_timeout_ms: HTTP_TIMEOUT_MS,
-    browser_timeout_ms: BROWSER_TIMEOUT_MS,
     late_job_skip_ms: LATE_JOB_SKIP_MS,
   });
-
-  try {
-    await ensureBucket(createS3Client(), getBucket());
-    log("s3_bucket_ready", { bucket: getBucket() });
-  } catch (error) {
-    log("s3_bucket_ensure_failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
 
   await ensureRetentionSchedule();
   await reconcileNotifications();
@@ -329,7 +250,6 @@ async function main() {
     await notificationQueue.close();
     await monitoringQueue.close();
     await retentionQueue.close();
-    await closeBrowser();
     redis.disconnect();
     await prisma.$disconnect();
     process.exit(0);
@@ -344,7 +264,6 @@ main().catch(async (error) => {
     error: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
   });
-  await closeBrowser();
   await prisma.$disconnect();
   process.exit(1);
 });

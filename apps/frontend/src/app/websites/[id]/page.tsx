@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ScreenshotImage } from "@/components/ScreenshotImage";
 import { IconExternal } from "@/components/icons";
+import { LiveWebsiteViewer } from "@/components/website/LiveWebsiteViewer";
 import {
   EmptyState,
   ErrorBanner,
@@ -35,6 +35,7 @@ export default function WebsiteDetailPage() {
   const id = params.id;
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<WebsiteDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,6 +44,11 @@ export default function WebsiteDetailPage() {
   const [myTasks, setMyTasks] = useState<Task[]>([]);
   const [myTasksLoading, setMyTasksLoading] = useState(false);
   const isDeveloper = user?.role === "developer";
+  const activeTab = searchParams.get("tab") === "live" ? "live" : "health";
+
+  function changeTab(tab: "health" | "live") {
+    router.replace(`/websites/${id}?tab=${tab}`, { scroll: false });
+  }
 
   useEffect(() => {
     if (!authLoading && user && opensWebsiteExternallyFromDashboard(user.role)) {
@@ -124,19 +130,35 @@ export default function WebsiteDetailPage() {
 
       {!loading && data ? (
         <div className="stack-gap">
-          <div className="detail-hero">
-            <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
-              <div className="screenshot-frame" style={{ border: "none", borderRadius: 0 }}>
-                <ScreenshotImage
-                  resultId={data.latest_result?.id}
-                  hasScreenshot={Boolean(data.latest_result?.screenshot_url)}
-                  signedUrl={data.latest_result?.screenshot_signed_url}
-                  alt={`Screenshot ${data.website.name}`}
-                />
-              </div>
-            </div>
+          <div className="website-detail-tabs" role="tablist" aria-label="Bagian detail website">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "health"}
+              aria-controls="website-detail-panel"
+              className={`website-detail-tab${activeTab === "health" ? " active" : ""}`}
+              onClick={() => changeTab("health")}
+            >
+              Kesehatan
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "live"}
+              aria-controls="website-detail-panel"
+              className={`website-detail-tab${activeTab === "live" ? " active" : ""}`}
+              onClick={() => changeTab("live")}
+            >
+              Tampilan Website
+            </button>
+          </div>
 
-            <div className="stack-gap">
+          <div id="website-detail-panel" role="tabpanel" tabIndex={0}>
+            {activeTab === "live" ? (
+              <LiveWebsiteViewer website={data.website} />
+            ) : (
+          <>
+          <div className="stack-gap">
               <div className="panel status-summary">
                 <div className="status-summary-head">
                   <h2 className="panel-title" style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
@@ -209,12 +231,6 @@ export default function WebsiteDetailPage() {
                   </div>
                 </div>
                 <div className="metric">
-                  <div className="metric-label">Render Time</div>
-                  <div className="metric-value">
-                    {msLabel(data.latest_result?.render_time_ms)}
-                  </div>
-                </div>
-                <div className="metric">
                   <div className="metric-label">Error</div>
                   <div
                     className="metric-value"
@@ -224,7 +240,6 @@ export default function WebsiteDetailPage() {
                   </div>
                 </div>
               </div>
-            </div>
           </div>
 
           {data.active_incident ? (
@@ -296,8 +311,7 @@ export default function WebsiteDetailPage() {
                     <div>
                       <div>{formatDateTime(r.checked_at)}</div>
                       <div className="muted" style={{ fontSize: "0.8rem" }}>
-                        HTTP {r.http_status ?? "—"} · {msLabel(r.response_time_ms)} · render{" "}
-                        {msLabel(r.render_time_ms)}
+                        HTTP {r.http_status ?? "—"} · {msLabel(r.response_time_ms)}
                       </div>
                     </div>
                     <span className="error-clip" title={r.error_message || undefined}>
@@ -352,6 +366,9 @@ export default function WebsiteDetailPage() {
                   }
                 />
               </>
+            )}
+           </div>
+          </>
             )}
           </div>
         </div>

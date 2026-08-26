@@ -31,8 +31,4 @@ export class MonitoringController {
     return this.monitoringService.get(id, user);
   }
 
-  @Get("monitoring-results/:id/screenshot")
-  screenshot(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.monitoringService.getScreenshotSignedUrl(id, user);
-  }
 }

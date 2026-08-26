@@ -628,7 +628,6 @@ async function main() {
 
   // --- Monitoring fixture ---
   let monitoringId;
-  let monitoringNoShotId;
   let ownerMonitoringId;
   await section("Monitoring", async () => {
     await assert("seed monitoring results via prisma", async () => {
@@ -640,7 +639,7 @@ async function main() {
         where: { websiteId: site.id, scheduledAt: { gte: new Date("2099-01-01") } },
       });
 
-      const withShot = await prisma.monitoringResult.create({
+      const healthyResult = await prisma.monitoringResult.create({
         data: {
           websiteId: site.id,
           scheduledAt: new Date("2099-01-01T00:00:00.000Z"),
@@ -648,10 +647,9 @@ async function main() {
           status: MonitoringStatus.normal,
           httpStatus: 200,
           responseTimeMs: 120,
-          screenshotUrl: "https://example.com/shot.png",
         },
       });
-      const noShot = await prisma.monitoringResult.create({
+      await prisma.monitoringResult.create({
         data: {
           websiteId: site.id,
           scheduledAt: new Date("2099-01-01T00:05:00.000Z"),
@@ -659,11 +657,9 @@ async function main() {
           status: MonitoringStatus.warning,
           httpStatus: 500,
           responseTimeMs: 900,
-          screenshotUrl: null,
         },
       });
-      monitoringId = withShot.id;
-      monitoringNoShotId = noShot.id;
+      monitoringId = healthyResult.id;
       const ownerResult = await prisma.monitoringResult.create({
         data: {
           websiteId: inactiveWebsiteId,
@@ -672,7 +668,6 @@ async function main() {
           status: MonitoringStatus.normal,
           httpStatus: 200,
           responseTimeMs: 100,
-          screenshotUrl: null,
         },
       });
       ownerMonitoringId = ownerResult.id;
@@ -684,7 +679,7 @@ async function main() {
         expectStatus: 200,
       });
       if (!data.id) throw new Error("no id");
-      for (const k of ["website_id", "scheduled_at", "checked_at", "http_status", "screenshot_url"]) {
+      for (const k of ["website_id", "scheduled_at", "checked_at", "http_status", "response_time_ms"]) {
         if (!(k in data)) throw new Error(`missing ${k}`);
       }
     });
@@ -738,21 +733,6 @@ async function main() {
         token: admin.access_token,
         expectStatus: 200,
       });
-    });
-
-    await assert("screenshot when null → 404", async () => {
-      await req("GET", `/monitoring-results/${monitoringNoShotId}/screenshot`, {
-        token: admin.access_token,
-        expectStatus: 404,
-      });
-    });
-
-    await assert("screenshot when present → 200", async () => {
-      const { data } = await req("GET", `/monitoring-results/${monitoringId}/screenshot`, {
-        token: admin.access_token,
-        expectStatus: 200,
-      });
-      if (!data.url || !data.expires_at) throw new Error("bad screenshot payload");
     });
 
     await assert("invalid websiteId → 400", async () => {

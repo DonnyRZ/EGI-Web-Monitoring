@@ -17,7 +17,7 @@ Query tersebut membuktikan record ada, tetapi tidak membuktikan user yang login 
 ### Dampak
 
 - User dapat menebak UUID lalu membaca website milik scope lain.
-- Monitoring result, screenshot, incident, dan ticket dapat bocor melalui endpoint detail.
+- Monitoring result, incident, dan ticket dapat bocor melalui endpoint detail.
 - Filter list terlihat benar, tetapi endpoint detail menjadi jalur bypass.
 
 ### Solusi
@@ -35,7 +35,7 @@ const website = await prisma.website.findFirst({
 if (!website) throw new NotFoundException("Website tidak ditemukan");
 ```
 
-Pola yang sama dipakai pada list/detail website, dashboard website, monitoring result, screenshot, incident, ticket, update, close, deactivate, dan delete. Mengembalikan `404` untuk resource di luar scope juga mencegah endpoint membocorkan apakah UUID sebenarnya ada.
+Pola yang sama dipakai pada list/detail website, dashboard website, monitoring result, incident, ticket, update, close, deactivate, dan delete. Mengembalikan `404` untuk resource di luar scope juga mencegah endpoint membocorkan apakah UUID sebenarnya ada.
 
 ### Pencegahan regresi
 
@@ -45,7 +45,7 @@ Test akses harus mencakup dua user dengan scope berbeda. User A harus mendapat `
 
 ### Masalah
 
-Aplikasi menerima URL dari user lalu melakukan request HTTP atau membuka browser. URL yang tidak divalidasi dapat memaksa server mengakses jaringan internal.
+Aplikasi menerima URL dari user lalu melakukan request HTTP. URL yang tidak divalidasi dapat memaksa server mengakses jaringan internal.
 
 Contoh target berbahaya:
 
@@ -65,7 +65,7 @@ http://[::1]:6379/
 
 ### Solusi
 
-Validator memeriksa protocol `http/https`, hostname, credential URL, port, hasil DNS, loopback, private/link-local/multicast/reserved address, redirect, serta target browser. Pemeriksaan dilakukan lagi pada setiap redirect dan pada jalur worker maupun browser.
+Validator memeriksa protocol `http/https`, hostname, credential URL, port, hasil DNS, loopback, private/link-local/multicast/reserved address, dan redirect. Pemeriksaan dilakukan lagi pada setiap redirect di jalur worker.
 
 ```text
 https://example.com                    -> diizinkan
@@ -86,7 +86,7 @@ Scheduler menghasilkan job berdasarkan interval monitoring, sedangkan worker men
 ### Dampak
 
 - Dua hasil monitoring untuk satu jadwal.
-- Beban request dan browser meningkat.
+- Beban request meningkat.
 - Incident dibuat atau diperbarui dua kali.
 - Retry lama dapat menimpa hasil yang lebih baru.
 
@@ -107,7 +107,7 @@ monitor:{websiteId}:{scheduledBucket}
 
 Dua tick dalam bucket yang sama hanya boleh menghasilkan satu job.
 
-## 4. Timeout HTTP dan browser probe
+## 4. Timeout HTTP probe
 
 ### Masalah
 
@@ -115,13 +115,13 @@ Target bisa lambat, tidak merespons, atau membuat koneksi menggantung. Tanpa tim
 
 ### Solusi
 
-Timeout dipisahkan untuk HTTP request, browser launch, page navigation, screenshot, queue job, retry, dan backoff. Timeout dipetakan menjadi hasil terstruktur, bukan exception tanpa status.
+Timeout HTTP dipisahkan dari timeout queue job, retry, dan backoff. Timeout dipetakan menjadi hasil terstruktur, bukan exception tanpa status.
 
 ```json
 {
   "status": "down",
-  "error_code": "BROWSER_TIMEOUT",
-  "duration_ms": 45000
+  "error_code": "HTTP_TIMEOUT",
+  "duration_ms": 15000
 }
 ```
 
@@ -145,25 +145,25 @@ Email, Telegram, dan notifikasi dashboard adalah side effect. Retry tanpa rekons
 
 Simpan status `pending/sent/failed`, jumlah percobaan, dan event key. Pisahkan status incident dari status delivery. Sediakan reconciliation untuk item gagal/stale dan validasi response provider.
 
-## 7. Retention data dan screenshot
+## 7. Retention data monitoring
 
 ### Masalah
 
-Hasil monitoring dan screenshot tumbuh terus. Menghapus row tanpa object storage membuat orphan object; menghapus object dulu dapat memutus histori sebelum row dibersihkan.
+Hasil monitoring tumbuh terus dan perlu dibersihkan tanpa menghapus incident atau ticket.
 
 ### Solusi
 
-Retention berjalan batch: pilih data kedaluwarsa, tangani object screenshot, hapus row sesuai kebijakan, catat sukses/gagal, dan retry item gagal. Proses memakai batch size, timeout, dan lock.
+Retention berjalan batch: pilih hasil monitoring dan notifikasi kedaluwarsa, hapus sesuai kebijakan, catat sukses/gagal, dan retry item gagal. Proses memakai batch size, timeout, dan lock.
 
-## 8. S3/MinIO dan screenshot private
+## 8. S3/MinIO dan ticket attachment private
 
 ### Masalah
 
-Screenshot internal tidak boleh public dan credential storage tidak boleh dikirim ke frontend.
+Attachment ticket tidak boleh public dan credential storage tidak boleh dikirim ke frontend.
 
 ### Solusi
 
-Bucket private, backend membuat signed URL berumur pendek, endpoint screenshot memeriksa scope monitoring result, dan credential hanya berada di backend/worker.
+Bucket private, backend membuat signed URL berumur pendek untuk attachment ticket, endpoint attachment memeriksa scope ticket, dan credential hanya berada di backend.
 
 ## 9. Refresh token dan cookie autentikasi
 

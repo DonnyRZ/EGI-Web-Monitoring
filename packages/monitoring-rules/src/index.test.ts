@@ -10,19 +10,14 @@ const healthyProbe = {
   httpOk: true,
   httpStatus: 200,
   responseTimeMs: 100,
-  browserOk: true,
-  renderTimeMs: 200,
-  screenshotOk: true,
   errorMessage: null,
 };
 
-test("browser infrastructure failure is unknown and cannot create an incident", () => {
+test("an aborted health probe is unknown and cannot create an incident", () => {
   const status = deriveCheckStatus({
     ...healthyProbe,
-    browserOk: false,
-    screenshotOk: false,
-    infrastructureFailure: true,
-    errorMessage: "browserType.launch: Target page, context or browser has been closed",
+    probeAborted: true,
+    errorMessage: "Invalid URL",
   });
 
   assert.equal(status, "unknown");

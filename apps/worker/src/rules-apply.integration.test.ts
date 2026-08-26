@@ -50,14 +50,10 @@ test("parallel failure processing creates exactly one active incident and ticket
     websiteId: website.id,
     websiteName: website.name,
     scheduledAt,
-    screenshotUrl: null,
     probe: {
       httpOk: false,
       httpStatus: null,
       responseTimeMs: null,
-      browserOk: false,
-      renderTimeMs: null,
-      screenshotOk: false,
       errorMessage: "simulated website outage",
     },
     enqueueNotification: async (id: string) => {

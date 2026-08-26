@@ -69,12 +69,17 @@ export interface MonitoringResult {
   status: MonitoringStatus;
   http_status: number | null;
   response_time_ms: number | null;
-  render_time_ms: number | null;
-  screenshot_url: string | null;
-  screenshot_signed_url?: string | null;
-  screenshot_expires_at?: string | null;
   error_message: string | null;
   created_at: string;
+}
+
+/** Fields intentionally available to the public website gallery only. */
+export type PublicWebsite = Pick<Website, "id" | "name" | "domain" | "url" | "is_active">;
+
+/** Public health snapshot; operational response details stay private. */
+export interface PublicMonitoringSnapshot {
+  status: MonitoringStatus;
+  checked_at: string;
 }
 
 export interface Incident {
@@ -303,8 +308,8 @@ export interface Notification {
 }
 
 export interface DashboardWebsiteCard {
-  website: Website;
-  latest_result: MonitoringResult | null;
+  website: Website | PublicWebsite;
+  latest_result: MonitoringResult | PublicMonitoringSnapshot | null;
   active_incident: Incident | null;
 }
 
