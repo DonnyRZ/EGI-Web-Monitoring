@@ -21,12 +21,13 @@ test("superadmin and bos IT use five primary destinations without Incidents", ()
   assert.equal(bosIt.menuNav.some((item) => item.key === "users"), false);
 });
 
-test("PIC Web gets a compact primary navigation and incidents in Menu", () => {
+test("PIC Web gets a compact primary navigation without Incidents", () => {
   const navigation = buildNavigationCatalog("pic_web", { ...base, activeIncidents: 3 });
 
   assert.deepEqual(keys(navigation.primaryNav), ["dashboard", "tasks", "projects", "menu"]);
-  assert.equal(navigation.primaryNav.find((item) => item.key === "menu")?.badge, 3);
-  assert.equal(navigation.menuNav.find((item) => item.key === "incidents")?.badge, 3);
+  assert.equal(navigation.primaryNav.find((item) => item.key === "menu")?.badge, undefined);
+  assert.equal(navigation.desktopNav.some((item) => item.key === "incidents"), false);
+  assert.equal(navigation.menuNav.some((item) => item.key === "incidents"), false);
 });
 
 test("normal developer does not receive Task Monitoring, while PIC Developer does", () => {

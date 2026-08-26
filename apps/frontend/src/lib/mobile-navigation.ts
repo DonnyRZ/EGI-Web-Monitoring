@@ -38,6 +38,10 @@ export interface NavigationCatalog {
   desktopNav: NavigationItem[];
 }
 
+export function canNavigateIncidents(role: UserRole): boolean {
+  return role === "superadmin" || role === "bos_it" || role === "developer";
+}
+
 function item(
   key: NavigationIconKey,
   href: string,
@@ -72,7 +76,7 @@ function commonDesktopItems(role: UserRole, context: NavigationContext): Navigat
   if (role === "superadmin" || role === "bos_it" || role === "developer") {
     items.push(item("user-stories", "/user-stories", "User Stories"));
   }
-  if (role === "superadmin" || role === "bos_it" || role === "developer" || role === "pic_web") {
+  if (canNavigateIncidents(role)) {
     items.push(item("incidents", "/incidents", "Incidents", "incidents"));
   }
   if (role === "superadmin") {
@@ -97,7 +101,9 @@ export function buildNavigationCatalog(
     return { ready: true, primaryNav: [], menuNav: [], desktopNav: [] };
   }
 
-  const menuEntry = withBadge(item("menu", "/menu", "Menu", "incidents", activeIncidents), context);
+  const menuEntry = canNavigateIncidents(role)
+    ? withBadge(item("menu", "/menu", "Menu", "incidents", activeIncidents), context)
+    : item("menu", "/menu", "Menu");
   const primaryNav: NavigationItem[] = [item("dashboard", "/dashboard", "Dashboard")];
 
   if (role === "superadmin" || role === "bos_it" || role === "pic_web") {
@@ -128,7 +134,7 @@ export function buildNavigationCatalog(
   if (role === "developer" && context.scopeReady && context.isProjectPicDeveloper) {
     menuNav.push(item("projects", "/projects", "Project"));
   }
-  if (role === "superadmin" || role === "bos_it" || role === "developer" || role === "pic_web") {
+  if (canNavigateIncidents(role)) {
     menuNav.push(withBadge(item("incidents", "/incidents", "Insiden", "incidents"), context));
   }
   if (role === "superadmin") {

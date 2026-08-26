@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { notificationsApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canViewIncidents, formatRelative } from "@/lib/format";
 import type { Notification } from "@/lib/types";
 import { IconBell } from "./icons";
+import { useBodyScrollLock, useDialogFocus, useViewportMode } from "./ResponsiveOverlay";
 
 export function NotificationBell() {
   const { user } = useAuth();
@@ -15,7 +17,19 @@ export function NotificationBell() {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const panelId = "notification-panel";
+  const titleId = "notification-panel-title";
+  const viewportMode = useViewportMode();
+  const isCompact = viewportMode === "compact";
   const canOpenIncident = canViewIncidents(user?.role);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useBodyScrollLock(open && isCompact);
+  useDialogFocus(open && isCompact, panelRef, triggerRef, close, closeRef);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,7 +46,9 @@ export function NotificationBell() {
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (wrapRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -55,8 +71,11 @@ export function NotificationBell() {
     <div className="bell-wrap" ref={wrapRef}>
       <button
         type="button"
+        ref={triggerRef}
         className="icon-btn"
         aria-label="Notifikasi"
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         onClick={() => {
           setOpen((v) => !v);
           if (!open) {
@@ -69,15 +88,34 @@ export function NotificationBell() {
         <IconBell />
         {unread > 0 ? <span className="bell-dot" /> : null}
       </button>
-      {open ? (
-        <div className="notif-panel" role="dialog" aria-label="Daftar notifikasi">
+      {open ? (() => {
+        const panel = (
+        <div
+          ref={panelRef}
+          id={panelId}
+          className={`notif-panel${isCompact ? " notif-panel-mobile" : ""}`}
+          role="dialog"
+          aria-modal={isCompact ? true : undefined}
+          aria-labelledby={titleId}
+        >
           <div className="notif-header">
-            <strong>Notifikasi</strong>
-            {unread > 0 ? (
-              <button type="button" className="btn btn-ghost" style={{ height: 32 }} onClick={() => void markAll()}>
-                Tandai dibaca
+            <strong id={titleId}>Notifikasi</strong>
+            <div className="notif-header-actions">
+              {unread > 0 ? (
+                <button type="button" className="btn btn-ghost" style={{ height: 32 }} onClick={() => void markAll()}>
+                  Tandai dibaca
+                </button>
+              ) : null}
+              <button
+                ref={closeRef}
+                type="button"
+                className="icon-btn notif-close-mobile"
+                aria-label="Tutup notifikasi"
+                onClick={close}
+              >
+                ×
               </button>
-            ) : null}
+            </div>
           </div>
           <div className="notif-list">
             {loading && items.length === 0 ? (
@@ -119,7 +157,18 @@ export function NotificationBell() {
             )}
           </div>
         </div>
-      ) : null}
+        );
+        if (isCompact && typeof document !== "undefined") {
+          return createPortal(
+            <>
+              <div className="notif-mobile-backdrop" aria-hidden="true" onMouseDown={close} />
+              {panel}
+            </>,
+            document.body,
+          );
+        }
+        return panel;
+      })() : null}
     </div>
   );
 }

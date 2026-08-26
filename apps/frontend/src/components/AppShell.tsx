@@ -14,7 +14,6 @@ import {
 } from "react";
 import { useAuth } from "@/lib/auth-context";
 import {
-  canViewIncidents,
   initials,
   isEndUserPublicDashboard,
   roleLabel,
@@ -22,7 +21,7 @@ import {
 import { loadActiveIncidents, loadMyOpenTasks } from "@/lib/navigation-badges";
 import { NotificationBell } from "./NotificationBell";
 import { MobileBottomNav, MobileNavigationSkeleton, MobileTopNav, NavigationIcon } from "./MobileNavigation";
-import { buildNavigationCatalog } from "@/lib/mobile-navigation";
+import { buildNavigationCatalog, canNavigateIncidents } from "@/lib/mobile-navigation";
 import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
 import { IconLogout } from "./icons";
 
@@ -116,7 +115,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   }, [loading, user, router]);
 
   useEffect(() => {
-    if (loading || !user || !canViewIncidents(user.role)) return;
+    if (loading || !user || !canNavigateIncidents(user.role)) return;
     let cancelled = false;
     const cancelSchedule = scheduleBackground(() => {
       loadActiveIncidents(user)

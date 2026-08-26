@@ -6,10 +6,10 @@ import { AppShell } from "@/components/AppShell";
 import { MobileMenuPage } from "@/components/MobileNavigation";
 import { LoadingState } from "@/components/ui";
 import { loadActiveIncidents } from "@/lib/navigation-badges";
-import { buildNavigationCatalog } from "@/lib/mobile-navigation";
+import { buildNavigationCatalog, canNavigateIncidents } from "@/lib/mobile-navigation";
 import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
 import { useAuth } from "@/lib/auth-context";
-import { canViewIncidents, isEndUserPublicDashboard } from "@/lib/format";
+import { isEndUserPublicDashboard } from "@/lib/format";
 
 export default function MenuPage() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -45,7 +45,7 @@ export default function MenuPage() {
           }
         });
     }
-    if (canViewIncidents(user.role)) {
+    if (canNavigateIncidents(user.role)) {
       loadActiveIncidents(user)
         .then((value) => {
           if (!cancelled) setActiveIncidents(value);
