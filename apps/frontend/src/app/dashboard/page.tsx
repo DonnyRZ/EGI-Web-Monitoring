@@ -85,16 +85,12 @@ export default function DashboardPage() {
 
   return (
     <AppShell title="Dashboard">
-      <section className={`dashboard-intro ${isGallery ? "gallery-intro" : ""}`}>
-        {isGallery ? <div>
+      {isGallery ? <section className="dashboard-intro gallery-intro">
+        <div>
           <span className="eyebrow">Live monitoring</span>
           <p className="muted">Pantau kesehatan website EGI dari satu gallery yang mudah dipindai.</p>
-        </div> : null}
-        <div className="dashboard-count-card">
-          <strong>{loading ? "—" : filtered.length}</strong>
-          <span>{statusFilter === "my_tasks" ? "website dengan tugas saya" : "website ditampilkan"}</span>
         </div>
-      </section>
+      </section> : null}
 
       {!isGallery ? (
         <section className="dashboard-toolbar panel" aria-label="Filter dashboard">

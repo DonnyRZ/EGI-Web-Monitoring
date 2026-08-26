@@ -3108,7 +3108,6 @@ body {
 
 .page-tabs { margin-bottom: 22px; }
 .page-tab { min-height: 42px; }
-.incident-count-card { min-width: 140px; }
 .incident-filter-panel .toolbar { display: grid; grid-template-columns: auto repeat(3, minmax(160px, 220px)); align-items: end; gap: 12px; margin: 0; }
 .incident-filter-panel .select { min-width: 0; width: 100%; }
 
@@ -3197,7 +3196,7 @@ body {
 .task-search-actions .filter-reset { white-space: nowrap; }
 .task-summary-context { margin: 0 0 8px; color: var(--text-muted); font-size: .74rem; }
 .task-overview-filter-panel { margin-bottom: 18px; padding: 14px 18px; }
-.task-overview-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.task-overview-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
 .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 20px; }
 .task-overview-summary-grid .task-summary-card { min-height: 94px; }
 .task-overview-summary-grid .task-summary-card.progress strong { color: var(--egi-blue-dark); }
@@ -3638,16 +3637,6 @@ body .task-overview-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); 
   white-space: nowrap;
 }
 
-.story-scope-summary {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 0 12px;
-}
-
-.story-scope-count {
-  min-width: 156px;
-}
-
 .story-filter-panel {
   padding: 14px 18px;
 }
@@ -3690,14 +3679,6 @@ body .task-overview-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); 
 
   .story-search-actions {
     justify-content: space-between;
-  }
-
-  .story-scope-summary {
-    justify-content: stretch;
-  }
-
-  .story-scope-count {
-    width: 100%;
   }
 
   .story-filter-panel {

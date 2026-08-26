@@ -105,13 +105,6 @@ export default function UserStoriesPage() {
         </div>
       </section>
 
-      <section className="story-scope-summary" aria-label="Ringkasan User Story">
-        <div className="dashboard-count-card story-scope-count">
-          <strong>{loading ? "—" : filtered.length}</strong>
-          <span>User Story dalam scope</span>
-        </div>
-      </section>
-
       <section className="story-filter-panel panel" aria-label="Filter User Story">
         <div className="story-filter-grid">
           <div className="filter-field">

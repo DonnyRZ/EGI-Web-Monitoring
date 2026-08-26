@@ -124,12 +124,6 @@ export default function IncidentsPage() {
 
   return (
     <AppShell title="Incidents">
-      <section className="page-intro page-intro-compact">
-        <div className="dashboard-count-card incident-count-card">
-          <strong>{loading ? "—" : displayItems.length}</strong>
-          <span>{tab === "active" ? "incident aktif" : "incident ditemukan"}</span>
-        </div>
-      </section>
       <div className="page-tabs" role="tablist" aria-label="Tampilan incident">
         <div className="page-tabs-list">
           <button
