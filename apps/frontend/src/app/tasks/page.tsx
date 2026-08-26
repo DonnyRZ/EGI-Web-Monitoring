@@ -182,6 +182,10 @@ export default function TasksPage() {
 
   return (
     <AppShell title="Task Monitoring">
+      <div className="task-mobile-heading">
+        <h2>Pekerjaan per Project</h2>
+        <p>Ringkasan status dan perhatian pekerjaan.</p>
+      </div>
       <TaskSearchBar
         search={search}
         hasActiveFilters={hasActiveFilters}
@@ -193,7 +197,7 @@ export default function TasksPage() {
       />
       <p className="task-summary-context">Metrik mengikuti pencarian dan filter yang dipilih.</p>
       <TaskSummaryCards summary={summary} period={period} />
-      <TaskMobileSummary summary={summary} period={period} />
+      <TaskMobileSummary summary={summary} />
 
       <TaskFilterDropdowns
         filters={filters}
@@ -367,13 +371,12 @@ function SummaryCard({ label, value, tone }: { label: string; value: number; ton
   return <div className={`task-summary-card ${tone ?? ""}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function TaskMobileSummary({ summary, period }: { summary: TaskMonitoringOverviewResponse["summary"]; period: TaskMonitoringPeriod }) {
-  const periodLabel = PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? "periode terpilih";
+function TaskMobileSummary({ summary }: { summary: TaskMonitoringOverviewResponse["summary"] }) {
   return (
     <section className="task-mobile-summary" aria-label="Ringkasan singkat pekerjaan">
+      <div><strong>{summary.projects}</strong><span>Project</span></div>
       <div><strong>{summary.active}</strong><span>Task aktif</span></div>
-      <div><strong>{summary.attention_projects}</strong><span>Project perlu perhatian</span></div>
-      <div><strong>{summary.completed_period}</strong><span>Selesai · {periodLabel}</span></div>
+      <div><strong>{summary.attention_projects}</strong><span>Perhatian</span></div>
     </section>
   );
 }
@@ -399,14 +402,34 @@ function ProjectTaskTable({ projects, onOpen }: { projects: OverviewProject[]; o
         </div>
         {projects.map((project) => <ProjectTaskRow key={project.key} project={project} onOpen={() => onOpen(project)} />)}
       </div>
+      <div className="task-mobile-project-list" aria-label="Daftar Project">
+        {projects.map((project) => <ProjectTaskMobileCard key={project.key} project={project} onOpen={() => onOpen(project)} />)}
+      </div>
     </section>
   );
 }
 
+function projectCondition(project: OverviewProject) {
+  const label = project.blocked_count > 0
+    ? "Terkendala"
+    : project.overdue_count > 0 || project.attention_count > 0
+      ? "Perlu perhatian"
+      : project.active_count > 0
+        ? "Berjalan"
+        : "Selesai";
+  const className = label === "Terkendala"
+    ? "danger"
+    : label === "Perlu perhatian"
+      ? "warning"
+      : label === "Selesai"
+        ? "success"
+        : "progress";
+  return { label, className };
+}
+
 function ProjectTaskRow({ project, onOpen }: { project: OverviewProject; onOpen: () => void }) {
   const title = project.project?.name ?? "Task Umum";
-  const condition = project.blocked_count > 0 ? "Terkendala" : project.overdue_count > 0 || project.attention_count > 0 ? "Perlu perhatian" : project.active_count > 0 ? "Berjalan" : "Selesai";
-  const conditionClass = condition === "Terkendala" ? "danger" : condition === "Perlu perhatian" ? "warning" : condition === "Selesai" ? "success" : "progress";
+  const condition = projectCondition(project);
 
   return (
     <button type="button" className="task-overview-table-row" role="row" onClick={onOpen}>
@@ -429,7 +452,55 @@ function ProjectTaskRow({ project, onOpen }: { project: OverviewProject; onOpen:
       <span className="task-overview-owner-cell" role="cell">
         {project.pic_developer ? <><span className="member-avatar">{initials(project.pic_developer.name)}</span><span><strong>{project.pic_developer.name}</strong><small>{project.developer_count} Developer</small></span></> : <span><strong>Belum ditentukan</strong><small>{project.developer_count} Developer</small></span>}
       </span>
-      <span className={`task-overview-condition ${conditionClass}`} role="cell">{condition}</span>
+      <span className={`task-overview-condition ${condition.className}`} role="cell">{condition.label}</span>
+    </button>
+  );
+}
+
+function ProjectTaskMobileCard({ project, onOpen }: { project: OverviewProject; onOpen: () => void }) {
+  const title = project.project?.name ?? "Task Umum";
+  const condition = projectCondition(project);
+  const websiteLabel = project.website_count
+    ? `${project.website_count} website`
+    : title === "Task Umum"
+      ? "Pekerjaan umum"
+      : "Belum ada website";
+  const metrics: Array<{ label: string; value: number; tone?: "attention" | "danger" | "done" }> = [
+    { label: "Aktif", value: project.active_count },
+    { label: "Baru", value: project.new_count, tone: project.new_count > 0 ? "attention" : undefined },
+    { label: "Dikerjakan", value: project.in_progress_count },
+    { label: "Terlambat", value: project.overdue_count, tone: project.overdue_count > 0 ? "danger" : undefined },
+    { label: "Terkendala", value: project.blocked_count, tone: project.blocked_count > 0 ? "danger" : undefined },
+    { label: "Selesai", value: project.completed_period_count, tone: project.completed_period_count > 0 ? "done" : undefined },
+  ];
+
+  return (
+    <button type="button" className="task-mobile-project-card" onClick={onOpen} aria-label={`Buka Task pada ${title}`}>
+      <span className="task-mobile-project-head">
+        <span className="task-mobile-project-copy">
+          <strong>{title}</strong>
+          <small>{websiteLabel}</small>
+        </span>
+        <span className={`task-overview-condition ${condition.className}`}>{condition.label}</span>
+      </span>
+      <span className="task-mobile-project-metrics">
+        {metrics.map((metric) => (
+          <span key={metric.label} className={`task-mobile-project-metric ${metric.tone ?? ""}`}>
+            <strong>{metric.value}</strong>
+            <small>{metric.label}</small>
+          </span>
+        ))}
+      </span>
+      <span className="task-mobile-project-foot">
+        <span className="task-mobile-project-owner">
+          {project.pic_developer ? <span className="member-avatar">{initials(project.pic_developer.name)}</span> : null}
+          <span>
+            <strong>{project.pic_developer?.name ?? "Belum ditentukan"}</strong>
+            <small>{project.developer_count} developer</small>
+          </span>
+        </span>
+        <span className="task-mobile-detail-link">Lihat task&nbsp; →</span>
+      </span>
     </button>
   );
 }

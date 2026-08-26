@@ -3883,6 +3883,22 @@ body .task-overview-summary-grid { grid-template-columns: repeat(6, minmax(0, 1f
   display: none;
 }
 
+.page-title-mobile,
+.task-mobile-heading,
+.task-mobile-project-list {
+  display: none;
+}
+
+.task-mobile-project-card {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: inherit;
+  text-align: left;
+}
+
 .project-mobile-toolbar {
   display: none;
 }
@@ -4187,6 +4203,8 @@ body,
   .content { padding: 16px 14px calc(96px + env(safe-area-inset-bottom)); }
   .top-header { height: 60px; padding: 0 14px; }
   .page-title { max-width: 55vw; overflow: hidden; font-size: 1.12rem; text-overflow: ellipsis; white-space: nowrap; }
+  .page-title-desktop { display: none; }
+  .page-title-mobile { display: inline; }
   .header-actions { gap: 8px; }
   .header-actions .icon-btn { width: 44px; height: 44px; }
   .avatar { width: 34px; height: 34px; }
@@ -4278,9 +4296,74 @@ body,
   .task-mobile-summary { gap: 8px; }
   .task-mobile-summary > div { min-height: 72px; padding: 10px; }
   .task-mobile-summary strong { font-size: 1.2rem; }
-  .task-search-actions { align-items: stretch; flex-wrap: wrap; }
-  .task-search-actions .mobile-filter-trigger { flex: 1; justify-content: center; }
-  .task-search-actions .task-page-cta { flex: 1; }
+  body .task-mobile-heading { display: block; margin: 0 4px 14px; }
+  body .task-mobile-heading h2 { margin: 0; font-family: var(--font-serif); font-size: 1.55rem; line-height: 1.08; letter-spacing: -.035em; }
+  body .task-mobile-heading p { margin: 6px 0 0; color: var(--text-muted); font-size: .78rem; }
+  body .task-summary-context { display: none; }
+  body .task-search-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  body .task-search-panel .task-search-field { min-width: 0; }
+  body .task-search-panel .task-search-field > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  body .task-search-panel .task-search-actions { display: contents; }
+  body .task-search-panel .mobile-filter-trigger { grid-column: 2; grid-row: 1; min-height: 44px; justify-content: center; }
+  body .task-search-panel .filter-reset { grid-column: 1; grid-row: 2; min-height: 44px; align-items: center; }
+  body .task-search-panel .task-page-cta { grid-column: 2; grid-row: 2; min-height: 44px; }
+  body .task-mobile-summary { gap: 7px; margin-bottom: 14px; }
+  body .task-mobile-summary > div { min-height: 66px; align-items: center; justify-content: center; padding: 9px 7px; border-radius: 12px; box-shadow: none; text-align: center; }
+  body .task-mobile-summary strong { font-size: 1.18rem; }
+  body .task-mobile-summary span { font-size: .66rem; }
+  body .task-overview-table-panel { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  body .task-overview-table-panel .task-overview-table-heading,
+  body .task-overview-table-panel .task-overview-table { display: none; }
+  body .task-mobile-project-list { display: grid; gap: 10px; }
+  body .task-mobile-project-card {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 15px;
+    border-radius: 17px;
+    box-shadow: var(--shadow-soft);
+    cursor: pointer;
+    font: inherit;
+  }
+  body .task-mobile-project-card:focus-visible { outline: 3px solid rgba(47, 118, 190, .25); outline-offset: 2px; }
+  body .task-mobile-project-head,
+  body .task-mobile-project-foot { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  body .task-mobile-project-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+  body .task-mobile-project-copy strong { overflow-wrap: anywhere; color: var(--text); font-size: .98rem; line-height: 1.2; }
+  body .task-mobile-project-copy small { color: var(--text-muted); font-size: .72rem; }
+  body .task-mobile-project-head .task-overview-condition { flex: 0 0 auto; max-width: 46%; padding: 6px 8px; font-size: .64rem; text-align: center; }
+  body .task-mobile-project-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; margin: 17px 0 14px; padding: 13px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  body .task-mobile-project-metric { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+  body .task-mobile-project-metric strong { color: var(--egi-blue-dark); font-family: var(--font-serif); font-size: 1.22rem; line-height: 1; }
+  body .task-mobile-project-metric small { overflow: hidden; color: var(--text-muted); font-size: .62rem; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+  body .task-mobile-project-metric.attention strong { color: var(--warning); }
+  body .task-mobile-project-metric.danger strong { color: var(--danger); }
+  body .task-mobile-project-metric.done strong { color: var(--success); }
+  body .task-mobile-project-owner { display: flex; min-width: 0; align-items: center; gap: 8px; }
+  body .task-mobile-project-owner .member-avatar { width: 28px; height: 28px; flex: 0 0 auto; border: 0; }
+  body .task-mobile-project-owner > span:last-child { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+  body .task-mobile-project-owner strong { overflow: hidden; color: var(--text-secondary); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+  body .task-mobile-project-owner small { color: var(--text-muted); font-size: .66rem; }
+  body .task-mobile-detail-link { align-self: center; flex: 0 0 auto; color: var(--egi-blue-dark); font-size: .72rem; font-weight: 750; }
   .task-overview-table-heading { align-items: flex-start; flex-direction: column; gap: 6px; padding: 18px 16px 14px; }
   .task-project-drawer { width: 100%; padding: 20px 16px; }
   .task-project-drawer-summary > div { padding: 10px; }

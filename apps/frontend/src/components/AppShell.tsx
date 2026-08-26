@@ -53,6 +53,14 @@ function routeTitle(pathname: string) {
   return "Dashboard";
 }
 
+function mobilePageTitle(title: string) {
+  if (title === "Task Monitoring") return "Task";
+  if (title === "Kelola Project" || title === "Project Saya") return "Project";
+  if (title === "My Work") return "Work";
+  if (title === "Incidents" || title === "Detail Incident") return "Insiden";
+  return title;
+}
+
 // Badges are secondary information; leave the first paint and page request
 // uncontested before loading their counters.
 const BACKGROUND_BADGE_DELAY_MS = 1_000;
@@ -277,7 +285,12 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
             ) : (
               <img src="/logo-egi.png" alt="EGResources" className="gallery-header-logo" />
             )}
-            {!isGallery ? <h1 className="page-title">{pageTitle}</h1> : null}
+            {!isGallery ? (
+              <h1 className="page-title">
+                <span className="page-title-desktop">{pageTitle}</span>
+                <span className="page-title-mobile">{mobilePageTitle(pageTitle)}</span>
+              </h1>
+            ) : null}
             {isGallery ? (
               <div className="gallery-header-copy">
                 <strong>Website Monitoring</strong>
