@@ -3,17 +3,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconExternal, IconRefresh, IconX } from "@/components/icons";
 import type { Website } from "@/lib/types";
+import {
+  canRetryLiveViewer,
+  initialLiveViewerPhase,
+  LIVE_VIEWER_SLOW_THRESHOLD_MS,
+  liveViewerStatusMessage,
+  markLiveViewerReady,
+  markLiveViewerSlow,
+  markLiveViewerUnverified,
+  shouldRenderLiveViewerFrame,
+  type LiveViewerPhase,
+} from "@/lib/live-website-viewer";
 import { normalizeLiveWebsiteUrl } from "@/lib/website-experience";
-
-type ViewerPhase = "loading" | "ready" | "timeout" | "error";
 
 type LiveWebsiteViewerProps = {
   website: Pick<Website, "id" | "name" | "domain" | "url">;
   publicView?: boolean;
   onClose?: () => void;
 };
-
-const VIEWER_TIMEOUT_MS = 10_000;
 
 export function LiveWebsiteViewer({
   website,
@@ -22,7 +29,7 @@ export function LiveWebsiteViewer({
 }: LiveWebsiteViewerProps) {
   const normalized = useMemo(() => normalizeLiveWebsiteUrl(website.url), [website.url]);
   const [attempt, setAttempt] = useState(0);
-  const [phase, setPhase] = useState<ViewerPhase>(normalized ? "loading" : "error");
+  const [phase, setPhase] = useState<LiveViewerPhase>(() => initialLiveViewerPhase(Boolean(normalized)));
   const timeoutRef = useRef<number | null>(null);
 
   const clearViewerTimeout = useCallback(() => {
@@ -34,31 +41,27 @@ export function LiveWebsiteViewer({
 
   useEffect(() => {
     clearViewerTimeout();
-    setPhase(normalized ? "loading" : "error");
+    setPhase(initialLiveViewerPhase(Boolean(normalized)));
     if (!normalized) return;
 
     timeoutRef.current = window.setTimeout(() => {
       timeoutRef.current = null;
-      setPhase("timeout");
-    }, VIEWER_TIMEOUT_MS);
+      setPhase((current) => markLiveViewerSlow(current));
+    }, LIVE_VIEWER_SLOW_THRESHOLD_MS);
     return clearViewerTimeout;
   }, [clearViewerTimeout, normalized, attempt]);
 
   function retry() {
+    if (!normalized) return;
+    setPhase("loading");
     setAttempt((current) => current + 1);
   }
 
-  const canRenderFrame = Boolean(normalized) && (phase === "loading" || phase === "ready");
-  const statusMessage = phase === "loading"
-    ? "Memuat tampilan website…"
-    : phase === "ready"
-      ? "Tampilan website siap digunakan."
-      : phase === "timeout"
-        ? "Website belum merespons di dalam aplikasi."
-        : "Tampilan website tidak dapat dibuka di dalam aplikasi.";
+  const hasValidUrl = Boolean(normalized);
+  const statusMessage = liveViewerStatusMessage(hasValidUrl ? phase : "invalid");
 
   return (
-    <section className="live-website-viewer" aria-label={`Tampilan ${website.name}`}>
+    <section className={`live-website-viewer${publicView ? " public-view" : ""}`} aria-label={`Tampilan ${website.name}`}>
       <header className="live-website-viewer-header">
         <div className="live-website-viewer-heading">
           <span className="eyebrow">Tampilan Website</span>
@@ -85,8 +88,18 @@ export function LiveWebsiteViewer({
         </div>
       </header>
 
+      <div className="live-website-viewer-status" aria-live="polite">
+        <p className="live-website-viewer-note">{statusMessage}</p>
+        {hasValidUrl && canRetryLiveViewer(phase) ? (
+          <button type="button" className="btn btn-sm btn-neutral" onClick={retry}>
+            <IconRefresh />
+            Coba lagi
+          </button>
+        ) : null}
+      </div>
+
       <div className="live-website-viewer-frame" aria-busy={phase === "loading"}>
-        {canRenderFrame && normalized ? (
+        {shouldRenderLiveViewerFrame(hasValidUrl) && normalized ? (
           <iframe
             key={`${website.id}-${attempt}`}
             src={normalized.href}
@@ -95,40 +108,24 @@ export function LiveWebsiteViewer({
             referrerPolicy="strict-origin-when-cross-origin"
             onLoad={() => {
               clearViewerTimeout();
-              setPhase("ready");
+              setPhase(markLiveViewerReady(hasValidUrl));
             }}
             onError={() => {
               clearViewerTimeout();
-              setPhase("error");
+              // Keep the frame mounted. Cross-origin iframe errors are not a
+              // reliable signal, and removing it would hide a page that may
+              // still be usable or still loading.
+              setPhase(markLiveViewerUnverified(hasValidUrl));
             }}
           />
         ) : (
           <div className="live-website-viewer-fallback" role="status">
-            <strong>{phase === "error" && !normalized ? "URL website belum valid" : "Website belum bisa ditampilkan di sini"}</strong>
+            <strong>URL website belum valid</strong>
             <p>{statusMessage}</p>
-            <div className="live-website-viewer-fallback-actions">
-              {normalized ? (
-                <button type="button" className="btn btn-primary" onClick={retry}>
-                  <IconRefresh />
-                  Coba lagi
-                </button>
-              ) : null}
-              {normalized ? (
-                <a className="btn btn-neutral" href={normalized.href} target="_blank" rel="noopener noreferrer">
-                  <IconExternal />
-                  Buka di tab baru
-                </a>
-              ) : null}
-            </div>
           </div>
         )}
         {phase === "loading" ? <div className="live-website-viewer-loading" aria-hidden>Memuat tampilan…</div> : null}
       </div>
-
-      <p className="live-website-viewer-note" aria-live="polite">
-        {statusMessage}
-        {!publicView && phase === "timeout" ? " Gunakan tab baru bila website membatasi tampilan di dalam aplikasi." : ""}
-      </p>
     </section>
   );
 }

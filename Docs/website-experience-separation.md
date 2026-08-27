@@ -20,9 +20,11 @@ browser, render a page, capture screenshots, or upload visual evidence.
 
 - Dashboard shows a lightweight Website Wall with the website identity, direct
   URL action, HTTP health, latest check time, and active incident state.
-- Selecting one tile opens one direct Live Website iframe with a bounded
-  loading state and a `Buka di tab baru` fallback. Other tiles never load live
-  pages in the background.
+- Selecting one tile opens one direct Live Website iframe with a
+  non-destructive loading state and a `Buka di tab baru` fallback. A slow or
+  unverified cross-origin frame remains mounted so an interactive page is not
+  removed while it is still loading. Other tiles never load live pages in the
+  background.
 - Website detail shows current health, HTTP status, response time, errors,
   monitoring history, incidents, and operational tasks.
 - Monitoring results no longer expose browser, render, or screenshot fields.
@@ -59,7 +61,8 @@ The Live Website viewer follows these rules:
   involved.
 - Keep at most one active iframe on a page.
 - Keep a clear `Buka di Tab Baru` fallback for CSP, framing, login, cookie,
-  WebSocket, or cross-origin limitations.
+  WebSocket, or cross-origin limitations. The fallback must not replace a
+  valid iframe merely because its load event is slow or inconclusive.
 - Do not render a gallery of live iframes.
 - A Live Website loading or embedding failure must never change health status.
 - Health and Live Website errors must be displayed as two different messages.

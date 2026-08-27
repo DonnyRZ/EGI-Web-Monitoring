@@ -1894,6 +1894,23 @@ h3,
   justify-content: flex-end;
 }
 
+.live-website-viewer-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.live-website-viewer-status .live-website-viewer-note {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.live-website-viewer-status .btn {
+  flex: 0 0 auto;
+}
+
 .live-website-viewer-actions .btn svg,
 .live-website-viewer-fallback-actions .btn svg {
   flex-shrink: 0;
@@ -2021,6 +2038,11 @@ h3,
     justify-content: flex-start;
   }
 
+  .live-website-viewer-status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .live-website-viewer-actions .btn {
     flex: 1 1 180px;
   }
@@ -2046,6 +2068,7 @@ h3,
 
   .website-tile-actions,
   .live-website-viewer-actions,
+  .live-website-viewer-status,
   .live-website-viewer-fallback-actions {
     align-items: stretch;
     flex-direction: column;
@@ -2054,6 +2077,7 @@ h3,
   .website-tile-actions .btn,
   .website-tile-health-link,
   .live-website-viewer-actions .btn,
+  .live-website-viewer-status .btn,
   .live-website-viewer-fallback-actions .btn {
     width: 100%;
     min-height: 42px;
