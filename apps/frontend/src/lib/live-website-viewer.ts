@@ -41,12 +41,12 @@ export function liveViewerStatusMessage(phase: LiveViewerPhase) {
     case "invalid":
       return "URL website belum valid.";
     case "loading":
-      return "Memuat tampilan website…";
+      return "Memuat website…";
     case "ready":
-      return "Tampilan website tersedia.";
+      return "Website siap digunakan.";
     case "slow":
-      return "Tampilan masih dimuat. Jika area kosong, buka di tab baru.";
+      return "Website masih memuat. Jika area kosong, buka di tab baru.";
     case "unverified":
-      return "Tampilan belum bisa diverifikasi di dalam aplikasi. Jika area kosong, buka di tab baru.";
+      return "Website belum bisa diverifikasi di dalam aplikasi. Buka di tab baru bila area kosong.";
   }
 }

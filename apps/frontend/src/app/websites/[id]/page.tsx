@@ -155,7 +155,7 @@ export default function WebsiteDetailPage() {
 
           <div id="website-detail-panel" role="tabpanel" tabIndex={0}>
             {activeTab === "live" ? (
-              <LiveWebsiteViewer website={data.website} />
+              <LiveWebsiteViewer website={data.website} workspace />
             ) : (
           <>
           <div className="stack-gap">

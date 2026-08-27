@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconExternal, IconRefresh, IconX } from "@/components/icons";
+import { IconExternal, IconRefresh } from "@/components/icons";
 import type { Website } from "@/lib/types";
 import {
   canRetryLiveViewer,
@@ -19,12 +19,14 @@ import { normalizeLiveWebsiteUrl } from "@/lib/website-experience";
 type LiveWebsiteViewerProps = {
   website: Pick<Website, "id" | "name" | "domain" | "url">;
   publicView?: boolean;
+  workspace?: boolean;
   onClose?: () => void;
 };
 
 export function LiveWebsiteViewer({
   website,
   publicView = false,
+  workspace = false,
   onClose,
 }: LiveWebsiteViewerProps) {
   const normalized = useMemo(() => normalizeLiveWebsiteUrl(website.url), [website.url]);
@@ -61,14 +63,27 @@ export function LiveWebsiteViewer({
   const statusMessage = liveViewerStatusMessage(hasValidUrl ? phase : "invalid");
 
   return (
-    <section className={`live-website-viewer${publicView ? " public-view" : ""}`} aria-label={`Tampilan ${website.name}`}>
+    <section
+      className={`live-website-viewer${publicView ? " public-view" : ""}${workspace ? " workspace-viewer" : ""}`}
+      aria-label={`Tampilan interaktif ${website.name}`}
+    >
       <header className="live-website-viewer-header">
         <div className="live-website-viewer-heading">
-          <span className="eyebrow">Tampilan Website</span>
+          <span className="eyebrow">Live Website</span>
           <h2>{website.name}</h2>
           <span className="muted live-website-viewer-domain">{website.domain}</span>
         </div>
         <div className="live-website-viewer-actions">
+          {onClose ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-neutral live-website-viewer-back"
+              onClick={onClose}
+            >
+              <span aria-hidden>←</span>
+              Kembali
+            </button>
+          ) : null}
           {normalized ? (
             <a
               className="btn btn-sm btn-neutral"
@@ -80,20 +95,21 @@ export function LiveWebsiteViewer({
               Buka di tab baru
             </a>
           ) : null}
-          {onClose ? (
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Tutup tampilan website">
-              <IconX />
-            </button>
-          ) : null}
         </div>
       </header>
 
       <div className="live-website-viewer-status" aria-live="polite">
-        <p className="live-website-viewer-note">{statusMessage}</p>
+        <div className="live-website-viewer-status-copy">
+          <span className={`live-website-viewer-mode phase-${phase}`}>
+            <span aria-hidden />
+            Interaksi website
+          </span>
+          <p className="live-website-viewer-note">{statusMessage}</p>
+        </div>
         {hasValidUrl && canRetryLiveViewer(phase) ? (
           <button type="button" className="btn btn-sm btn-neutral" onClick={retry}>
             <IconRefresh />
-            Coba lagi
+            Muat ulang
           </button>
         ) : null}
       </div>
@@ -124,7 +140,6 @@ export function LiveWebsiteViewer({
             <p>{statusMessage}</p>
           </div>
         )}
-        {phase === "loading" ? <div className="live-website-viewer-loading" aria-hidden>Memuat tampilan…</div> : null}
       </div>
     </section>
   );

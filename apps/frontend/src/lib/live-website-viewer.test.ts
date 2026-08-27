@@ -15,7 +15,7 @@ test("a valid viewer starts loading and keeps its frame after the slow threshold
   assert.equal(markLiveViewerSlow("loading"), "slow");
   assert.equal(shouldRenderLiveViewerFrame(true), true);
   assert.equal(canRetryLiveViewer("slow"), true);
-  assert.match(liveViewerStatusMessage("slow"), /masih dimuat/i);
+  assert.match(liveViewerStatusMessage("slow"), /masih memuat/i);
 });
 
 test("slow transition never overwrites a ready or unverified frame", () => {

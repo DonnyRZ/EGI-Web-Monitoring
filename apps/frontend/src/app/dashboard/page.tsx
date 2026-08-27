@@ -100,7 +100,7 @@ export default function DashboardPage() {
   }, [filtered, selectedWebsiteId]);
 
   return (
-    <AppShell title="Dashboard">
+    <AppShell title={selectedWebsiteId ? "Live Website" : "Dashboard"}>
       {isGallery ? <section className="dashboard-intro gallery-intro">
         <div>
           <span className="eyebrow">Live monitoring</span>
