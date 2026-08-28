@@ -12,6 +12,8 @@ import type {
   Project,
   ProjectAssignments,
   ProjectListSummary,
+  ProjectRequest,
+  ProjectRequestStatus,
   ProjectRosterCandidate,
   Severity,
   Task,
@@ -201,6 +203,41 @@ export const projectsApi = {
     apiFetch<Project>(`/projects/${id}/websites/${websiteId}`, { method: "DELETE" }),
   roster: (role: "pic_web" | "developer") =>
     apiFetch<ProjectRosterCandidate[]>(`/projects/roster${qs({ role })}`),
+};
+
+export const projectRequestsApi = {
+  list: (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: ProjectRequestStatus;
+  } = {}) =>
+    apiFetch<{ data: ProjectRequest[]; meta: PaginatedMeta }>(`/project-requests${qs(params)}`),
+  get: (id: string) => apiFetch<ProjectRequest>(`/project-requests/${id}`),
+  attachment: (id: string) =>
+    apiFetch<{ url: string; expires_at: string }>(`/project-requests/${id}/attachment`),
+  create: (body: {
+    requested_name: string;
+    briefing: string;
+    expected_outcome: string;
+    proposed_website_name?: string;
+    proposed_domain?: string;
+    attachment_url?: string;
+  }) => apiFetch<ProjectRequest>("/project-requests", { method: "POST", body }),
+  update: (id: string, body: Partial<{
+    requested_name: string;
+    briefing: string;
+    expected_outcome: string;
+    proposed_website_name: string;
+    proposed_domain: string;
+    attachment_url: string;
+  }>) => apiFetch<ProjectRequest>(`/project-requests/${id}`, { method: "PATCH", body }),
+  requestInfo: (id: string, note: string) =>
+    apiFetch<ProjectRequest>(`/project-requests/${id}/request-info`, { method: "POST", body: { note } }),
+  reject: (id: string, note: string) =>
+    apiFetch<ProjectRequest>(`/project-requests/${id}/reject`, { method: "POST", body: { note } }),
+  approve: (id: string, body: { name: string; description?: string; review_note?: string }) =>
+    apiFetch<{ request: ProjectRequest; project: { id: string; name: string; status: "draft" } }>(`/project-requests/${id}/approve`, { method: "POST", body }),
 };
 
 type UserStoryListParams = {

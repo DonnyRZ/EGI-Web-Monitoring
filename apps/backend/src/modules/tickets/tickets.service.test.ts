@@ -214,6 +214,27 @@ test("create() without an assignee sends no notification", async () => {
   assert.equal(notifications.length, 0);
 });
 
+test("create() directs new website requests to Project requests", async () => {
+  const { prisma, notifications, tasks } = makeFakePrisma({ itPicId: null, backupItPicId: null });
+  const service = new TicketsService(prisma as never);
+
+  await assert.rejects(
+    () => service.create(
+      {
+        category: TicketCategory.new_website,
+        title: "Website baru",
+        description: "Kebutuhan",
+        expectation: "Hasil",
+      },
+      creator,
+    ),
+    /Gunakan Pengajuan Project/,
+  );
+
+  assert.equal(tasks.length, 0);
+  assert.equal(notifications.length, 0);
+});
+
 test("developer ticket list stays scoped even with incident and assignee filters", async () => {
   let capturedWhere: Record<string, unknown> | undefined;
   const prisma = {

@@ -21,6 +21,9 @@ export type TaskBusinessStatus = "new" | "in_progress" | "waiting_pic" | "blocke
 
 export type ProjectStatus = "draft" | "active" | "archived";
 
+/** Lifecycle of a Project request submitted by a PIC Web. */
+export type ProjectRequestStatus = "pending" | "needs_info" | "approved" | "rejected";
+
 export type ProjectMemberType = "pic_web" | "developer";
 
 export type UserStoryStatus =
@@ -112,6 +115,8 @@ export {
   USER_ROLES,
   PLATFORM_ADMIN_ROLES,
   PROJECT_ADMIN_ROLES,
+  PROJECT_REQUEST_CREATOR_ROLES,
+  PROJECT_REQUEST_REVIEWER_ROLES,
   PROJECT_GLOBAL_VIEWER_ROLES,
   USER_STORY_MANAGER_ROLES,
   ALL_RESOURCE_ACCESS_ROLES,
@@ -123,6 +128,8 @@ export {
   WORKLOAD_VIEWER_ROLES,
   canManagePlatform,
   canManageProjects,
+  canCreateProjectRequest,
+  canReviewProjectRequests,
   canViewProjectRegistry,
   canManageUserStories,
   canAccessAllMonitoredResources,

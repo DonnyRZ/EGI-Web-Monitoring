@@ -21,6 +21,7 @@
     "test:task-monitoring": "tsx --test src/modules/task-monitoring/task-monitoring.rollup.test.ts src/modules/task-monitoring/task-monitoring.overview.test.ts",
     "test:dashboard": "tsx --test src/modules/dashboard/dashboard.service.test.ts",
     "test:projects": "tsx --test src/modules/projects/projects.service.test.ts",
+    "test:project-requests": "tsx --test src/modules/project-requests/project-requests.service.test.ts",
     "test:health": "tsx --test src/health.controller.test.ts",
     "remediate:test-data": "node scripts/remediate-test-data.mjs",
     "project-backfill:dry-run": "tsx scripts/project-backfill.ts",

@@ -152,50 +152,25 @@ test("website Task intake rejects a website that has not been assigned to a Proj
   assert.equal(legacyTaskCreates.length, 0);
 });
 
-test("new website requests can be created before a Website or Project exists", async () => {
+test("new website requests must use the Project request flow", async () => {
   const { prisma, ticketCreates, legacyTaskCreates } = makePrisma(null);
-  const service = new TicketsService(prisma as never);
-
-  const result = await service.createTaskIntake(
-    {
-      title: "Buat website company profile",
-      category: TicketCategory.new_website,
-      requested_website_name: "Company Profile EGI",
-      requested_domain: "company.example.com",
-      requested_project_name: "Company Profile",
-      description: "Membutuhkan website baru untuk profil perusahaan.",
-      expectation: "Website siap dipersiapkan setelah Project ditentukan.",
-    },
-    superadmin,
-  );
-
-  assert.equal(ticketCreates.length, 1);
-  assert.equal(legacyTaskCreates.length, 0);
-  assert.equal(result.website_id, null);
-  assert.equal(result.project_id, null);
-  assert.equal(ticketCreates[0]?.category, TicketCategory.new_website);
-  assert.equal(ticketCreates[0]?.requestedWebsiteName, "Company Profile EGI");
-  assert.equal(ticketCreates[0]?.requestedDomain, "company.example.com");
-  assert.equal(ticketCreates[0]?.requestedProjectName, "Company Profile");
-});
-
-test("new website requests cannot point to an existing Website", async () => {
-  const { prisma, ticketCreates } = makePrisma();
   const service = new TicketsService(prisma as never);
 
   await assert.rejects(
     () => service.createTaskIntake(
       {
-        title: "Website baru",
+        title: "Buat website company profile",
         category: TicketCategory.new_website,
-        website_id: "web-1",
-        requested_website_name: "Website Baru",
+        requested_website_name: "Company Profile EGI",
+        requested_domain: "company.example.com",
+        requested_project_name: "Company Profile",
         description: "Kebutuhan",
         expectation: "Selesai",
       },
       superadmin,
     ),
-    /cannot select an existing Website/,
+    /Gunakan Pengajuan Project/,
   );
   assert.equal(ticketCreates.length, 0);
+  assert.equal(legacyTaskCreates.length, 0);
 });

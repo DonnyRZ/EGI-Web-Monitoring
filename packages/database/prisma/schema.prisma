@@ -74,6 +74,13 @@ enum ProjectStatus {
   archived
 }
 
+enum ProjectRequestStatus {
+  pending
+  needs_info
+  approved
+  rejected
+}
+
 enum ProjectMemberType {
   pic_web
   developer
@@ -121,6 +128,8 @@ model User {
   backupItWebsites Website[]    @relation("WebsiteBackupItPic")
   projectPicDeveloperProjects Project[] @relation("ProjectPicDeveloper")
   createdProjects Project[]     @relation("ProjectCreator")
+  submittedProjectRequests ProjectRequest[] @relation("ProjectRequestSubmitter")
+  reviewedProjectRequests ProjectRequest[] @relation("ProjectRequestReviewer")
   projectMemberships ProjectMember[]
   primaryUserStories UserStory[] @relation("StoryPrimaryDeveloper")
   createdUserStories UserStory[] @relation("StoryCreator")
@@ -181,10 +190,38 @@ model Project {
   members      ProjectMember[]
   userStories  UserStory[]
   tickets      Ticket[]
+  projectRequest ProjectRequest? @relation("ProjectRequestProject")
 
   @@index([status])
   @@index([picDeveloperId])
   @@map("projects")
+}
+
+model ProjectRequest {
+  id                    String              @id @default(uuid()) @db.Uuid
+  requestNumber         String              @unique @default(dbgenerated("generate_project_request_number()")) @map("request_number") @db.VarChar(32)
+  requestedName         String              @map("requested_name") @db.VarChar(150)
+  briefing              String
+  expectedOutcome       String              @map("expected_outcome")
+  proposedWebsiteName   String?             @map("proposed_website_name") @db.VarChar(150)
+  proposedDomain        String?             @map("proposed_domain") @db.VarChar(255)
+  attachmentUrl         String?             @map("attachment_url")
+  status                ProjectRequestStatus @default(pending)
+  submittedById         String              @map("submitted_by_id") @db.Uuid
+  reviewNote            String?             @map("review_note")
+  reviewedById          String?             @map("reviewed_by_id") @db.Uuid
+  reviewedAt            DateTime?           @map("reviewed_at")
+  projectId             String?             @unique @map("project_id") @db.Uuid
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  submittedBy User     @relation("ProjectRequestSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy  User?    @relation("ProjectRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  project     Project? @relation("ProjectRequestProject", fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([submittedById, createdAt])
+  @@map("project_requests")
 }
 
 model ProjectMember {

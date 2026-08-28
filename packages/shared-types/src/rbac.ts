@@ -25,6 +25,17 @@ export const PROJECT_ADMIN_ROLES = [
   "bos_it",
 ] as const satisfies readonly UserRole[];
 
+/** Submit a request for a new Project. */
+export const PROJECT_REQUEST_CREATOR_ROLES = [
+  "pic_web",
+] as const satisfies readonly UserRole[];
+
+/** Review requests and create the resulting Project Draft. */
+export const PROJECT_REQUEST_REVIEWER_ROLES = [
+  "superadmin",
+  "bos_it",
+] as const satisfies readonly UserRole[];
+
 /** See the complete project registry and all project-level work. */
 export const PROJECT_GLOBAL_VIEWER_ROLES = [
   "superadmin",
@@ -106,6 +117,14 @@ export function canManagePlatform(role?: string | null): boolean {
 
 export function canManageProjects(role?: string | null): boolean {
   return roleIn(role, PROJECT_ADMIN_ROLES);
+}
+
+export function canCreateProjectRequest(role?: string | null): boolean {
+  return roleIn(role, PROJECT_REQUEST_CREATOR_ROLES);
+}
+
+export function canReviewProjectRequests(role?: string | null): boolean {
+  return roleIn(role, PROJECT_REQUEST_REVIEWER_ROLES);
 }
 
 export function canViewProjectRegistry(role?: string | null): boolean {

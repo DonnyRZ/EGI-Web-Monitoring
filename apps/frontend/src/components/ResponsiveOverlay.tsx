@@ -177,7 +177,6 @@ export function FilterSheet({
   children,
   onClose,
   onApply,
-  onReset,
 }: {
   open: boolean;
   title: string;
@@ -186,7 +185,6 @@ export function FilterSheet({
   children: ReactNode;
   onClose: () => void;
   onApply?: () => void;
-  onReset?: () => void;
 }) {
   if (!open) return null;
   return (
@@ -197,7 +195,6 @@ export function FilterSheet({
       onClose={onClose}
       footer={
         <>
-          {onReset ? <button type="button" className="btn btn-neutral" onClick={onReset}>Reset semua</button> : null}
           <div className="responsive-overlay-footer-actions">
             <button type="button" className="btn" onClick={onClose}>Batal</button>
             <button type="button" className="btn btn-primary" onClick={onApply ?? onClose}>Terapkan{activeCount > 0 ? ` · ${activeCount}` : ""}</button>

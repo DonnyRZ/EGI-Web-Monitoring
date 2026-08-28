@@ -8,6 +8,8 @@ import {
   canViewIncidents as sharedCanViewIncidents,
   canViewTasks as sharedCanViewTasks,
   canCreateTaskIntake as sharedCanCreateTaskIntake,
+  canCreateProjectRequest as sharedCanCreateProjectRequest,
+  canReviewProjectRequests as sharedCanReviewProjectRequests,
   canViewTaskMonitoring as sharedCanViewTaskMonitoring,
   isEndUserPublicDashboard as sharedIsEndUserPublicDashboard,
   opensWebsiteExternallyFromDashboard as sharedOpensWebsiteExternallyFromDashboard,
@@ -30,6 +32,8 @@ export const canViewUserStories = sharedCanViewUserStories;
 export const canViewIncidents = sharedCanViewIncidents;
 export const canViewTasks = sharedCanViewTasks;
 export const canCreateTaskIntake = sharedCanCreateTaskIntake;
+export const canCreateProjectRequest = sharedCanCreateProjectRequest;
+export const canReviewProjectRequests = sharedCanReviewProjectRequests;
 export const canViewTaskMonitoring = sharedCanViewTaskMonitoring;
 export const canViewDeveloperWorkload = sharedCanViewDeveloperWorkload;
 export const isEndUserPublicDashboard = sharedIsEndUserPublicDashboard;

@@ -8,6 +8,8 @@ import {
   TICKET_ASSIGNEE_ROLES,
   TICKET_MANAGER_ROLES,
   PROJECT_ADMIN_ROLES,
+  PROJECT_REQUEST_CREATOR_ROLES,
+  PROJECT_REQUEST_REVIEWER_ROLES,
   USER_STORY_MANAGER_ROLES,
   USER_ROLES,
   canAccessAllMonitoredResources,
@@ -24,6 +26,8 @@ import {
   canViewTasks,
   canViewDeveloperWorkload,
   canManageProjects,
+  canCreateProjectRequest,
+  canReviewProjectRequests,
   canViewProjectRegistry,
   canManageUserStories,
   canViewUserStories,
@@ -103,6 +107,17 @@ test("project and user story capability sets keep pic_developer project-scoped",
   assert.equal(canViewUserStories("developer"), true);
   assert.equal(canViewUserStories("pic_web"), false);
   assert.equal(canViewUserStories("end_user"), false);
+});
+
+test("Project request capability is limited to PIC Web submitters and IT reviewers", () => {
+  assert.deepEqual([...PROJECT_REQUEST_CREATOR_ROLES], ["pic_web"]);
+  assert.deepEqual([...PROJECT_REQUEST_REVIEWER_ROLES], ["superadmin", "bos_it"]);
+  assert.equal(canCreateProjectRequest("pic_web"), true);
+  assert.equal(canCreateProjectRequest("bos_it"), false);
+  assert.equal(canCreateProjectRequest("developer"), false);
+  assert.equal(canReviewProjectRequests("superadmin"), true);
+  assert.equal(canReviewProjectRequests("bos_it"), true);
+  assert.equal(canReviewProjectRequests("pic_web"), false);
 });
 
 test("business Task intake and unified monitoring have the intended role split", () => {

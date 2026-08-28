@@ -67,7 +67,6 @@ export default function UserStoriesPage() {
     }
     return [...map.values()];
   }, [filtered]);
-  const hasActiveFilters = Boolean(search.trim() || projectId || developerId || status || priority);
 
   if (!user || !canViewUserStories(user.role)) return <AppShell title="User Stories"><LoadingState /></AppShell>;
 
@@ -86,21 +85,6 @@ export default function UserStoriesPage() {
         </div>
         <div className="story-search-actions">
           <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={() => setFilterOpen(true)}>Filter</button>
-          {hasActiveFilters ? (
-            <button
-              type="button"
-              className="text-link filter-reset"
-              onClick={() => {
-                setSearch("");
-                setProjectId("");
-                setDeveloperId("");
-                setStatus("");
-                setPriority("");
-              }}
-            >
-              Hapus filter
-            </button>
-          ) : null}
           <div className="segmented-control" aria-label="Pilihan tampilan User Story">
             <button type="button" className={view === "board" ? "active" : ""} onClick={() => setView("board")}>Board</button>
             <button type="button" className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
@@ -117,7 +101,6 @@ export default function UserStoriesPage() {
         activeCount={[Boolean(projectId), Boolean(developerId), Boolean(status), Boolean(priority)].filter(Boolean).length}
         onClose={() => setFilterOpen(false)}
         onApply={() => setFilterOpen(false)}
-        onReset={() => { setProjectId(""); setDeveloperId(""); setStatus(""); setPriority(""); }}
       >
         <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} status={status} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onStatusChange={setStatus} onPriorityChange={setPriority} />
       </FilterSheet>

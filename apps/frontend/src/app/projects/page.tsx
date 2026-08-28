@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { ProjectAreaTabs } from "@/components/ProjectRequestUI";
 import { FilterSheet, useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
@@ -13,6 +14,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   canManageProjects,
+  canCreateProjectRequest,
   canViewProjectRegistry,
   formatDateTime,
   initials,
@@ -49,6 +51,7 @@ function healthClass(status: ProjectListSummary["health"]) {
 export default function ProjectsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<ProjectListSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -62,6 +65,7 @@ export default function ProjectsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const createModalRef = useRef<HTMLDivElement | null>(null);
+  const createQueryHandled = useRef(false);
   useUnsavedChanges("projects:create", createOpen && Boolean(createName || createDescription));
   useBodyScrollLock(createOpen);
   useDialogFocus(createOpen, createModalRef, undefined, requestCreateClose);
@@ -76,6 +80,15 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (!authLoading && user && !canViewProjectRegistry(user.role)) router.replace("/dashboard");
   }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (createQueryHandled.current || !user || !canManageProjects(user.role)) return;
+    if (searchParams.get("create") !== "1") return;
+    createQueryHandled.current = true;
+    setFormError("");
+    setCreateOpen(true);
+    router.replace("/projects", { scroll: false });
+  }, [router, searchParams, user]);
 
   useEffect(() => {
     if (!user || !canViewProjectRegistry(user.role)) return;
@@ -152,22 +165,15 @@ export default function ProjectsPage() {
 
   return (
     <AppShell title={title}>
-      {canManageProjects(user.role) ? <div className="project-page-actions"><button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>Tambah Project</button></div> : null}
+      <ProjectAreaTabs role={user.role} active="projects" />
+      {canManageProjects(user.role) || canCreateProjectRequest(user.role) ? (
+        <div className="project-page-actions">
+          {canCreateProjectRequest(user.role) ? <Link href="/projects/requests/new" className="btn btn-primary">Ajukan Project</Link> : null}
+          {canManageProjects(user.role) ? <button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>Tambah Project</button> : null}
+        </div>
+      ) : null}
 
       <section className="project-filter-panel panel" aria-label="Filter Project">
-        <div className="project-filter-actions">
-          <button
-            type="button"
-            className="text-link filter-reset"
-            onClick={() => {
-              setSearch("");
-              setStatus("");
-              setFilters({});
-            }}
-          >
-            Reset filter
-          </button>
-        </div>
         <div className="project-toolbar">
           <div className="project-search-wrap filter-field filter-field-search">
             <label htmlFor="project-search">Cari</label>
@@ -194,9 +200,6 @@ export default function ProjectsPage() {
         <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={() => setFilterOpen(true)}>
           Filter{activeFilterCount ? ` · ${activeFilterCount} aktif` : ""}
         </button>
-        <button type="button" className="text-link mobile-reset-filter" onClick={() => { setSearch(""); setStatus(""); setFilters({}); }}>
-          Reset
-        </button>
       </div>
 
       <section className="project-filter-chips" aria-label="Filter konfigurasi tambahan">
@@ -214,7 +217,6 @@ export default function ProjectsPage() {
         description="Pilih status dan kondisi Project yang ingin ditampilkan."
         activeCount={activeFilterCount}
         onClose={() => setFilterOpen(false)}
-        onReset={() => { setStatus(""); setFilters({}); }}
         onApply={() => setFilterOpen(false)}
       >
         <div className="filter-sheet-fields project-mobile-filter-fields">
@@ -239,7 +241,11 @@ export default function ProjectsPage() {
       {!loading && !error && items.length === 0 ? (
         <EmptyState
           title={search || status || activeFilters.length ? "Project tidak ditemukan" : "Belum ada Project"}
-          description={search || status || activeFilters.length ? "Coba ubah kata kunci atau filter Anda." : "Project baru dapat dibuat sebagai Draft tanpa Website terlebih dahulu."}
+          description={search || status || activeFilters.length
+            ? "Coba ubah kata kunci atau filter Anda."
+            : canManageProjects(user.role)
+              ? "Project baru dapat dibuat sebagai Draft tanpa Website terlebih dahulu."
+              : "Project yang menjadi tanggung jawab Anda akan muncul di sini. Jika membutuhkan Project baru, ajukan melalui Pengajuan Project."}
         />
       ) : null}
 

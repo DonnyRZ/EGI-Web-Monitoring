@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { ProjectAreaTabs } from "@/components/ProjectRequestUI";
 import { useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { AssignmentWorkspace } from "@/components/projects/AssignmentWorkspace";
 import { Select } from "@/components/Select";
@@ -171,6 +172,7 @@ export default function ProjectDetailPage() {
 
   return (
     <AppShell title={title}>
+      <ProjectAreaTabs role={user.role} active="projects" />
       <div className="project-detail-header">
         <div className="breadcrumb"><Link href="/projects">Project</Link><span>/</span><span>{project.name}</span></div>
         <div className="project-detail-title-row">
@@ -441,14 +443,21 @@ function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; o
 
 function TicketComposer({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: () => void }) {
   const initialWebsiteId = project.websites[0]?.id || "";
-  const [form, setForm] = useState({ title: "", website_id: initialWebsiteId, category: "website" as "website" | "new_website" | "help_desk" | "procurement", requested_website_name: "", requested_domain: "", description: "", expectation: "" });
+  const [form, setForm] = useState({
+    title: "",
+    website_id: initialWebsiteId,
+    category: "website" as "website" | "help_desk" | "procurement",
+    description: "",
+    expectation: "",
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const dirty = Boolean(form.title || form.description || form.expectation || form.requested_website_name || form.requested_domain || form.category !== "website" || form.website_id !== initialWebsiteId);
+  const dirty = Boolean(form.title || form.description || form.expectation || form.category !== "website" || form.website_id !== initialWebsiteId);
   useUnsavedChanges(`projects:${project.id}:task`, dirty);
   useBodyScrollLock(true);
   useDialogFocus(true, modalRef, undefined, onClose);
+
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError("");
     if (form.category === "website" && !form.website_id) {
@@ -456,16 +465,52 @@ function TicketComposer({ project, onClose, onSaved }: { project: Project; onClo
       setSaving(false);
       return;
     }
-    if (form.category === "new_website" && !form.requested_website_name.trim()) {
-      setError("Isi nama website yang diusulkan.");
+    try {
+      await taskIntakeApi.create({
+        title: form.title,
+        project_id: project.id,
+        website_id: form.category === "website" ? form.website_id || undefined : undefined,
+        category: form.category,
+        description: form.description,
+        expectation: form.expectation,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal membuat Task");
+    } finally {
       setSaving(false);
-      return;
     }
-    try { await taskIntakeApi.create({ ...form, project_id: project.id, website_id: form.category === "website" ? form.website_id || undefined : undefined, requested_website_name: form.category === "new_website" ? form.requested_website_name.trim() : undefined, requested_domain: form.category === "new_website" ? form.requested_domain.trim() || undefined : undefined }); onSaved(); }
-    catch (err) { setError(err instanceof ApiError ? err.message : "Gagal membuat Task"); }
-    finally { setSaving(false); }
   }
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div ref={modalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Buat Task" tabIndex={-1} onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Permintaan pekerjaan</div><h2>Buat Task</h2><p className="muted">Catat kebutuhan yang perlu ditindaklanjuti oleh penanggung jawab Project.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="ticket-title">Judul Task</label><input id="ticket-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={form.category === "new_website" ? "Contoh: Buat website company profile" : "Contoh: Perbaiki form kontak"} /></div><div className="story-form-grid">{form.category !== "new_website" ? <div className="form-field"><label htmlFor="ticket-website">Website</label><Select id="ticket-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Tanpa Website" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} /></div> : null}<div className="form-field"><label htmlFor="ticket-category">Jenis Task</label><Select id="ticket-category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value as typeof current.category, website_id: value === "new_website" ? "" : current.website_id }))} options={[{ value: "website", label: "Website tertentu" }, { value: "new_website", label: "Website baru" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div></div>{form.category === "new_website" ? <div className="task-new-website-fields"><div className="form-field"><label htmlFor="ticket-requested-website">Nama website yang diusulkan</label><input id="ticket-requested-website" className="text-input" required maxLength={150} value={form.requested_website_name} onChange={(event) => setForm((current) => ({ ...current, requested_website_name: event.target.value }))} placeholder="Contoh: EGI Resources Academy" /></div><div className="form-field"><label htmlFor="ticket-requested-domain">Domain <span className="muted">(opsional)</span></label><input id="ticket-requested-domain" className="text-input" maxLength={255} value={form.requested_domain} onChange={(event) => setForm((current) => ({ ...current, requested_domain: event.target.value }))} placeholder="Contoh: academy.egiresources.com" /></div><p className="task-scope-help muted">Website belum dibuat dan belum masuk monitoring sampai URL-nya ditentukan.</p></div> : null}<div className="form-field"><label htmlFor="ticket-description">Masalah / kebutuhan</label><textarea id="ticket-description" className="text-input" rows={5} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder={form.category === "new_website" ? "Jelaskan tujuan dan kebutuhan website baru." : undefined} /></div><div className="form-field"><label htmlFor="ticket-expectation">Hasil yang diharapkan</label><textarea id="ticket-expectation" className="text-input" rows={4} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div ref={modalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Buat Task" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+        <div className="drawer-kicker">Permintaan pekerjaan</div>
+        <h2>Buat Task</h2>
+        <p className="muted">Catat kebutuhan yang perlu ditindaklanjuti oleh penanggung jawab Project.</p>
+        {error ? <ErrorBanner message={error} /> : null}
+        <form onSubmit={submit}>
+          <div className="form-field">
+            <label htmlFor="ticket-title">Judul Task</label>
+            <input id="ticket-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: Perbaiki form kontak" />
+          </div>
+          <div className="story-form-grid">
+            <div className="form-field">
+              <label htmlFor="ticket-website">Website</label>
+              <Select id="ticket-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Tanpa Website" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} />
+            </div>
+            <div className="form-field">
+              <label htmlFor="ticket-category">Jenis Task</label>
+              <Select id="ticket-category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value as typeof current.category }))} options={[{ value: "website", label: "Masalah pada website" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} />
+            </div>
+          </div>
+          <div className="form-field"><label htmlFor="ticket-description">Masalah / kebutuhan</label><textarea id="ticket-description" className="text-input" rows={5} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div>
+          <div className="form-field"><label htmlFor="ticket-expectation">Hasil yang diharapkan</label><textarea id="ticket-expectation" className="text-input" rows={4} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div>
+          <div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function StoryComposer({ project, ticket, onClose, onSaved }: { project: Project; ticket: Ticket | null; onClose: () => void; onSaved: () => void }) {

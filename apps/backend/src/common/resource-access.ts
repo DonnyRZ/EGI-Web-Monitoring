@@ -4,6 +4,8 @@ import {
   INCIDENT_MANAGER_ROLES,
   PLATFORM_ADMIN_ROLES,
   PROJECT_ADMIN_ROLES,
+  PROJECT_REQUEST_CREATOR_ROLES,
+  PROJECT_REQUEST_REVIEWER_ROLES,
   USER_STORY_MANAGER_ROLES,
   TASK_INTAKE_CREATOR_ROLES,
   TICKET_MANAGER_ROLES,
@@ -21,6 +23,12 @@ export const PLATFORM_ADMIN_ROLES_PRISMA = asPrismaRoles(PLATFORM_ADMIN_ROLES);
 
 /** Project registry and assignment administration. */
 export const PROJECT_ADMIN_ROLES_PRISMA = asPrismaRoles(PROJECT_ADMIN_ROLES);
+
+/** Project request submitters. */
+export const PROJECT_REQUEST_CREATOR_ROLES_PRISMA = asPrismaRoles(PROJECT_REQUEST_CREATOR_ROLES);
+
+/** Project request reviewers and Project Draft creators. */
+export const PROJECT_REQUEST_REVIEWER_ROLES_PRISMA = asPrismaRoles(PROJECT_REQUEST_REVIEWER_ROLES);
 
 /** Story creation and assignment; developer is scoped per project in the service. */
 export const USER_STORY_MANAGER_ROLES_PRISMA = asPrismaRoles(USER_STORY_MANAGER_ROLES);

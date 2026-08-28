@@ -11,6 +11,7 @@ export type {
   TaskMonitoringPeriod,
   TaskMonitoringOverviewResponse,
   ProjectStatus,
+  ProjectRequestStatus,
   ProjectMemberType,
   UserStoryStatus,
   UserStoryPriority,
@@ -26,6 +27,7 @@ import type {
   TaskStatus,
   TaskBusinessStatus,
   ProjectStatus,
+  ProjectRequestStatus,
   ProjectMemberType,
   UserStoryStatus,
   UserStoryPriority,
@@ -253,6 +255,25 @@ export interface Project extends ProjectListSummary {
   health_summary: ProjectHealthSummary;
   active_incidents_count: number;
   untriaged_tickets_count: number;
+}
+
+export interface ProjectRequest {
+  id: string;
+  request_number: string;
+  requested_name: string;
+  briefing: string;
+  expected_outcome: string;
+  proposed_website_name: string | null;
+  proposed_domain: string | null;
+  attachment_url: string | null;
+  status: ProjectRequestStatus;
+  submitted_by: UserSummary;
+  review_note: string | null;
+  reviewed_by: UserSummary | null;
+  reviewed_at: string | null;
+  project: { id: string; name: string; status: ProjectStatus } | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectAssignments {

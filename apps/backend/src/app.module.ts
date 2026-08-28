@@ -14,6 +14,7 @@ import { WorkloadModule } from "./modules/workload/workload.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { UserStoriesModule } from "./modules/user-stories/user-stories.module";
 import { TaskMonitoringModule } from "./modules/task-monitoring/task-monitoring.module";
+import { ProjectRequestsModule } from "./modules/project-requests/project-requests.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -36,6 +37,7 @@ import { HealthController } from "./health.controller";
     ProjectsModule,
     UserStoriesModule,
     TaskMonitoringModule,
+    ProjectRequestsModule,
   ],
   controllers: [HealthController],
 })

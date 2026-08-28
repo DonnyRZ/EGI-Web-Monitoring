@@ -155,13 +155,9 @@ export default function IncidentsPage() {
         <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={() => setFilterOpen(true)}>
           Filter{activeFilterCount ? ` · ${activeFilterCount} aktif` : ""}
         </button>
-        <button type="button" className="text-link mobile-reset-filter" onClick={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}>Reset</button>
       </div>
 
       <section className="incident-filter-panel panel">
-        <div className="incident-filter-actions">
-          <button type="button" className="text-link filter-reset" onClick={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}>Reset filter</button>
-        </div>
         <div className="toolbar">
         {isDeveloper ? (
           <button
@@ -215,7 +211,6 @@ export default function IncidentsPage() {
         description="Persempit daftar incident berdasarkan situs, status, dan tingkat keparahan."
         activeCount={activeFilterCount}
         onClose={() => setFilterOpen(false)}
-        onReset={() => { setWebsiteId(""); setStatus(""); setSeverity(""); setOnlyMySites(false); }}
         onApply={() => setFilterOpen(false)}
       >
         <div className="filter-sheet-fields incident-mobile-filter-fields">

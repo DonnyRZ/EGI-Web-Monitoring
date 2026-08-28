@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FilterSheet, useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { taskIntakeApi, taskMonitoringApi } from "@/lib/api-services";
+import { taskMonitoringApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { canCreateTaskIntake, canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
-import { useUnsavedChanges } from "@/lib/unsaved-changes";
+import { canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
 import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
 import type {
   Severity,
@@ -65,8 +64,6 @@ const EMPTY_SUMMARY: TaskMonitoringOverviewResponse["summary"] = {
 };
 
 type OverviewProject = TaskMonitoringOverviewResponse["data"][number];
-type TaskScope = "project" | "website" | "general";
-type TaskCategory = "website" | "new_website" | "help_desk" | "procurement";
 
 export default function TasksPage() {
   const { user, loading: authLoading } = useAuth();
@@ -81,7 +78,6 @@ export default function TasksPage() {
   const [error, setError] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [selectedProject, setSelectedProject] = useState<OverviewProject | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [projectScopeReady, setProjectScopeReady] = useState(false);
   const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
@@ -165,21 +161,11 @@ export default function TasksPage() {
     };
   }, [authLoading, canMonitor, developerId, period, projectId, refreshNonce, search, status]);
 
-  function resetFilters() {
-    setPeriod("30d");
-    setProjectId("");
-    setDeveloperId("");
-    setStatus("");
-    setSearch("");
-  }
-
   if (!user || scopePending || !canMonitor) {
     return <AppShell title="Task Monitoring"><LoadingState /></AppShell>;
   }
 
   const summary = overview?.summary ?? EMPTY_SUMMARY;
-  const hasActiveFilters = Boolean(period !== "30d" || projectId || developerId || status || search.trim());
-
   return (
     <AppShell title="Task Monitoring">
       <div className="task-mobile-heading">
@@ -188,11 +174,7 @@ export default function TasksPage() {
       </div>
       <TaskSearchBar
         search={search}
-        hasActiveFilters={hasActiveFilters}
-        canCreateTask={canCreateTaskIntake(user.role)}
         onSearchChange={setSearch}
-        onReset={resetFilters}
-        onCreateTask={() => setCreateOpen(true)}
         onOpenFilters={() => setFilterOpen(true)}
       />
       <p className="task-summary-context">Metrik mengikuti pencarian dan filter yang dipilih.</p>
@@ -217,7 +199,6 @@ export default function TasksPage() {
         activeCount={[period !== "30d", Boolean(projectId), Boolean(developerId), Boolean(status)].filter(Boolean).length}
         onClose={() => setFilterOpen(false)}
         onApply={() => setFilterOpen(false)}
-        onReset={resetFilters}
       >
         <TaskFilterFields
           filters={filters}
@@ -250,26 +231,17 @@ export default function TasksPage() {
           onChanged={() => setRefreshNonce((value) => value + 1)}
         />
       ) : null}
-      {createOpen ? <CreateTaskModal filters={filters} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setRefreshNonce((value) => value + 1); }} /> : null}
     </AppShell>
   );
 }
 
 function TaskSearchBar({
   search,
-  hasActiveFilters,
-  canCreateTask,
   onSearchChange,
-  onReset,
-  onCreateTask,
   onOpenFilters,
 }: {
   search: string;
-  hasActiveFilters: boolean;
-  canCreateTask: boolean;
   onSearchChange: (value: string) => void;
-  onReset: () => void;
-  onCreateTask: () => void;
   onOpenFilters: () => void;
 }) {
   return (
@@ -280,8 +252,6 @@ function TaskSearchBar({
       </div>
       <div className="task-search-actions">
         <button type="button" className="btn btn-neutral mobile-filter-trigger" onClick={onOpenFilters}>Filter</button>
-        {hasActiveFilters ? <button type="button" className="text-link filter-reset" onClick={onReset}>Hapus filter</button> : null}
-        {canCreateTask ? <button type="button" className="btn btn-primary task-page-cta" onClick={onCreateTask}>Buat Task</button> : null}
       </div>
     </section>
   );
@@ -689,65 +659,4 @@ function TaskDetailView({ row, technicalView, canOverride, loading, error, onBac
       {canOverride && row.source === "task" ? <section className="task-detail-actions"><span className="eyebrow">Status Task</span><p className="muted">Ubah status hanya jika kondisi pekerjaan belum tercermin dengan benar.</p><Select value={row.status === "waiting_pic" ? "new" : row.status} onChange={(value) => void updateStatus(value)} options={[{ value: "new", label: "Baru" }, { value: "in_progress", label: "Sedang dikerjakan" }, { value: "blocked", label: "Terkendala" }, { value: "done", label: "Selesai" }]} disabled={saving} aria-label="Status Task" /></section> : null}
     </>
   );
-}
-
-function CreateTaskModal({ filters, onClose, onCreated }: { filters: TaskMonitoringFilters; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ title: "", scope: "website" as TaskScope, project_id: "", website_id: "", category: "website" as TaskCategory, requested_website_name: "", requested_domain: "", requested_project_name: "", description: "", expectation: "", priority: "medium" as Severity });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const modalRef = useRef<HTMLDivElement | null>(null);
-  const dirty = Boolean(form.title || form.project_id || form.website_id || form.requested_website_name || form.requested_domain || form.requested_project_name || form.description || form.expectation || form.scope !== "website" || form.category !== "website" || form.priority !== "medium");
-  useUnsavedChanges("tasks:create", dirty);
-  useBodyScrollLock(true);
-  useDialogFocus(true, modalRef, undefined, onClose);
-  const websites = filters.websites.filter((website) => !form.project_id || website.project_id === form.project_id);
-  const scopeOptions = [
-    { value: "project", label: "Seluruh Project" },
-    { value: "website", label: "Website tertentu" },
-    ...(form.category === "website" ? [] : [{ value: "general", label: "Task Umum" }]),
-  ];
-
-  function changeScope(value: string) {
-    const scope = value as TaskScope;
-    setForm((current) => ({ ...current, scope, project_id: scope === "general" ? "" : current.project_id, website_id: scope === "website" ? current.website_id : "" }));
-    setError("");
-  }
-
-  function changeCategory(value: string) {
-    const category = value as TaskCategory;
-    setForm((current) => category === "new_website"
-      ? { ...current, category, scope: "website", website_id: "" }
-      : { ...current, category, scope: category === "website" && current.scope === "general" ? "website" : category === "website" && current.scope === "project" ? "website" : current.scope, website_id: category === "website" && current.scope === "project" ? "" : current.website_id, requested_website_name: "", requested_domain: "", requested_project_name: "" });
-    setError("");
-  }
-
-  async function submit(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setError("");
-    const isNewWebsiteRequest = form.category === "new_website";
-    if (isNewWebsiteRequest && !form.requested_website_name.trim()) { setError("Isi nama website yang diusulkan."); setSaving(false); return; }
-    if (!isNewWebsiteRequest && form.scope === "general" && form.category === "website") { setError("Task kategori Website harus ditujukan ke Website tertentu."); setSaving(false); return; }
-    if (!isNewWebsiteRequest && form.scope !== "general" && !form.project_id) { setError("Pilih Project untuk menentukan ruang kerja Task."); setSaving(false); return; }
-    if (!isNewWebsiteRequest && form.scope === "website" && !form.website_id) { setError("Pilih Website yang menjadi sumber masalah atau kebutuhan."); setSaving(false); return; }
-    try {
-      await taskIntakeApi.create({
-        title: form.title,
-        project_id: isNewWebsiteRequest || form.scope !== "general" ? form.project_id || undefined : undefined,
-        website_id: !isNewWebsiteRequest && form.scope === "website" ? form.website_id || undefined : undefined,
-        category: form.category,
-        requested_website_name: isNewWebsiteRequest ? form.requested_website_name.trim() : undefined,
-        requested_domain: isNewWebsiteRequest ? form.requested_domain.trim() || undefined : undefined,
-        requested_project_name: isNewWebsiteRequest ? form.requested_project_name.trim() || undefined : undefined,
-        description: form.description,
-        expectation: form.expectation,
-        priority: form.priority,
-      });
-      onCreated();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal membuat Task");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return <div className="modal-backdrop" role="presentation" onClick={onClose}><div ref={modalRef} className="modal task-create-modal" role="dialog" aria-modal="true" aria-labelledby="create-task-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}><div className="drawer-kicker">Buat Task</div><h2 id="create-task-title">Catat kebutuhan pekerjaan</h2><p className="muted">Catat kebutuhan atau masalah yang perlu ditindaklanjuti. Developer tidak dipilih di form ini; penanggung jawab Project akan menindaklanjutinya.</p>{error ? <ErrorBanner message={error} /> : null}<form onSubmit={submit}><div className="form-field"><label htmlFor="task-title">Judul Task</label><input id="task-title" className="text-input" required maxLength={255} value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder={form.category === "new_website" ? "Contoh: Buat website company profile" : "Contoh: Perbaiki form kontak"} /></div><div className="form-grid task-scope-grid">{form.category !== "new_website" ? <div className="form-field"><label htmlFor="task-scope">Task ini untuk</label><Select id="task-scope" value={form.scope} onChange={changeScope} options={scopeOptions} /><p className="task-scope-help muted">Pilih Website tertentu untuk masalah spesifik, atau seluruh Project untuk kebutuhan bersama.</p></div> : null}{form.category === "new_website" ? <><div className="form-field"><label htmlFor="task-new-project">Project tujuan</label><Select id="task-new-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value }))} options={[{ value: "", label: "Belum ditentukan" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /><p className="task-scope-help muted">Jika belum jelas, biarkan kosong. Bos IT atau Superadmin dapat menentukan Project kemudian.</p></div>{!form.project_id ? <div className="form-field"><label htmlFor="task-requested-project">Nama Project usulan <span className="muted">(opsional)</span></label><input id="task-requested-project" className="text-input" maxLength={150} value={form.requested_project_name} onChange={(event) => setForm((current) => ({ ...current, requested_project_name: event.target.value }))} placeholder="Contoh: Company Profile" /></div> : null}</> : null}{form.category !== "new_website" && form.scope !== "general" ? <div className="form-field"><label htmlFor="task-project">Project</label><Select id="task-project" value={form.project_id} onChange={(value) => setForm((current) => ({ ...current, project_id: value, website_id: "" }))} options={[{ value: "", label: "Pilih Project" }, ...filters.projects.map((project) => ({ value: project.id, label: project.name }))]} /></div> : null}{form.category !== "new_website" && form.scope === "website" ? <div className="form-field"><label htmlFor="task-website">Website</label><Select id="task-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Pilih Website" }, ...websites.map((website) => ({ value: website.id, label: website.name }))]} disabled={!form.project_id} /><p className="task-scope-help muted">{form.project_id ? "Website ini berada di dalam Project yang dipilih." : "Pilih Project terlebih dahulu."}</p></div> : null}<div className="form-field"><label htmlFor="task-category">Jenis Task</label><Select id="task-category" value={form.category} onChange={changeCategory} options={[{ value: "website", label: "Website tertentu" }, { value: "new_website", label: "Website baru" }, { value: "help_desk", label: "Help Desk" }, { value: "procurement", label: "Procurement" }]} /></div><div className="form-field"><label htmlFor="task-priority">Priority</label><Select id="task-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as Severity }))} options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} /></div></div>{form.category === "new_website" ? <div className="task-new-website-fields"><div className="form-field"><label htmlFor="task-requested-website">Nama website yang diusulkan</label><input id="task-requested-website" className="text-input" required maxLength={150} value={form.requested_website_name} onChange={(event) => setForm((current) => ({ ...current, requested_website_name: event.target.value }))} placeholder="Contoh: EGI Resources Academy" /></div><div className="form-field"><label htmlFor="task-requested-domain">Domain <span className="muted">(opsional)</span></label><input id="task-requested-domain" className="text-input" maxLength={255} value={form.requested_domain} onChange={(event) => setForm((current) => ({ ...current, requested_domain: event.target.value }))} placeholder="Contoh: academy.egiresources.com" /></div><p className="task-scope-help muted">Website belum dibuat dan belum masuk monitoring sampai Project serta URL-nya ditentukan.</p></div> : null}<div className="form-field"><label htmlFor="task-description">Masalah / kebutuhan</label><textarea id="task-description" className="text-input" rows={4} required value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder={form.category === "new_website" ? "Jelaskan tujuan dan kebutuhan website baru." : undefined} /></div><div className="form-field"><label htmlFor="task-expectation">Hasil yang diharapkan</label><textarea id="task-expectation" className="text-input" rows={3} required value={form.expectation} onChange={(event) => setForm((current) => ({ ...current, expectation: event.target.value }))} /></div><div className="modal-actions"><button type="button" className="btn" onClick={onClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Buat Task"}</button></div></form></div></div>;
 }
