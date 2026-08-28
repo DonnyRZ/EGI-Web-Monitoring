@@ -30,6 +30,24 @@ export class CreateTicketDto {
   @IsEnum(TicketCategory)
   category?: TicketCategory;
 
+  @ApiPropertyOptional({ description: "Nama website yang diusulkan untuk kategori Website baru." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  requested_website_name?: string;
+
+  @ApiPropertyOptional({ description: "Domain website jika sudah tersedia." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  requested_domain?: string;
+
+  @ApiPropertyOptional({ description: "Nama Project yang diusulkan jika Project belum dibuat." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  requested_project_name?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -35,10 +35,14 @@ const STORY_SELECT = {
 
 const TICKET_SELECT = {
   id: true,
+  ticketNumber: true,
   title: true,
   description: true,
   expectation: true,
   attachmentUrl: true,
+  requestedWebsiteName: true,
+  requestedDomain: true,
+  requestedProjectName: true,
   category: true,
   priority: true,
   status: true,
@@ -55,6 +59,7 @@ const TICKET_SELECT = {
     },
   },
   website: { select: { id: true, name: true, domain: true, projectId: true } },
+  creator: { select: USER_SUMMARY },
   assignee: { select: USER_SUMMARY },
   userStory: { select: STORY_SELECT },
   storyLinks: { include: { userStory: { select: STORY_SELECT } } },
@@ -95,6 +100,8 @@ type MonitoringRow = {
   id: string;
   source: "task" | "legacy_task";
   source_id: string;
+  ticket_number: string | null;
+  created_by: { id: string; name: string; email: string } | null;
   title: string;
   summary: string | null;
   project: { id: string; name: string; status: "draft" | "active" | "archived" } | null;
@@ -124,6 +131,9 @@ type MonitoringRow = {
     expectation: string | null;
     attachment_url: string | null;
     category: string | null;
+    requested_website_name: string | null;
+    requested_domain: string | null;
+    requested_project_name: string | null;
   } | null;
 };
 
@@ -314,7 +324,11 @@ export class TaskMonitoringService {
         {
           OR: [
             { title: { contains: search, mode: "insensitive" } },
+            { ticketNumber: { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
+            { requestedWebsiteName: { contains: search, mode: "insensitive" } },
+            { requestedDomain: { contains: search, mode: "insensitive" } },
+            { requestedProjectName: { contains: search, mode: "insensitive" } },
             { project: { name: { contains: search, mode: "insensitive" } } },
             { website: { name: { contains: search, mode: "insensitive" } } },
             { website: { domain: { contains: search, mode: "insensitive" } } },
@@ -366,6 +380,7 @@ export class TaskMonitoringService {
         OR: [
           { project: { members: { some: { userId: user.id, memberType: ProjectMemberType.pic_web } } } },
           { projectId: null, website: { ownerId: user.id } },
+          { projectId: null, createdBy: user.id },
         ],
       };
     }
@@ -421,6 +436,8 @@ export class TaskMonitoringService {
       id: `task:${ticket.id}`,
       source: "task",
       source_id: ticket.id,
+      ticket_number: ticket.ticketNumber,
+      created_by: ticket.creator ? this.userDto(ticket.creator) : null,
       title: ticket.title,
       summary: ticket.description,
       project: ticket.project ? { id: ticket.project.id, name: ticket.project.name, status: ticket.project.status } : null,
@@ -441,6 +458,9 @@ export class TaskMonitoringService {
         expectation: ticket.expectation,
         attachment_url: ticket.attachmentUrl,
         category: ticket.category,
+        requested_website_name: ticket.requestedWebsiteName,
+        requested_domain: ticket.requestedDomain,
+        requested_project_name: ticket.requestedProjectName,
       },
     };
   }
@@ -452,6 +472,8 @@ export class TaskMonitoringService {
       id: `legacy:${task.id}`,
       source: "legacy_task",
       source_id: task.id,
+      ticket_number: null,
+      created_by: null,
       title: task.instructionNotes,
       summary: task.instructionNotes,
       project: task.website.project ? { id: task.website.project.id, name: task.website.project.name, status: task.website.project.status } : null,
@@ -467,7 +489,15 @@ export class TaskMonitoringService {
       needs_action: needsTaskAction(status, isOverdue),
       stories: [],
       completed_at: status === TaskBusinessStatus.done ? task.updatedAt : null,
-      task: { problem: task.ticket ? null : task.instructionNotes, expectation: null, attachment_url: null, category: null },
+      task: {
+        problem: task.ticket ? null : task.instructionNotes,
+        expectation: null,
+        attachment_url: null,
+        category: null,
+        requested_website_name: null,
+        requested_domain: null,
+        requested_project_name: null,
+      },
     };
   }
 
@@ -547,6 +577,8 @@ export class TaskMonitoringService {
       id: row.id,
       source: row.source,
       source_id: row.source_id,
+      ticket_number: row.ticket_number,
+      created_by: row.created_by,
       title: row.title,
       summary: row.summary,
       project: row.project ? { id: row.project.id, name: row.project.name } : null,

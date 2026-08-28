@@ -135,15 +135,20 @@ export function toIncidentDto(incident: {
 
 export function toTicketDto(ticket: {
   id: string;
+  ticketNumber?: string;
   incidentId: string | null;
   websiteId: string | null;
   projectId?: string | null;
   userStoryId?: string | null;
   createdBy: string | null;
+  creator?: { id: string; name: string; email: string } | null;
   title: string;
   category: string | null;
   description: string | null;
   expectation: string | null;
+  requestedWebsiteName?: string | null;
+  requestedDomain?: string | null;
+  requestedProjectName?: string | null;
   attachmentUrl: string | null;
   assignedTo: string | null;
   priority: string;
@@ -161,6 +166,7 @@ export function toTicketDto(ticket: {
   ].filter((id, index, all) => all.indexOf(id) === index);
   return {
     id: ticket.id,
+    ticket_number: ticket.ticketNumber ?? null,
     incident_id: ticket.incidentId,
     website_id: ticket.websiteId,
     project_id: ticket.projectId ?? null,
@@ -168,10 +174,15 @@ export function toTicketDto(ticket: {
     user_story_ids: userStoryIds,
     user_story_count: userStoryIds.length,
     created_by: ticket.createdBy,
+    created_by_name: ticket.creator?.name ?? null,
+    created_by_email: ticket.creator?.email ?? null,
     title: ticket.title,
     category: ticket.category,
     description: ticket.description,
     expectation: ticket.expectation,
+    requested_website_name: ticket.requestedWebsiteName ?? null,
+    requested_domain: ticket.requestedDomain ?? null,
+    requested_project_name: ticket.requestedProjectName ?? null,
     attachment_url: ticket.attachmentUrl,
     assigned_to: ticket.assignedTo,
     assigned_to_name: ticket.assignee?.name ?? null,

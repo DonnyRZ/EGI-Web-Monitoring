@@ -97,6 +97,7 @@ export interface Incident {
 
 export interface Ticket {
   id: string;
+  ticket_number: string | null;
   incident_id: string | null;
   website_id: string | null;
   project_id: string | null;
@@ -104,10 +105,15 @@ export interface Ticket {
   user_story_ids: string[];
   user_story_count: number;
   created_by: string | null;
+  created_by_name: string | null;
+  created_by_email: string | null;
   title: string;
   category: TicketCategory | null;
   description: string | null;
   expectation: string | null;
+  requested_website_name: string | null;
+  requested_domain: string | null;
+  requested_project_name: string | null;
   attachment_url: string | null;
   assigned_to: string | null;
   assigned_to_name: string | null;
@@ -151,6 +157,8 @@ export interface TaskMonitoringRow {
   id: string;
   source: "task" | "legacy_task";
   source_id: string;
+  ticket_number: string | null;
+  created_by: UserSummary | null;
   title: string;
   summary: string | null;
   project: { id: string; name: string } | null;
@@ -171,6 +179,9 @@ export interface TaskMonitoringRow {
     expectation: string | null;
     attachment_url: string | null;
     category: string | null;
+    requested_website_name: string | null;
+    requested_domain: string | null;
+    requested_project_name: string | null;
   } | null;
 }
 

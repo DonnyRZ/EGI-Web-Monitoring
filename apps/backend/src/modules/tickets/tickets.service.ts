@@ -10,7 +10,7 @@ import {
   TicketStatus,
   UserRole,
 } from "@egi/database";
-import { canManagePlatform } from "@egi/shared-types";
+import { canCreateTaskIntake, canManagePlatform } from "@egi/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { paginatedMeta, toTicketDto } from "../../common/mappers";
 import { PaginationQueryDto } from "../../common/pagination.dto";
@@ -22,6 +22,7 @@ import { createSignedObjectUrl, uploadObject } from "../../common/s3";
 
 const TICKET_INCLUDE = {
   assignee: { select: { id: true, name: true } },
+  creator: { select: { id: true, name: true, email: true } },
   storyLinks: { select: { userStoryId: true } },
 } as const;
 
@@ -59,6 +60,7 @@ export class TicketsService {
         OR: [
           { project: { members: { some: { userId: user.id, memberType: "pic_web" } } } },
           { projectId: null, website: { ownerId: user.id } },
+          { projectId: null, createdBy: user.id },
         ],
       };
     }
@@ -150,7 +152,7 @@ export class TicketsService {
    * Legacy Task row.
    */
   async createTaskIntake(dto: CreateTaskIntakeDto, user: AuthUser) {
-    if (user.role !== UserRole.superadmin && user.role !== UserRole.bos_it && user.role !== UserRole.pic_web) {
+    if (!canCreateTaskIntake(user.role)) {
       throw new ForbiddenException("Task intake requires superadmin, bos_it, or pic_web role");
     }
     if (!dto.title.trim()) {
@@ -159,6 +161,15 @@ export class TicketsService {
 
     if (dto.category === TicketCategory.website && !dto.website_id) {
       throw new BadRequestException("website_id is required for a website Task");
+    }
+
+    if (dto.category === TicketCategory.new_website) {
+      if (dto.website_id) {
+        throw new BadRequestException("A new website request cannot select an existing Website");
+      }
+      if (!dto.requested_website_name?.trim()) {
+        throw new BadRequestException("requested_website_name is required for a new website request");
+      }
     }
 
     if (dto.website_id) {
@@ -179,6 +190,9 @@ export class TicketsService {
         category: dto.category,
         description: dto.description,
         expectation: dto.expectation,
+        requested_website_name: dto.requested_website_name,
+        requested_domain: dto.requested_domain,
+        requested_project_name: dto.requested_project_name,
         attachment_url: dto.attachment_url,
         priority: dto.priority,
       },
@@ -188,11 +202,28 @@ export class TicketsService {
 
   async create(dto: CreateTicketDto, user: AuthUser) {
     this.assertOperational(user);
+    const isNewWebsiteRequest = dto.category === TicketCategory.new_website;
+    if (isNewWebsiteRequest && !canCreateTaskIntake(user.role)) {
+      throw new ForbiddenException("Only Superadmin, Bos IT, or PIC Web can create a new website request");
+    }
+    if (isNewWebsiteRequest && dto.incident_id) {
+      throw new BadRequestException("A new website request cannot be linked to an incident");
+    }
+    if (isNewWebsiteRequest && dto.website_id) {
+      throw new BadRequestException("A new website request cannot select an existing Website");
+    }
+    if (isNewWebsiteRequest && dto.assigned_to) {
+      throw new BadRequestException("A new website request is assigned after its Project is determined");
+    }
+    if (isNewWebsiteRequest && !dto.requested_website_name?.trim()) {
+      throw new BadRequestException("requested_website_name is required for a new website request");
+    }
     if (
       !dto.incident_id &&
       !dto.website_id &&
       dto.category !== TicketCategory.help_desk &&
-      dto.category !== TicketCategory.procurement
+      dto.category !== TicketCategory.procurement &&
+      !isNewWebsiteRequest
     ) {
       throw new BadRequestException("A ticket without a Website must use help_desk or procurement category");
     }
@@ -252,6 +283,9 @@ export class TicketsService {
           category: dto.category,
           description: dto.description?.trim(),
           expectation: dto.expectation?.trim(),
+          requestedWebsiteName: isNewWebsiteRequest ? dto.requested_website_name?.trim() : undefined,
+          requestedDomain: isNewWebsiteRequest ? dto.requested_domain?.trim() || null : undefined,
+          requestedProjectName: isNewWebsiteRequest ? (projectId ? null : dto.requested_project_name?.trim() || null) : undefined,
           attachmentUrl: dto.attachment_url,
           assignedTo,
           priority: dto.priority ?? Severity.medium,
@@ -346,6 +380,7 @@ export class TicketsService {
   private titleForCategory(category?: TicketCategory) {
     switch (category) {
       case TicketCategory.website: return "Permintaan Website";
+      case TicketCategory.new_website: return "Permintaan Website Baru";
       case TicketCategory.help_desk: return "Permintaan Help Desk";
       case TicketCategory.procurement: return "Permintaan Procurement";
       default: return "Tiket Baru";

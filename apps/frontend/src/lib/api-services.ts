@@ -130,7 +130,10 @@ export const ticketsApi = {
     website_id?: string;
     project_id?: string;
     title?: string;
-    category: "website" | "help_desk" | "procurement";
+    category: "website" | "new_website" | "help_desk" | "procurement";
+    requested_website_name?: string;
+    requested_domain?: string;
+    requested_project_name?: string;
     description: string;
     expectation: string;
     attachment_url?: string;
@@ -151,7 +154,10 @@ export const taskIntakeApi = {
     title: string;
     website_id?: string;
     project_id?: string;
-    category: "website" | "help_desk" | "procurement";
+    category: "website" | "new_website" | "help_desk" | "procurement";
+    requested_website_name?: string;
+    requested_domain?: string;
+    requested_project_name?: string;
     description: string;
     expectation: string;
     attachment_url?: string;

@@ -8,7 +8,7 @@ export type IncidentStatus = "open" | "in_progress" | "resolved" | "closed";
 
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 
-export type TicketCategory = "website" | "help_desk" | "procurement";
+export type TicketCategory = "website" | "new_website" | "help_desk" | "procurement";
 
 export type NotificationChannel = "dashboard" | "email" | "telegram";
 

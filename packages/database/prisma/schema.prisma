@@ -45,6 +45,7 @@ enum TicketStatus {
 
 enum TicketCategory {
   website
+  new_website
   help_desk
   procurement
 }
@@ -281,6 +282,7 @@ model Incident {
 
 model Ticket {
   id           String         @id @default(uuid()) @db.Uuid
+  ticketNumber String         @unique @default(dbgenerated("generate_ticket_number()")) @map("ticket_number") @db.VarChar(32)
   incidentId   String?        @map("incident_id") @db.Uuid
   websiteId    String?        @map("website_id") @db.Uuid
   projectId    String?        @map("project_id") @db.Uuid
@@ -293,6 +295,9 @@ model Ticket {
   category     TicketCategory?
   description  String?
   expectation  String?
+  requestedWebsiteName String? @map("requested_website_name") @db.VarChar(150)
+  requestedDomain String?      @map("requested_domain") @db.VarChar(255)
+  requestedProjectName String? @map("requested_project_name") @db.VarChar(150)
   attachmentUrl String?       @map("attachment_url")
   assignedTo   String?        @map("assigned_to") @db.Uuid
   priority     Severity       @default(medium)
