@@ -64,6 +64,13 @@ export function LiveWebsiteViewer({
   const hasValidUrl = Boolean(normalized);
   const statusMessage = liveViewerStatusMessage(hasValidUrl ? phase : "invalid");
   const viewerPresentation = presentation ?? (publicView ? "public-gallery" : "workspace");
+  const isDashboardWorkspace = viewerPresentation === "immersive-mobile";
+  const dashboardAlertMessage =
+    phase === "slow"
+      ? "Website masih memuat."
+      : phase === "unverified"
+        ? "Website belum dapat diverifikasi di dalam aplikasi."
+        : null;
 
   return (
     <section
@@ -101,21 +108,39 @@ export function LiveWebsiteViewer({
         </div>
       </header>
 
-      <div className="live-website-viewer-status" aria-live="polite">
-        <div className="live-website-viewer-status-copy">
-          <span className={`live-website-viewer-mode phase-${phase}`}>
-            <span aria-hidden />
-            Interaksi website
+      {isDashboardWorkspace ? (
+        dashboardAlertMessage ? (
+          <div className={`live-website-viewer-alert phase-${phase}`} role="status" aria-live="polite">
+            <span>{dashboardAlertMessage}</span>
+            {hasValidUrl && canRetryLiveViewer(phase) ? (
+              <button type="button" className="btn btn-sm btn-neutral" onClick={retry}>
+                <IconRefresh />
+                Muat ulang
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <span className="sr-only" aria-live="polite">
+            {phase === "loading" ? statusMessage : phase === "ready" ? "Website siap digunakan." : ""}
           </span>
-          <p className="live-website-viewer-note">{statusMessage}</p>
+        )
+      ) : (
+        <div className="live-website-viewer-status" aria-live="polite">
+          <div className="live-website-viewer-status-copy">
+            <span className={`live-website-viewer-mode phase-${phase}`}>
+              <span aria-hidden />
+              Interaksi website
+            </span>
+            <p className="live-website-viewer-note">{statusMessage}</p>
+          </div>
+          {hasValidUrl && canRetryLiveViewer(phase) ? (
+            <button type="button" className="btn btn-sm btn-neutral" onClick={retry}>
+              <IconRefresh />
+              Muat ulang
+            </button>
+          ) : null}
         </div>
-        {hasValidUrl && canRetryLiveViewer(phase) ? (
-          <button type="button" className="btn btn-sm btn-neutral" onClick={retry}>
-            <IconRefresh />
-            Muat ulang
-          </button>
-        ) : null}
-      </div>
+      )}
 
       <div className="live-website-viewer-frame" aria-busy={phase === "loading"}>
         {shouldRenderLiveViewerFrame(hasValidUrl) && normalized ? (

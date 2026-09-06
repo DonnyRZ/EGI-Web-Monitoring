@@ -2132,6 +2132,36 @@ h3,
   flex: 0 0 auto;
 }
 
+.live-website-viewer-alert {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #f0d29c;
+  border-radius: var(--radius-sm);
+  background: #fff8eb;
+  color: #85500b;
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.live-website-viewer-alert > span {
+  min-width: 0;
+}
+
+.live-website-viewer-alert .btn {
+  min-height: 36px;
+  flex: 0 0 auto;
+}
+
+.live-website-viewer-alert.phase-unverified {
+  border-color: #e8b5ba;
+  background: #fff4f4;
+  color: #a22f38;
+}
+
 .live-website-viewer-actions .btn svg,
 .live-website-viewer-fallback-actions .btn svg {
   flex-shrink: 0;
@@ -5818,10 +5848,16 @@ body,
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
-    padding: 10px 12px 9px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(255, 255, 255, .98);
-    box-shadow: 0 5px 18px rgba(19, 37, 61, .12);
+    padding: calc(8px + env(safe-area-inset-top)) 12px 13px;
+    background: linear-gradient(
+      180deg,
+      rgba(247, 249, 252, .94) 0%,
+      rgba(247, 249, 252, .78) 58%,
+      rgba(247, 249, 252, 0) 100%
+    );
+    -webkit-backdrop-filter: blur(14px) saturate(1.08);
+    backdrop-filter: blur(14px) saturate(1.08);
+    pointer-events: none;
   }
 
   .live-website-layout .live-website-mobile-selector {
@@ -5835,9 +5871,11 @@ body,
     padding: 7px 10px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
-    background: #fbfcfe;
+    background: rgba(255, 255, 255, .88);
     color: var(--text);
     text-align: left;
+    box-shadow: 0 2px 8px rgba(19, 37, 61, .08);
+    pointer-events: auto;
   }
 
   .live-website-layout .live-website-mobile-selector:hover,
@@ -5897,11 +5935,13 @@ body,
     padding: 0 10px;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
-    background: var(--bg-surface);
+    background: rgba(255, 255, 255, .88);
     color: var(--egi-blue-dark);
     font-size: .72rem;
     font-weight: 750;
     white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(19, 37, 61, .08);
+    pointer-events: auto;
   }
 
   .live-website-mobile-open:hover,
@@ -5954,53 +5994,47 @@ body,
     display: none;
   }
 
-  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-status {
+  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-alert {
     position: absolute;
-    top: 112px;
+    top: calc(104px + env(safe-area-inset-top));
     right: 12px;
     left: 12px;
     z-index: 3;
     display: flex;
-    min-height: 38px;
+    min-width: 0;
     align-items: center;
-    flex-direction: row;
+    justify-content: space-between;
     gap: 8px;
     padding: 6px 8px;
-    border: 1px solid rgba(213, 217, 224, .95);
+    border: 1px solid rgba(213, 217, 224, .82);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, .96);
+    background: rgba(255, 248, 235, .9);
+    color: #85500b;
+    font-size: .7rem;
+    font-weight: 700;
     box-shadow: 0 4px 14px rgba(19, 37, 61, .1);
+    pointer-events: none;
   }
 
-  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-status-copy {
-    display: flex;
-    min-width: 0;
-    flex: 1 1 auto;
-    align-items: center;
-    flex-direction: row;
-    gap: 7px;
-  }
-
-  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-mode {
-    flex: 0 0 auto;
-    padding: 3px 7px;
-    font-size: .64rem;
-  }
-
-  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-note {
+  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-alert > span {
     min-width: 0;
     overflow: hidden;
-    color: var(--text-muted);
-    font-size: .68rem;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-status > .btn {
+  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-alert .btn {
     width: auto;
     min-height: 34px;
+    flex: 0 0 auto;
     padding: 0 8px;
     font-size: .7rem;
+    pointer-events: auto;
+  }
+
+  .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-alert.phase-unverified {
+    background: rgba(255, 244, 244, .92);
+    color: #a22f38;
   }
 
   .live-website-layout .live-website-viewer.workspace-viewer .live-website-viewer-frame {
