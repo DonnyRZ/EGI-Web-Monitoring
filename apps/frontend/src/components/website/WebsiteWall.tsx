@@ -78,7 +78,6 @@ export function WebsiteWall({
     closePicker();
   }, [closePicker, onSelect]);
 
-  const activeStatus = activeCard?.latest_result?.status ?? "unknown";
   const activeUrl = activeCard ? normalizeLiveWebsiteUrl(activeCard.website.url) : null;
 
   return (
@@ -134,17 +133,17 @@ export function WebsiteWall({
           </aside>
 
           <div className="live-website-workspace-main">
-            <div className="live-website-mobile-control-bar">
+            <div className="live-website-mobile-toolbar" role="group" aria-label="Kontrol website aktif">
               <button
                 ref={pickerTriggerRef}
                 type="button"
                 className="live-website-mobile-selector"
+                aria-label={`Pilih website aktif. Saat ini ${activeCard.website.name}`}
                 aria-haspopup="dialog"
                 aria-expanded={pickerOpen}
                 onClick={() => setPickerOpen(true)}
               >
                 <span className="live-website-mobile-selector-copy">
-                  <span className="live-website-mobile-selector-label">Website aktif</span>
                   <strong title={activeCard.website.name}>{activeCard.website.name}</strong>
                   <span title={activeCard.website.domain}>{activeCard.website.domain}</span>
                 </span>
@@ -154,21 +153,15 @@ export function WebsiteWall({
                 <a
                   className="live-website-mobile-open"
                   href={activeUrl.href}
+                  aria-label="Buka website di tab baru"
+                  title="Buka website di tab baru"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <IconExternal />
-                  <span>Buka website</span>
+                  <span>Buka</span>
                 </a>
               ) : null}
-              <div className="live-website-mobile-health" aria-label={`Status ${activeCard.website.name}`}>
-                <StatusPill status={activeStatus} />
-                <span>
-                  {activeCard.latest_result
-                    ? `Dicek ${formatRelative(activeCard.latest_result.checked_at)}`
-                    : "Belum pernah dicek"}
-                </span>
-              </div>
             </div>
             <LiveWebsiteViewer
               key={activeCard.website.id}
