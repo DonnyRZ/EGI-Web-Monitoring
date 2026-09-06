@@ -27,11 +27,13 @@ import { IconLogout } from "./icons";
 
 interface AppShellProps {
   title?: string;
+  layoutMode?: "default" | "live-website";
   children: ReactNode;
 }
 
 interface AppShellHostValue {
   setPageTitle: (title: string) => void;
+  setLayoutMode: (mode: "default" | "live-website") => void;
 }
 
 const AppShellHostContext = createContext<AppShellHostValue | null>(null);
@@ -69,13 +71,15 @@ function scheduleBackground(callback: () => void) {
   return () => window.clearTimeout(timer);
 }
 
-export function AppShell({ title, children }: AppShellProps) {
+export function AppShell({ title, layoutMode = "default", children }: AppShellProps) {
   const host = useContext(AppShellHostContext);
   const pathname = usePathname();
 
   useEffect(() => {
-    if (host) host.setPageTitle(title || routeTitle(pathname));
-  }, [host, pathname, title]);
+    if (!host) return;
+    host.setPageTitle(title || routeTitle(pathname));
+    host.setLayoutMode(layoutMode);
+  }, [host, layoutMode, pathname, title]);
 
   // Pages historically wrapped themselves in AppShell. Keep those wrappers
   // source-compatible while letting the root layout own one persistent shell.
@@ -94,6 +98,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
   const [isProjectPicDeveloper, setIsProjectPicDeveloper] = useState(false);
   const [projectScopeReady, setProjectScopeReady] = useState(false);
   const [pageTitle, setPageTitleState] = useState(() => initialTitle || routeTitle(pathname));
+  const [layoutMode, setLayoutModeState] = useState<"default" | "live-website">("default");
   const titleOverrideRef = useRef<{ pathname: string; title: string } | null>(null);
   const isGallery = isEndUserPublicDashboard(user?.role);
 
@@ -102,13 +107,17 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
     setPageTitleState(nextTitle);
   }, [pathname]);
 
+  const setLayoutMode = useCallback((nextMode: "default" | "live-website") => {
+    setLayoutModeState(nextMode);
+  }, []);
+
   useEffect(() => {
     if (titleOverrideRef.current?.pathname === pathname) return;
     titleOverrideRef.current = null;
     setPageTitleState(initialTitle || routeTitle(pathname));
   }, [initialTitle, pathname]);
 
-  const host = useMemo(() => ({ setPageTitle }), [setPageTitle]);
+  const host = useMemo(() => ({ setPageTitle, setLayoutMode }), [setLayoutMode, setPageTitle]);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -228,7 +237,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
 
   return (
     <AppShellHostContext.Provider value={host}>
-      <div className={`app-shell${isGallery ? " gallery" : ""}`}>
+      <div className={`app-shell${isGallery ? " gallery" : ""}${layoutMode === "live-website" ? " live-website-layout" : ""}`}>
         {!isGallery ? (
         <aside className="sidebar">
         <div className="sidebar-brand">

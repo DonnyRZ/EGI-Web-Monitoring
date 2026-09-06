@@ -20,6 +20,7 @@ type LiveWebsiteViewerProps = {
   website: Pick<Website, "id" | "name" | "domain" | "url">;
   publicView?: boolean;
   workspace?: boolean;
+  presentation?: "workspace" | "immersive-mobile" | "public-gallery";
   onClose?: () => void;
 };
 
@@ -27,6 +28,7 @@ export function LiveWebsiteViewer({
   website,
   publicView = false,
   workspace = false,
+  presentation,
   onClose,
 }: LiveWebsiteViewerProps) {
   const normalized = useMemo(() => normalizeLiveWebsiteUrl(website.url), [website.url]);
@@ -61,10 +63,11 @@ export function LiveWebsiteViewer({
 
   const hasValidUrl = Boolean(normalized);
   const statusMessage = liveViewerStatusMessage(hasValidUrl ? phase : "invalid");
+  const viewerPresentation = presentation ?? (publicView ? "public-gallery" : "workspace");
 
   return (
     <section
-      className={`live-website-viewer${publicView ? " public-view" : ""}${workspace ? " workspace-viewer" : ""}`}
+      className={`live-website-viewer live-website-viewer-${viewerPresentation}${publicView ? " public-view" : ""}${workspace ? " workspace-viewer" : ""}`}
       aria-label={`Tampilan interaktif ${website.name}`}
     >
       <header className="live-website-viewer-header">
@@ -74,7 +77,7 @@ export function LiveWebsiteViewer({
           <span className="muted live-website-viewer-domain">{website.domain}</span>
         </div>
         <div className="live-website-viewer-actions">
-          {onClose ? (
+          {onClose && !workspace ? (
             <button
               type="button"
               className="btn btn-sm btn-neutral live-website-viewer-back"

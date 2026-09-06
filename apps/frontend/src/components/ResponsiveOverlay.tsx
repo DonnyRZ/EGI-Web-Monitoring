@@ -116,6 +116,7 @@ export function ResponsiveOverlay({
   closeOnBackdrop = true,
   className = "",
   labelledBy,
+  initialFocusRef,
 }: {
   title: string;
   eyebrow?: string;
@@ -126,6 +127,7 @@ export function ResponsiveOverlay({
   closeOnBackdrop?: boolean;
   className?: string;
   labelledBy?: string;
+  initialFocusRef?: ElementRef;
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -134,7 +136,7 @@ export function ResponsiveOverlay({
   const handleEscape = useCallback(() => onClose(), [onClose]);
 
   useBodyScrollLock(true);
-  useDialogFocus(true, panelRef, returnFocusRef, handleEscape, closeRef);
+  useDialogFocus(true, panelRef, returnFocusRef, handleEscape, initialFocusRef ?? closeRef);
 
   return (
     <div

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
@@ -13,6 +14,8 @@ import { ApiError } from "@/lib/api";
 
 type StatusFilter = "active" | "down" | "my_tasks";
 
+const SELECTED_WEBSITE_STORAGE_KEY = "helloit.dashboard.selectedWebsiteId";
+
 function dashboardPriority(card: DashboardWebsiteCard) {
   if (card.active_incident) return 0;
   const status = card.latest_result?.status;
@@ -22,8 +25,16 @@ function dashboardPriority(card: DashboardWebsiteCard) {
   return 4;
 }
 
+function statusFilterLabel(filter: StatusFilter) {
+  if (filter === "down") return "Website down";
+  if (filter === "my_tasks") return "Website dengan tugas saya";
+  return "Website aktif";
+}
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isDeveloper = user?.role === "developer";
   const isGallery = isEndUserPublicDashboard(user?.role);
   const [cards, setCards] = useState<DashboardWebsiteCard[]>([]);
@@ -94,13 +105,70 @@ export default function DashboardPage() {
   }, [cards, statusFilter, myTaskWebsiteIds]);
 
   useEffect(() => {
-    if (selectedWebsiteId && !filtered.some((card) => card.website.id === selectedWebsiteId)) {
+    if (isGallery) {
       setSelectedWebsiteId(null);
+      return;
     }
-  }, [filtered, selectedWebsiteId]);
+    if (filtered.length === 0) {
+      setSelectedWebsiteId(null);
+      return;
+    }
+
+    const queryWebsiteId = searchParams.get("website_id");
+    const queryCard = queryWebsiteId
+      ? filtered.find((card) => card.website.id === queryWebsiteId)
+      : undefined;
+    const currentCard = selectedWebsiteId
+      ? filtered.find((card) => card.website.id === selectedWebsiteId)
+      : undefined;
+    let storedWebsiteId: string | null = null;
+    try {
+      storedWebsiteId = window.localStorage.getItem(SELECTED_WEBSITE_STORAGE_KEY);
+    } catch {
+      storedWebsiteId = null;
+    }
+    const storedCard = storedWebsiteId
+      ? filtered.find((card) => card.website.id === storedWebsiteId)
+      : undefined;
+    const nextWebsiteId =
+      queryCard?.website.id ?? currentCard?.website.id ?? storedCard?.website.id ?? filtered[0].website.id;
+
+    if (nextWebsiteId !== selectedWebsiteId) setSelectedWebsiteId(nextWebsiteId);
+    try {
+      window.localStorage.setItem(SELECTED_WEBSITE_STORAGE_KEY, nextWebsiteId);
+    } catch {
+      // Storage can be unavailable in privacy-restricted browser contexts.
+    }
+
+    if (queryWebsiteId !== nextWebsiteId) {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.set("website_id", nextWebsiteId);
+      router.replace(`/dashboard?${nextParams.toString()}`, { scroll: false });
+    }
+  }, [filtered, isGallery, router, searchParams, selectedWebsiteId]);
+
+  const selectWebsite = useCallback((websiteId: string) => {
+    setSelectedWebsiteId(websiteId);
+    try {
+      window.localStorage.setItem(SELECTED_WEBSITE_STORAGE_KEY, websiteId);
+    } catch {
+      // Storage can be unavailable in privacy-restricted browser contexts.
+    }
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("website_id", websiteId);
+    router.replace(`/dashboard?${nextParams.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  const clearWebsiteSelection = useCallback(() => {
+    setSelectedWebsiteId(null);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("website_id");
+    const query = nextParams.toString();
+    router.replace(query ? `/dashboard?${query}` : "/dashboard", { scroll: false });
+  }, [router, searchParams]);
 
   return (
-    <AppShell title={selectedWebsiteId ? "Live Website" : "Dashboard"}>
+    <AppShell title={isGallery ? "Dashboard" : "Live Website"} layoutMode={isGallery ? "default" : "live-website"}>
       {isGallery ? <section className="dashboard-intro gallery-intro">
         <div>
           <span className="eyebrow">Live monitoring</span>
@@ -109,10 +177,10 @@ export default function DashboardPage() {
       </section> : null}
 
       {!isGallery ? (
-        <section className="dashboard-toolbar panel" aria-label="Filter dashboard">
+        <section className="dashboard-toolbar live-website-toolbar panel" aria-label="Filter dashboard">
           <div className="toolbar-label">
-            <span className="eyebrow">Tampilan</span>
-            <strong>Health overview</strong>
+            <span className="eyebrow">Status website</span>
+            <strong>{statusFilterLabel(statusFilter)}</strong>
           </div>
           <Select
             value={statusFilter}
@@ -161,7 +229,9 @@ export default function DashboardPage() {
             card.website.backup_it_pic_id === user?.id &&
             !("it_pic_id" in card.website && card.website.it_pic_id === user?.id)
           }
-          onSelect={setSelectedWebsiteId}
+          filterLabel={statusFilterLabel(statusFilter)}
+          onSelect={selectWebsite}
+          onClearSelection={isGallery ? clearWebsiteSelection : undefined}
         />
       ) : null}
     </AppShell>
