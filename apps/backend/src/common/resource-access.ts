@@ -1,4 +1,4 @@
-import { Prisma, UserRole } from "@egi/database";
+import { Prisma, ProjectStatus, UserRole } from "@egi/database";
 import {
   ALL_RESOURCE_ACCESS_ROLES,
   INCIDENT_MANAGER_ROLES,
@@ -88,6 +88,19 @@ export function websiteVisibilityScope(user: AuthUser): Prisma.WebsiteWhereInput
     };
   }
   return { isActive: true };
+}
+
+/**
+ * Archived Projects are no longer part of the live website workspace. Keep
+ * unassigned legacy websites visible until they are explicitly deactivated.
+ */
+export function nonArchivedProjectWebsiteScope(): Prisma.WebsiteWhereInput {
+  return {
+    OR: [
+      { projectId: null },
+      { project: { isNot: { status: ProjectStatus.archived } } },
+    ],
+  };
 }
 
 export function monitoringResultScope(user: AuthUser) {

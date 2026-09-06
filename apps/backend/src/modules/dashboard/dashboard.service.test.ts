@@ -107,7 +107,18 @@ test("dashboard list uses batched health queries without nested monitoring inclu
   assert.ok(websiteCall);
   const websiteArgs = websiteCall.args as { include?: unknown; where?: unknown };
   assert.equal(websiteArgs.include, undefined);
-  assert.deepEqual(websiteArgs.where, { isActive: true });
+  assert.deepEqual(websiteArgs.where, {
+    AND: [
+      { isActive: true },
+      {
+        OR: [
+          { projectId: null },
+          { project: { isNot: { status: "archived" } } },
+        ],
+      },
+      {},
+    ],
+  });
 
   assert.ok(calls.some((c) => c.method === "$queryRaw"));
   assert.ok(calls.some((c) => c.method === "incident.findMany"));

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canAccessAllMonitoredResources,
+  nonArchivedProjectWebsiteScope,
   projectVisibilityWhere,
   websiteVisibilityScope,
 } from "./resource-access";
@@ -46,6 +47,15 @@ test("website visibility prefers Project assignments while retaining only unback
       { project: { picDeveloperId: "dev-1" } },
       { project: { members: { some: { userId: "dev-1", memberType: "developer" } } } },
       { projectId: null, OR: [{ itPicId: "dev-1" }, { backupItPicId: "dev-1" }] },
+    ],
+  });
+});
+
+test("live website scope excludes archived Projects but keeps unassigned legacy websites", () => {
+  assert.deepEqual(nonArchivedProjectWebsiteScope(), {
+    OR: [
+      { projectId: null },
+      { project: { isNot: { status: "archived" } } },
     ],
   });
 });

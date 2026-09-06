@@ -9,7 +9,11 @@ import {
   toPublicWebsiteDto,
   toWebsiteDto,
 } from "../../common/mappers";
-import { canOperateScopedResources, websiteVisibilityScope } from "../../common/resource-access";
+import {
+  canOperateScopedResources,
+  nonArchivedProjectWebsiteScope,
+  websiteVisibilityScope,
+} from "../../common/resource-access";
 import type { AuthUser } from "../../common/current-user.decorator";
 
 const ACTIVE_STATUSES = [
@@ -39,7 +43,13 @@ export class DashboardService {
     const endUserView = isEndUserPublicDashboard(user.role);
     const websiteScope = this.websiteScope(user);
     const websites = await this.prisma.website.findMany({
-      where: { isActive: true, ...websiteScope },
+      where: {
+        AND: [
+          { isActive: true },
+          nonArchivedProjectWebsiteScope(),
+          websiteScope,
+        ],
+      },
       select: {
         id: true,
         name: true,
@@ -138,7 +148,13 @@ export class DashboardService {
 
     const websiteScope = this.websiteScope(user);
     const website = await this.prisma.website.findFirst({
-      where: { id: websiteId, ...websiteScope },
+      where: {
+        AND: [
+          { id: websiteId, isActive: true },
+          nonArchivedProjectWebsiteScope(),
+          websiteScope,
+        ],
+      },
       select: {
         id: true,
         name: true,
