@@ -99,9 +99,11 @@ export default function ProjectRequestsPage() {
           <h2>{reviewer ? "Pengajuan Project" : "Pengajuan Saya"}</h2>
           <p className="muted">{reviewer ? "Tinjau kebutuhan Project baru dari PIC Web." : "Pantau pengajuan Project yang Anda kirim."}</p>
         </div>
-        <div className="project-request-page-actions">
-          {reviewer ? <Link href="/projects?create=1" className="btn btn-primary">Tambah Project</Link> : <Link href="/projects/requests/new" className="btn btn-primary">Ajukan Project</Link>}
-        </div>
+        {canCreateProjectRequest(user.role) ? (
+          <div className="project-request-page-actions">
+            <Link href="/projects/requests/new" className="btn btn-primary">Ajukan Project</Link>
+          </div>
+        ) : null}
       </div>
 
       <section className="project-request-filter-panel panel" aria-label="Cari Pengajuan Project">

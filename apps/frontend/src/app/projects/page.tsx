@@ -14,7 +14,6 @@ import { useAuth } from "@/lib/auth-context";
 import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import {
   canManageProjects,
-  canCreateProjectRequest,
   canViewProjectRegistry,
   formatDateTime,
   initials,
@@ -166,10 +165,9 @@ export default function ProjectsPage() {
   return (
     <AppShell title={title}>
       <ProjectAreaTabs role={user.role} active="projects" />
-      {canManageProjects(user.role) || canCreateProjectRequest(user.role) ? (
+      {canManageProjects(user.role) ? (
         <div className="project-page-actions">
-          {canCreateProjectRequest(user.role) ? <Link href="/projects/requests/new" className="btn btn-primary">Ajukan Project</Link> : null}
-          {canManageProjects(user.role) ? <button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>Tambah Project</button> : null}
+          <button type="button" className="btn btn-primary" onClick={() => { setFormError(""); setCreateOpen(true); }}>Tambah Project</button>
         </div>
       ) : null}
 
