@@ -5823,6 +5823,9 @@ body,
   .project-request-create-page .project-request-form-panel {
     border-radius: 12px;
     box-shadow: none;
+    /* The mobile action bar is viewport-anchored. Do not let the form
+       surface clip the attachment control or the action bar. */
+    overflow: visible;
   }
 
   .project-request-create-page .project-request-form-intro {
@@ -5834,7 +5837,9 @@ body,
 
   .project-request-create-page .project-request-form {
     gap: 20px;
-    padding: 20px 16px 0;
+    /* Reserve room for the fixed action bar and bottom navigation so the
+       final field can always be scrolled fully above both surfaces. */
+    padding: 20px 16px calc(154px + 72px + env(safe-area-inset-bottom));
   }
 
   .project-request-create-page .project-request-form .text-input {
@@ -5859,6 +5864,7 @@ body,
     min-height: 68px;
     gap: 10px;
     padding: 10px;
+    scroll-margin-bottom: calc(154px + 72px + env(safe-area-inset-bottom));
   }
 
   .project-request-create-page .project-request-file-icon {
@@ -5872,13 +5878,15 @@ body,
   }
 
   .project-request-create-page .project-request-form-actions {
-    position: sticky;
+    position: fixed;
+    right: 0;
     bottom: calc(72px + env(safe-area-inset-bottom));
+    left: 0;
     z-index: 4;
     align-items: stretch;
     flex-direction: column;
     gap: 8px;
-    margin: 0 -16px;
+    margin: 0;
     padding: 12px 16px;
     background: rgba(250, 251, 253, .96);
     -webkit-backdrop-filter: blur(12px);
