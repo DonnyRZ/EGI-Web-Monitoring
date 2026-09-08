@@ -5514,6 +5514,237 @@ body,
 .btn-danger-outline { border-color: #e0a3a8; color: #b52b36; background: #fff; }
 .btn-danger-outline:hover { border-color: #c95b64; background: #fff5f5; }
 
+/* Project request creation: keep the form calm, readable, and bounded on wide screens. */
+.project-request-create-page {
+  width: min(100%, 1040px);
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.project-request-create-page .project-area-tabs {
+  margin-bottom: 24px;
+}
+
+.project-request-create-page .project-request-form-page-header {
+  margin-bottom: 18px;
+}
+
+.project-request-create-page .project-request-form-page-header .back-link {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  margin-bottom: 18px;
+  color: var(--egi-blue-dark);
+  font-size: .82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.project-request-create-page .project-request-form-page-header .back-link:hover {
+  text-decoration: underline;
+}
+
+.project-request-create-page .project-request-form-page-header .eyebrow {
+  margin-bottom: 7px;
+}
+
+.project-request-create-page .project-request-form-page-header h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.project-request-create-page .project-request-form-panel {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(19, 37, 61, .05);
+}
+
+.project-request-create-page .project-request-form-intro {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+}
+
+.project-request-create-page .project-request-form-intro h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.08rem;
+}
+
+.project-request-required-note,
+.project-request-optional-label {
+  color: var(--text-muted);
+  font-size: .76rem;
+  font-weight: 650;
+}
+
+.project-request-create-page .project-request-form {
+  gap: 24px;
+  padding: 28px;
+}
+
+.project-request-create-page .project-request-form > .form-field {
+  gap: 8px;
+}
+
+.project-request-create-page .project-request-form > .form-field > label,
+.project-request-create-page .project-request-form > .form-field > .project-request-field-label,
+.project-request-create-page .project-request-optional-section .form-field > label {
+  color: var(--text-secondary);
+  font-size: .82rem;
+  font-weight: 750;
+}
+
+.project-request-create-page .project-request-form .text-input {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  border-radius: 10px;
+  font-size: .94rem;
+}
+
+.project-request-create-page .project-request-form textarea.text-input {
+  height: auto;
+  min-height: 124px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.project-request-create-page .project-request-optional-section {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  margin-top: 2px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fafbfd;
+}
+
+.project-request-create-page .project-request-optional-header {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-request-create-page .project-request-optional-header h3 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+}
+
+.project-request-create-page .project-request-form-grid {
+  gap: 14px;
+}
+
+.project-request-create-page .project-request-file-control {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px dashed #b7c7d9;
+  border-radius: 10px;
+  background: #fbfcfe;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.project-request-create-page .project-request-file-control:hover,
+.project-request-create-page .project-request-file-control:focus-within {
+  border-color: var(--egi-blue);
+  background: var(--egi-blue-soft);
+}
+
+.project-request-create-page .project-request-file-control:focus-within {
+  outline: 3px solid var(--egi-blue-soft);
+  outline-offset: 1px;
+}
+
+.project-request-file-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--egi-blue-soft);
+  color: var(--egi-blue-dark);
+}
+
+.project-request-file-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 3px;
+}
+
+.project-request-file-copy strong,
+.project-request-file-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-request-file-copy strong {
+  font-size: .84rem;
+}
+
+.project-request-file-copy small {
+  color: var(--text-muted);
+  font-size: .74rem;
+}
+
+.project-request-file-action {
+  display: inline-flex;
+  min-height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--egi-blue-dark);
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+.project-request-create-page .project-request-form .form-help {
+  margin-top: -2px;
+  font-size: .74rem;
+}
+
+.project-request-create-page .project-request-form-actions {
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 4px -28px -28px;
+  padding: 18px 28px;
+  border-top: 1px solid var(--border);
+  background: #fafbfd;
+}
+
+.project-request-create-page .project-request-form-actions .btn {
+  min-height: 44px;
+  height: 44px;
+  padding: 0 18px;
+}
+
 @media (max-width: 1099px) {
   .project-request-table-wrap { display: none; }
   .project-request-card-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px; }
@@ -5567,6 +5798,98 @@ body,
   .project-request-form-actions .btn,
   .project-request-review-actions .btn { width: 100%; min-height: 46px; }
   .project-request-form-actions { position: sticky; bottom: 0; z-index: 3; margin: 4px -16px -16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: rgba(255,255,255,.96); backdrop-filter: blur(8px); }
+
+  .project-request-create-page {
+    width: 100%;
+  }
+
+  .project-request-create-page .project-area-tabs {
+    margin-bottom: 18px;
+  }
+
+  .project-request-create-page .project-request-form-page-header {
+    margin-bottom: 14px;
+  }
+
+  .project-request-create-page .project-request-form-page-header .back-link {
+    margin-bottom: 16px;
+  }
+
+  .project-request-create-page .project-request-form-page-header h2 {
+    font-size: 1.7rem;
+    line-height: 1.1;
+  }
+
+  .project-request-create-page .project-request-form-panel {
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .project-request-create-page .project-request-form-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+    padding: 17px 16px;
+  }
+
+  .project-request-create-page .project-request-form {
+    gap: 20px;
+    padding: 20px 16px 0;
+  }
+
+  .project-request-create-page .project-request-form .text-input {
+    height: 44px;
+    font-size: .92rem;
+  }
+
+  .project-request-create-page .project-request-form textarea.text-input {
+    min-height: 112px;
+  }
+
+  .project-request-create-page .project-request-optional-section {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .project-request-create-page .project-request-form-grid {
+    gap: 14px;
+  }
+
+  .project-request-create-page .project-request-file-control {
+    min-height: 68px;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .project-request-create-page .project-request-file-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .project-request-create-page .project-request-file-action {
+    padding: 0 9px;
+  }
+
+  .project-request-create-page .project-request-form-actions {
+    position: sticky;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 4;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 -16px;
+    padding: 12px 16px;
+    background: rgba(250, 251, 253, .96);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .project-request-create-page .project-request-form-actions .btn {
+    width: 100%;
+    min-height: 46px;
+    height: 46px;
+  }
 }
 
 /* Live Website workspace
