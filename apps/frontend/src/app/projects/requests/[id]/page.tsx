@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectAreaTabs, ProjectRequestStatusPill } from "@/components/ProjectRequestUI";
+import { ProjectRequestStatusPill } from "@/components/ProjectRequestUI";
 import { ErrorBanner, LoadingState, SuccessBanner } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { projectRequestsApi, ticketsApi } from "@/lib/api-services";
@@ -274,17 +274,16 @@ export default function ProjectRequestDetailPage() {
     router.push("/projects/requests");
   }
 
-  if (authLoading || !user || !canRead) return <AppShell title="Project"><LoadingState label="Memuat Pengajuan Project…" /></AppShell>;
-  if (loading) return <AppShell title={canReview ? "Kelola Project" : "Project Saya"}><LoadingState label="Memuat detail Pengajuan Project…" /></AppShell>;
-  if (!request) return <AppShell title="Project"><ErrorBanner message={error || "Pengajuan Project tidak ditemukan"} /><button type="button" className="btn btn-neutral" onClick={goBack}>Kembali</button></AppShell>;
+  if (authLoading || !user || !canRead) return <AppShell title="Pengajuan Project"><LoadingState label="Memuat Pengajuan Project…" /></AppShell>;
+  if (loading) return <AppShell title={canReview ? "Pengajuan Project" : "Pengajuan Saya"}><LoadingState label="Memuat detail Pengajuan Project…" /></AppShell>;
+  if (!request) return <AppShell title={canReview ? "Pengajuan Project" : "Pengajuan Saya"}><ErrorBanner message={error || "Pengajuan Project tidak ditemukan"} /><button type="button" className="btn btn-neutral" onClick={goBack}>Kembali</button></AppShell>;
 
   const editableForm = editForm ?? formFromRequest(request);
   const isSubmitted = searchParams.get("submitted") === "1";
   const reviewerCanAct = canReview && (request.status === "pending" || request.status === "needs_info");
 
   return (
-    <AppShell title={canReview ? "Kelola Project" : "Project Saya"}>
-      <ProjectAreaTabs role={user.role} active="requests" />
+    <AppShell title={canReview ? "Pengajuan Project" : "Pengajuan Saya"}>
       {isSubmitted ? <SuccessBanner message="Pengajuan Project berhasil dikirim. Simpan nomor pengajuan ini untuk pelacakan." /> : null}
       {error ? <ErrorBanner message={error} /> : null}
       {actionError ? <ErrorBanner message={actionError} /> : null}

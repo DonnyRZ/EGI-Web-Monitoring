@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectAreaTabs } from "@/components/ProjectRequestUI";
 import { useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { AssignmentWorkspace } from "@/components/projects/AssignmentWorkspace";
 import { Select } from "@/components/Select";
@@ -172,7 +171,6 @@ export default function ProjectDetailPage() {
 
   return (
     <AppShell title={title}>
-      <ProjectAreaTabs role={user.role} active="projects" />
       <div className="project-detail-header">
         <div className="breadcrumb"><Link href="/projects">Project</Link><span>/</span><span>{project.name}</span></div>
         <div className="project-detail-title-row">

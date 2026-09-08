@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectAreaTabs } from "@/components/ProjectRequestUI";
 import { FilterSheet, useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
@@ -165,7 +164,6 @@ export default function ProjectsPage() {
 
   return (
     <AppShell title={title}>
-      <ProjectAreaTabs role={user.role} active="projects" />
       {canManageProjects(user.role) || canCreateProjectRequest(user.role) ? (
         <div className="project-page-actions">
           {canCreateProjectRequest(user.role) ? <Link href="/projects/requests/new" className="btn btn-primary">Ajukan Project</Link> : null}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectAreaTabs, ProjectRequestList } from "@/components/ProjectRequestUI";
+import { ProjectRequestList } from "@/components/ProjectRequestUI";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState, PaginationBar } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -85,14 +85,13 @@ export default function ProjectRequestsPage() {
   }
 
   if (authLoading || !user || !canAccessRequests(user.role)) {
-    return <AppShell title="Project"><LoadingState label="Memuat Pengajuan Project…" /></AppShell>;
+    return <AppShell title="Pengajuan Project"><LoadingState label="Memuat Pengajuan Project…" /></AppShell>;
   }
 
-  const title = reviewer ? "Kelola Project" : "Project Saya";
+  const title = reviewer ? "Pengajuan Project" : "Pengajuan Saya";
 
   return (
     <AppShell title={title}>
-      <ProjectAreaTabs role={user.role} active="requests" />
       <div className="project-request-page-header">
         <div>
           <span className="eyebrow">{reviewer ? "Project workspace" : "Project workspace"}</span>

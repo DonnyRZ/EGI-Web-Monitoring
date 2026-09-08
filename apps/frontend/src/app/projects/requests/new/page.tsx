@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectAreaTabs } from "@/components/ProjectRequestUI";
 import { IconPaperclip } from "@/components/icons";
 import { ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -101,13 +100,12 @@ export default function NewProjectRequestPage() {
     }
   }
 
-  if (authLoading) return <AppShell title="Project"><LoadingState label="Memuat form Pengajuan Project…" /></AppShell>;
-  if (!user || !canCreateProjectRequest(user.role)) return <AppShell title="Project"><LoadingState /></AppShell>;
+  if (authLoading) return <AppShell title="Pengajuan Saya"><LoadingState label="Memuat form Pengajuan Project…" /></AppShell>;
+  if (!user || !canCreateProjectRequest(user.role)) return <AppShell title="Pengajuan Saya"><LoadingState /></AppShell>;
 
   return (
-    <AppShell title="Project Saya">
+    <AppShell title="Pengajuan Saya">
       <div className="project-request-create-page">
-        <ProjectAreaTabs role={user.role} active="requests" />
         <div className="project-request-form-page-header">
           <div>
             <Link href="/projects/requests" className="back-link">← Pengajuan Saya</Link>

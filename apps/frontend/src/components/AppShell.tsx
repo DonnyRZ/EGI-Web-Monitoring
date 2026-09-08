@@ -21,7 +21,7 @@ import {
 import { loadActiveIncidents, loadMyOpenTasks } from "@/lib/navigation-badges";
 import { NotificationBell } from "./NotificationBell";
 import { MobileBottomNav, MobileNavigationSkeleton, MobileTopNav, NavigationIcon } from "./MobileNavigation";
-import { buildNavigationCatalog, canNavigateIncidents } from "@/lib/mobile-navigation";
+import { buildNavigationCatalog, canNavigateIncidents, isNavigationPathActive } from "@/lib/mobile-navigation";
 import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
 import { IconLogout } from "./icons";
 
@@ -43,6 +43,7 @@ const PUBLIC_ROUTES = new Set(["/login", "/forgot-password", "/reset-password"])
 function routeTitle(pathname: string) {
   if (pathname === "/tasks") return "Task Monitoring";
   if (pathname === "/me/work") return "My Work";
+  if (pathname === "/projects/requests" || pathname.startsWith("/projects/requests/")) return "Pengajuan Project";
   if (pathname === "/projects") return "Project";
   if (pathname.startsWith("/projects/")) return "Project";
   if (pathname === "/user-stories") return "User Stories";
@@ -57,6 +58,7 @@ function routeTitle(pathname: string) {
 function mobilePageTitle(title: string) {
   if (title === "Task Monitoring") return "Task";
   if (title === "Kelola Project" || title === "Project Saya") return "Project";
+  if (title === "Pengajuan Project" || title === "Pengajuan Saya") return "Pengajuan";
   if (title === "My Work") return "Work";
   if (title === "Incidents" || title === "Detail Incident") return "Insiden";
   return title;
@@ -217,7 +219,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
     {
       label: "Workspace",
       items: navigation.desktopNav.filter((item) =>
-        ["/dashboard", "/tasks", "/me/work", "/projects"].includes(item.href),
+        ["/dashboard", "/tasks", "/me/work", "/projects", "/projects/requests"].includes(item.href),
       ),
     },
     {
@@ -253,8 +255,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
             <div className="nav-section" key={section.label}>
               <span className="nav-section-label">{section.label}</span>
               {section.items.map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                const active = isNavigationPathActive(pathname, item.href);
                 return (
                   <Link
                     key={item.href}

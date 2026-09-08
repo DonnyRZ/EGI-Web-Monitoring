@@ -5,6 +5,7 @@ export type NavigationIconKey =
   | "tasks"
   | "my-work"
   | "projects"
+  | "project-requests"
   | "user-stories"
   | "incidents"
   | "users"
@@ -42,6 +43,17 @@ export function canNavigateIncidents(role: UserRole): boolean {
   return role === "superadmin" || role === "bos_it" || role === "developer";
 }
 
+export function canNavigateProjectRequests(role: UserRole): boolean {
+  return role === "superadmin" || role === "bos_it" || role === "pic_web";
+}
+
+export function isNavigationPathActive(pathname: string, href: string): boolean {
+  if (href === "/projects") {
+    return pathname === href || (pathname.startsWith(`${href}/`) && !pathname.startsWith("/projects/requests"));
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 function item(
   key: NavigationIconKey,
   href: string,
@@ -72,6 +84,9 @@ function commonDesktopItems(role: UserRole, context: NavigationContext): Navigat
   }
   if (role === "superadmin" || role === "bos_it" || role === "developer" || role === "pic_web") {
     items.push(item("projects", "/projects", role === "superadmin" || role === "bos_it" ? "Kelola Project" : "Project Saya"));
+  }
+  if (canNavigateProjectRequests(role)) {
+    items.push(item("project-requests", "/projects/requests", role === "pic_web" ? "Pengajuan Saya" : "Pengajuan Project"));
   }
   if (role === "superadmin" || role === "bos_it" || role === "developer") {
     items.push(item("user-stories", "/user-stories", "User Stories"));
@@ -133,6 +148,9 @@ export function buildNavigationCatalog(
   const menuNav: NavigationItem[] = [];
   if (role === "developer" && context.scopeReady && context.isProjectPicDeveloper) {
     menuNav.push(item("projects", "/projects", "Project"));
+  }
+  if (canNavigateProjectRequests(role)) {
+    menuNav.push(item("project-requests", "/projects/requests", role === "pic_web" ? "Pengajuan Saya" : "Pengajuan Project"));
   }
   if (canNavigateIncidents(role)) {
     menuNav.push(withBadge(item("incidents", "/incidents", "Insiden", "incidents"), context));

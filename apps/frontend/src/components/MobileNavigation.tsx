@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ComponentType, CSSProperties } from "react";
-import type { NavigationItem } from "@/lib/mobile-navigation";
+import { isNavigationPathActive, type NavigationItem } from "@/lib/mobile-navigation";
 import {
   IconAlert,
   IconDashboard,
@@ -18,16 +18,13 @@ const ICONS: Record<NavigationItem["icon"], IconComponent> = {
   tasks: IconTasks,
   "my-work": IconTasks,
   projects: IconGlobe,
+  "project-requests": IconTasks,
   "user-stories": IconTasks,
   incidents: IconAlert,
   users: IconUsers,
   menu: IconMore,
   logout: IconLogout,
 };
-
-function isActivePath(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 function Badge({ value }: { value?: number }) {
   if (!value || value < 1) return null;
@@ -52,7 +49,7 @@ export function MobileBottomNav({ items, pathname }: { items: NavigationItem[]; 
       style={{ "--mobile-nav-count": items.length } as CSSProperties}
     >
       {items.map((item) => {
-        const active = isActivePath(pathname, item.href);
+        const active = isNavigationPathActive(pathname, item.href);
         return (
           <Link
             key={item.key}
@@ -81,7 +78,7 @@ export function MobileTopNav({ items, pathname }: { items: NavigationItem[]; pat
       style={{ "--mobile-nav-count": items.length } as CSSProperties}
     >
       {items.map((item) => {
-        const active = isActivePath(pathname, item.href);
+        const active = isNavigationPathActive(pathname, item.href);
         return (
           <Link
             key={item.key}
@@ -130,7 +127,7 @@ export function MobileMenuPage({
       </div>
       <div className="mobile-menu-list">
         {items.map((item) => {
-          const active = item.href ? isActivePath(pathname, item.href) : false;
+          const active = item.href ? isNavigationPathActive(pathname, item.href) : false;
           const content = (
             <>
               <span className="mobile-menu-item-icon"><NavigationIcon item={item} /></span>
@@ -138,6 +135,7 @@ export function MobileMenuPage({
                 <strong>{item.label}</strong>
                 {item.key === "incidents" ? <span>Gangguan yang perlu diperhatikan</span> : null}
                 {item.key === "projects" ? <span>Project yang menjadi tanggung jawab Anda</span> : null}
+                {item.key === "project-requests" ? <span>{item.label === "Pengajuan Saya" ? "Pantau pengajuan Project Anda" : "Tinjau pengajuan Project baru"}</span> : null}
                 {item.key === "users" ? <span>Kelola akun dan akses platform</span> : null}
                 {item.key === "logout" ? <span>Keluar dari akun ini</span> : null}
               </span>

@@ -5291,36 +5291,6 @@ body,
   }
 }
 
-/* Project requests: a separate, plain-language workflow inside the Project area. */
-.project-area-tabs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  margin: 0 0 22px;
-  border-bottom: 1px solid var(--border);
-}
-
-.project-area-tabs a {
-  min-width: 0;
-  padding: 11px 14px 12px;
-  border-bottom: 3px solid transparent;
-  color: var(--text-secondary);
-  font-size: .88rem;
-  font-weight: 750;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.project-area-tabs a:hover,
-.project-area-tabs a.active {
-  color: var(--egi-blue-dark);
-}
-
-.project-area-tabs a.active {
-  border-bottom-color: var(--egi-blue);
-}
-
 .project-page-actions,
 .project-request-page-actions {
   display: flex;
@@ -5519,10 +5489,6 @@ body,
   width: min(100%, 1040px);
   min-width: 0;
   margin: 0 auto;
-}
-
-.project-request-create-page .project-area-tabs {
-  margin-bottom: 24px;
 }
 
 .project-request-create-page .project-request-form-page-header {
@@ -5764,8 +5730,6 @@ body,
 }
 
 @media (max-width: 767px) {
-  .project-area-tabs { margin-right: -14px; margin-left: -14px; padding: 0 8px; overflow-x: auto; }
-  .project-area-tabs a { flex: 0 0 auto; min-height: 44px; padding-right: 11px; padding-left: 11px; font-size: .8rem; }
   .project-page-actions,
   .project-request-page-actions { justify-content: stretch; flex-direction: column; }
   .project-page-actions .btn,
@@ -5801,10 +5765,6 @@ body,
 
   .project-request-create-page {
     width: 100%;
-  }
-
-  .project-request-create-page .project-area-tabs {
-    margin-bottom: 18px;
   }
 
   .project-request-create-page .project-request-form-page-header {

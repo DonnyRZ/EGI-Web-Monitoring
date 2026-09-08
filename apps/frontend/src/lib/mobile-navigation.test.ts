@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildNavigationCatalog } from "./mobile-navigation";
+import { buildNavigationCatalog, isNavigationPathActive } from "./mobile-navigation";
 
 const base = { isProjectPicDeveloper: false, scopeReady: true };
 
@@ -17,8 +17,10 @@ test("superadmin and bos IT use five primary destinations without Incidents", ()
   assert.deepEqual(superadmin.primaryNav.map((item) => item.label), ["Dashboard", "Task", "Project", "User Stories", "Menu"]);
   assert.equal(superadmin.primaryNav.some((item) => item.key === "incidents"), false);
   assert.equal(superadmin.menuNav.some((item) => item.key === "incidents"), true);
+  assert.equal(superadmin.menuNav.some((item) => item.key === "project-requests"), true);
   assert.equal(superadmin.menuNav.some((item) => item.key === "users"), true);
   assert.equal(bosIt.menuNav.some((item) => item.key === "users"), false);
+  assert.equal(superadmin.desktopNav.some((item) => item.key === "project-requests"), true);
 });
 
 test("PIC Web gets a compact primary navigation without Incidents", () => {
@@ -28,6 +30,8 @@ test("PIC Web gets a compact primary navigation without Incidents", () => {
   assert.equal(navigation.primaryNav.find((item) => item.key === "menu")?.badge, undefined);
   assert.equal(navigation.desktopNav.some((item) => item.key === "incidents"), false);
   assert.equal(navigation.menuNav.some((item) => item.key === "incidents"), false);
+  assert.equal(navigation.menuNav.find((item) => item.key === "project-requests")?.label, "Pengajuan Saya");
+  assert.equal(navigation.desktopNav.find((item) => item.key === "project-requests")?.label, "Pengajuan Saya");
 });
 
 test("normal developer does not receive Task Monitoring, while PIC Developer does", () => {
@@ -46,6 +50,7 @@ test("normal developer does not receive Task Monitoring, while PIC Developer doe
   assert.equal(developer.desktopNav.some((item) => item.key === "tasks"), false);
   assert.equal(picDeveloper.desktopNav.some((item) => item.key === "tasks"), true);
   assert.equal(picDeveloper.desktopNav.find((item) => item.key === "tasks")?.label, "Task Monitoring");
+  assert.equal(developer.desktopNav.some((item) => item.key === "project-requests"), false);
 });
 
 test("developer navigation stays skeleton-ready until PIC scope resolves", () => {
@@ -60,4 +65,11 @@ test("end users have no internal navigation catalog", () => {
   assert.deepEqual(navigation.primaryNav, []);
   assert.deepEqual(navigation.menuNav, []);
   assert.deepEqual(navigation.desktopNav, []);
+});
+
+test("project request routes do not activate the Project navigation item", () => {
+  assert.equal(isNavigationPathActive("/projects/requests", "/projects"), false);
+  assert.equal(isNavigationPathActive("/projects/requests/abc", "/projects"), false);
+  assert.equal(isNavigationPathActive("/projects/abc", "/projects"), true);
+  assert.equal(isNavigationPathActive("/projects/requests/abc", "/projects/requests"), true);
 });

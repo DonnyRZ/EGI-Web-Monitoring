@@ -1,26 +1,6 @@
 import Link from "next/link";
-import type { UserRole, ProjectRequest, ProjectRequestStatus } from "@/lib/types";
-import { canCreateProjectRequest, canReviewProjectRequests, formatDateTime, initials } from "@/lib/format";
-
-export function ProjectAreaTabs({ role, active }: { role: UserRole; active: "projects" | "requests" }) {
-  const reviewer = canReviewProjectRequests(role);
-  const submitter = canCreateProjectRequest(role);
-  const projectLabel = reviewer ? "Project" : "Project Saya";
-  const requestLabel = reviewer ? "Pengajuan Project" : "Pengajuan Saya";
-
-  return (
-    <nav className="project-area-tabs" aria-label="Area Project">
-      <Link href="/projects" className={active === "projects" ? "active" : ""} aria-current={active === "projects" ? "page" : undefined}>
-        {projectLabel}
-      </Link>
-      {reviewer || submitter ? (
-        <Link href="/projects/requests" className={active === "requests" ? "active" : ""} aria-current={active === "requests" ? "page" : undefined}>
-          {requestLabel}
-        </Link>
-      ) : null}
-    </nav>
-  );
-}
+import type { ProjectRequest, ProjectRequestStatus } from "@/lib/types";
+import { formatDateTime, initials } from "@/lib/format";
 
 const STATUS_LABELS: Record<ProjectRequestStatus, string> = {
   pending: "Menunggu review",
