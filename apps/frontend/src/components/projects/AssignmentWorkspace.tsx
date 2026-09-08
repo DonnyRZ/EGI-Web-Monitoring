@@ -133,7 +133,6 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
           <span className="eyebrow">Project configuration</span>
           <h3>PIC &amp; Assignment</h3>
         </div>
-        <span className="assignment-rule">Perubahan disimpan sekaligus</span>
       </div>
 
       {error ? <ErrorBanner message={error} /> : null}
@@ -144,7 +143,6 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
           className="assignment-card-pic-web"
           eyebrow="Non-teknis"
           title="PIC Web"
-          description="Memantau masalah dan membuat Task untuk Project ini."
           count={draft.pic_web_ids.length}
           countLabel="orang"
           actionLabel="Kelola PIC Web"
@@ -162,7 +160,6 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
           className="assignment-card-pic-developer"
           eyebrow="Tech lead"
           title="PIC Developer"
-          description="Satu PIC teknis yang memimpin penilaian pekerjaan dan User Story Project ini."
           count={draft.pic_developer_id ? 1 : 0}
           countLabel="orang"
           actionLabel={picDeveloper ? "Ganti PIC Developer" : "Pilih PIC Developer"}
@@ -187,14 +184,12 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
               </div>
             </div>
           )}
-          <p className="assignment-help">PIC Developer harus memiliki role global Developer. Ia tidak otomatis masuk Developer Team.</p>
         </AssignmentCard>
 
         <AssignmentCard
           className="assignment-card-developer-team"
           eyebrow="Eksekusi teknis"
           title="Developer Team"
-          description="Developer yang dapat menerima dan mengerjakan User Story di Project ini."
           count={draft.developer_ids.length}
           countLabel="anggota"
           actionLabel="Kelola Developer Team"
@@ -237,14 +232,13 @@ export function AssignmentWorkspace({ project, onSaved }: AssignmentWorkspacePro
   );
 }
 
-function AssignmentCard({ eyebrow, title, description, count, countLabel, actionLabel, onAction, children, className = "", wide = false }: { eyebrow: string; title: string; description: string; count: number; countLabel: string; actionLabel: string; onAction: () => void; children: ReactNode; className?: string; wide?: boolean }) {
+function AssignmentCard({ eyebrow, title, count, countLabel, actionLabel, onAction, children, className = "", wide = false }: { eyebrow: string; title: string; count: number; countLabel: string; actionLabel: string; onAction: () => void; children: ReactNode; className?: string; wide?: boolean }) {
   return (
     <section className={`assignment-card panel ${wide ? "assignment-card-wide" : ""} ${className}`.trim()}>
       <div className="assignment-card-header">
         <div>
           <span className="assignment-card-eyebrow">{eyebrow}</span>
           <h3>{title}</h3>
-          <p className="muted">{description}</p>
         </div>
         <span className="assignment-count" aria-label={`${count} ${countLabel}`}><strong>{count}</strong><small>{countLabel}</small></span>
       </div>
@@ -265,7 +259,6 @@ function SelectedMemberSummary({ members, empty, onRemove, removeLabel }: { memb
         {visible.map((member) => <button key={member.id} type="button" className="selected-member-chip" onClick={() => onRemove(member.id)} aria-label={`${removeLabel}: ${member.name}`} title={`${removeLabel}: ${member.name}`}><span className="member-avatar">{initials(member.name)}</span><span>{member.name}</span><span className="chip-remove" aria-hidden="true">×</span></button>)}
         {members.length > visible.length ? <span className="selected-member-more">+{members.length - visible.length} anggota lain</span> : null}
       </div>
-      <p className="selected-member-hint">Klik nama untuk menghapus langsung. Gunakan tombol kelola untuk melihat seluruh anggota.</p>
     </div>
   );
 }

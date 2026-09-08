@@ -311,13 +311,17 @@ export default function ProjectsPage() {
       ) : null}
 
       {createOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={requestCreateClose}>
-          <div ref={createModalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Tambah Project" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
-            <div className="drawer-kicker">Project baru</div>
-            <h2>Tambah Project</h2>
-            <p className="muted">Mulai dari konteks kerja. Website dan assignment dapat diatur setelah Project dibuat.</p>
+        <div className="modal-backdrop project-create-backdrop" role="presentation" onClick={requestCreateClose}>
+          <div ref={createModalRef} className="modal project-create-drawer project-create-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+            <div className="project-create-header">
+              <div>
+                <div className="drawer-kicker">Project baru</div>
+                <h2 id="new-project-title">Tambah Project</h2>
+              </div>
+              <button type="button" className="icon-btn project-create-close" onClick={requestCreateClose} aria-label="Tutup form Tambah Project">×</button>
+            </div>
             {formError ? <ErrorBanner message={formError} /> : null}
-            <form onSubmit={createProject}>
+            <form className="project-create-form" onSubmit={createProject}>
               <div className="form-field">
                 <label htmlFor="new-project-name">Nama Project <span className="required-mark">*</span></label>
                 <input id="new-project-name" className="text-input" required autoFocus maxLength={150} value={createName} onChange={(event) => setCreateName(event.target.value)} placeholder="Contoh: Web IT" />
