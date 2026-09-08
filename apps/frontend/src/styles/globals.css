@@ -3738,6 +3738,90 @@ body {
 .modal-backdrop { background: rgba(15, 23, 42, .46); backdrop-filter: blur(3px); }
 .modal { border-radius: 16px; box-shadow: 0 24px 70px rgba(15, 23, 42, .2); }
 
+/* User Story composer: a focused, usable form surface instead of the generic
+   full-height mobile modal. Keep the hierarchy shared with project forms. */
+.story-composer {
+  width: min(720px, calc(100vw - 48px));
+  max-height: min(780px, calc(100dvh - 48px));
+  padding: 28px;
+  overflow-y: auto;
+}
+.story-composer .project-modal-header { margin-bottom: 18px; }
+.story-composer .project-modal-header h2 { margin-top: 7px; font-size: 1.65rem; }
+.story-source-context {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 18px;
+  padding: 11px 13px;
+  border: 1px solid var(--egi-blue-mid);
+  border-radius: var(--radius-sm);
+  background: var(--egi-blue-soft);
+  color: var(--egi-blue-dark);
+  font-size: .78rem;
+}
+.story-source-label {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.story-source-context strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.story-source-context .muted { font-size: .7rem; white-space: nowrap; }
+.story-composer .error-banner { margin-bottom: 18px; }
+.story-composer-form { display: grid; gap: 18px; }
+.story-composer-form .form-field { gap: 8px; }
+.story-composer-form .form-field label,
+.story-collaborators legend { color: var(--text-secondary); font-size: .8rem; font-weight: 700; }
+.story-composer-form .text-input { min-height: 46px; border-radius: 10px; background: #fff; }
+.story-composer-form textarea { min-height: 112px; resize: vertical; }
+.story-composer-form .text-input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(214, 64, 64, .1); }
+.required-mark { color: var(--danger); }
+.story-composer-form .story-form-grid { align-items: start; gap: 14px 16px; margin: 0; }
+.story-collaborators { min-width: 0; margin: 0; padding: 0; border: 0; }
+.story-collaborators legend { margin-bottom: 8px; padding: 0; }
+.story-collaborators legend .muted { font-size: .75rem; font-weight: 600; }
+.story-collaborator-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.collaborator-option {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: #fbfcfe;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: .76rem;
+}
+.collaborator-option:hover,
+.collaborator-option:has(input:focus-visible) { border-color: var(--egi-blue-mid); background: #f7fbff; }
+.collaborator-option:has(input:checked) { border-color: var(--egi-blue); background: var(--egi-blue-soft); color: var(--egi-blue-dark); }
+.collaborator-option input { width: 17px; height: 17px; accent-color: var(--egi-blue); }
+.story-empty-assignees { margin: 0; padding: 11px 13px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); color: var(--text-muted); font-size: .78rem; }
+.story-composer .modal-actions { margin-top: 4px; }
+
+@media (max-width: 767px) {
+  .project-modal-backdrop .story-composer {
+    width: 100%;
+    max-height: min(780px, calc(100dvh - 20px - env(safe-area-inset-bottom)));
+    min-height: 0;
+    padding: 22px 18px 0;
+    border-radius: 24px 24px 18px 18px;
+  }
+  .story-composer .project-modal-header { margin-bottom: 18px; }
+  .story-composer .project-modal-header h2 { font-size: 1.45rem; }
+  .story-source-context { grid-template-columns: minmax(0, 1fr) auto; }
+  .story-source-context strong { grid-column: 1 / -1; grid-row: 2; }
+  .story-composer-form { gap: 16px; }
+  .story-composer-form .story-form-grid { grid-template-columns: 1fr; gap: 14px; }
+  .story-composer-form textarea { min-height: 104px; }
+  .story-composer .modal-actions { margin-top: 4px; }
+}
+
 @media (max-width: 1180px) {
   .content { padding-right: 24px; padding-left: 24px; }
   .task-monitoring-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -6585,4 +6669,28 @@ body,
 
   .project-settings-section { padding-bottom: 20px; }
   .project-settings-section + .project-settings-section { padding-top: 20px; }
+}
+
+/* Keep the primary action reachable while the long mobile form scrolls. */
+@media (max-width: 767px) {
+  .project-modal-backdrop .story-composer {
+    overscroll-behavior: contain;
+  }
+
+.project-modal-backdrop .story-composer .modal-actions {
+    position: sticky;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    margin: 20px -18px 0;
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: rgba(251, 252, 254, .96);
+    backdrop-filter: blur(10px);
+  }
+
+  .story-composer .project-modal-close:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+  }
 }

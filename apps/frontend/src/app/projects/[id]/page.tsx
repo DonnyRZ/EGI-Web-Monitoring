@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { AssignmentWorkspace } from "@/components/projects/AssignmentWorkspace";
@@ -51,6 +51,12 @@ const STORY_STATUS_LABELS: Record<string, string> = {
   done: "Done",
   blocked: "Blocked",
 };
+const STORY_PRIORITY_LABELS: Record<string, string> = {
+  critical: "Kritis",
+  high: "Tinggi",
+  medium: "Sedang",
+  low: "Rendah",
+};
 const STORY_COLUMNS = ["backlog", "ready", "in_progress", "review", "done", "blocked"];
 
 export default function ProjectDetailPage() {
@@ -75,9 +81,13 @@ export default function ProjectDetailPage() {
   const [notice, setNotice] = useState("");
 
   const canAdmin = Boolean(user && canManageProjects(user.role));
-  const technicalView = user?.role === "bos_it" || user?.role === "developer";
+  const technicalView = user?.role === "superadmin" || user?.role === "bos_it" || user?.role === "developer";
   const canManageStories = Boolean(
-    user && project && (user.role === "bos_it" || (user.role === "developer" && project.pic_developer_id === user.id)),
+    user && project && (
+      user.role === "superadmin" ||
+      user.role === "bos_it" ||
+      (user.role === "developer" && project.pic_developer_id === user.id)
+    ),
   );
   const canCreateProjectTicket = Boolean(
     user && project && (canAdmin || user.role === "pic_web"),
@@ -145,7 +155,7 @@ export default function ProjectDetailPage() {
     { id: "websites", label: "Websites & Monitoring" },
     ...(canAdmin ? [{ id: "assignments" as const, label: "PIC & Assignment" }] : []),
     { id: "tasks", label: "Tasks" },
-    ...(user.role === "bos_it" || user.role === "developer" ? [{ id: "stories" as const, label: "User Stories" }] : []),
+    ...(user.role === "superadmin" || user.role === "bos_it" || user.role === "developer" ? [{ id: "stories" as const, label: "User Stories" }] : []),
     { id: "work", label: "Work Monitoring" },
   ];
 
@@ -520,38 +530,62 @@ function StoryComposer({ project, ticket, onClose, onSaved }: { project: Project
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const titleId = useId();
   const dirty = form.title !== initialTitle || form.description !== initialDescription || form.acceptance_criteria !== initialAcceptanceCriteria || form.website_id !== initialWebsiteId || form.priority !== "medium" || Boolean(form.primary_developer_id) || form.collaborator_ids.length > 0 || Boolean(form.due_date);
   useUnsavedChanges(`projects:${project.id}:story`, dirty);
   useBodyScrollLock(true);
-  function requestClose() { if (!dirty || window.confirm("Perubahan belum disimpan. Tutup form?")) onClose(); }
-  useDialogFocus(true, modalRef, undefined, requestClose);
+  const requestClose = useCallback(() => {
+    if (saving) return;
+    if (!dirty || window.confirm("Perubahan belum disimpan. Tutup form?")) onClose();
+  }, [dirty, onClose, saving]);
+  useDialogFocus(true, modalRef, undefined, requestClose, titleRef);
   function toggleCollaborator(id: string) { setForm((current) => ({ ...current, collaborator_ids: current.collaborator_ids.includes(id) ? current.collaborator_ids.filter((value) => value !== id) : [...current.collaborator_ids, id] })); }
   async function submit(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setError("");
+    event.preventDefault();
+    if (!form.title.trim()) {
+      setError("Judul User Story wajib diisi.");
+      titleRef.current?.focus();
+      return;
+    }
+    setSaving(true); setError("");
     try {
-      const body = { ...form, website_id: form.website_id || null, primary_developer_id: form.primary_developer_id || null, due_date: form.due_date ? new Date(form.due_date).toISOString() : null };
+      const body = {
+        ...form,
+        title: form.title.trim(),
+        description: form.description.trim() || undefined,
+        acceptance_criteria: form.acceptance_criteria.trim() || undefined,
+        website_id: form.website_id || null,
+        primary_developer_id: form.primary_developer_id || null,
+        due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+      };
       if (ticket) await userStoriesApi.createFromTicket(ticket.id, body); else await userStoriesApi.create(project.id, body);
       onSaved();
     } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal menyimpan User Story"); } finally { setSaving(false); }
   }
-  return <div className="modal-backdrop" role="presentation" onClick={requestClose}>
-    <div ref={modalRef} className="modal story-composer" role="dialog" aria-modal="true" aria-label={ticket ? "Buat User Story dari Task" : "Tambah User Story"} tabIndex={-1} onClick={(event) => event.stopPropagation()}>
-      <div className="drawer-kicker">{ticket ? "Pecah Task" : "Project work"}</div>
-      <h2>{ticket ? "Buat User Story dari Task" : "Tambah User Story"}</h2>
-      {ticket ? <p className="muted">Task akan ditautkan ke User Story ini. Task yang sama dapat memiliki beberapa User Story.</p> : null}
+  return <div className="modal-backdrop project-modal-backdrop" role="presentation" onClick={requestClose}>
+    <div ref={modalRef} className="modal project-form-modal story-composer" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+      <div className="project-modal-header">
+        <div>
+          <div className="modal-kicker">{ticket ? "Pecah Task" : "Pekerjaan Project"}</div>
+          <h2 id={titleId}>{ticket ? "Buat User Story dari Task" : "Tambah User Story"}</h2>
+        </div>
+        <button type="button" className="icon-btn project-modal-close" onClick={requestClose} disabled={saving} aria-label="Tutup form User Story">×</button>
+      </div>
+      {ticket ? <div className="story-source-context"><span className="story-source-label">Dari Task</span><strong>{ticket.title}</strong>{ticket.ticket_number ? <span className="muted">{ticket.ticket_number}</span> : null}</div> : null}
       {error ? <ErrorBanner message={error} /> : null}
-      <form onSubmit={submit}>
-        <div className="form-field"><label htmlFor="story-title">Judul</label><input id="story-title" className="text-input" required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></div>
+      <form className="story-composer-form" noValidate onSubmit={submit}>
+        <div className="form-field"><label htmlFor="story-title">Judul User Story <span className="required-mark">*</span></label><input ref={titleRef} id="story-title" className="text-input" required aria-required="true" aria-invalid={Boolean(error && !form.title.trim())} value={form.title} onChange={(event) => { setForm((current) => ({ ...current, title: event.target.value })); if (error) setError(""); }} placeholder="Contoh: Perbaiki form login mobile" /></div>
         <div className="story-form-grid">
           <div className="form-field"><label htmlFor="story-website">Website <span className="muted">(opsional)</span></label><Select id="story-website" value={form.website_id} onChange={(value) => setForm((current) => ({ ...current, website_id: value }))} options={[{ value: "", label: "Seluruh Project" }, ...project.websites.map((website) => ({ value: website.id, label: website.name }))]} /></div>
-          <div className="form-field"><label htmlFor="story-priority">Priority</label><Select id="story-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value }))} options={["critical", "high", "medium", "low"].map((value) => ({ value, label: value }))} /></div>
-          <div className="form-field"><label htmlFor="story-primary">Primary developer</label><Select id="story-primary" value={form.primary_developer_id} onChange={(value) => setForm((current) => ({ ...current, primary_developer_id: value }))} options={[{ value: "", label: "Belum ditentukan" }, ...project.developers.map((developer) => ({ value: developer.id, label: developer.name }))]} /></div>
+          <div className="form-field"><label htmlFor="story-priority">Prioritas</label><Select id="story-priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value }))} options={["critical", "high", "medium", "low"].map((value) => ({ value, label: STORY_PRIORITY_LABELS[value] }))} /></div>
+          <div className="form-field"><label htmlFor="story-primary">Developer utama</label><Select id="story-primary" value={form.primary_developer_id} onChange={(value) => setForm((current) => ({ ...current, primary_developer_id: value }))} options={[{ value: "", label: "Belum ditentukan" }, ...project.developers.map((developer) => ({ value: developer.id, label: developer.name }))]} /></div>
           <div className="form-field"><label htmlFor="story-due">Deadline <span className="muted">(opsional)</span></label><input id="story-due" className="text-input" type="datetime-local" value={form.due_date} onChange={(event) => setForm((current) => ({ ...current, due_date: event.target.value }))} /></div>
         </div>
-        <div className="form-field"><label htmlFor="story-description">Deskripsi</label><textarea id="story-description" className="text-input" rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></div>
-        <div className="form-field"><label htmlFor="story-acceptance">Acceptance criteria</label><textarea id="story-acceptance" className="text-input" rows={4} value={form.acceptance_criteria} onChange={(event) => setForm((current) => ({ ...current, acceptance_criteria: event.target.value }))} /></div>
-        <div className="form-field"><span className="form-label">Collaborator</span><div className="story-collaborator-grid">{project.developers.map((developer) => <label key={developer.id} className="collaborator-option"><input type="checkbox" checked={form.collaborator_ids.includes(developer.id)} onChange={() => toggleCollaborator(developer.id)} />{developer.name}</label>)}</div></div>
-        <div className="modal-actions"><button type="button" className="btn" onClick={requestClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan User Story"}</button></div>
+        <div className="form-field"><label htmlFor="story-description">Deskripsi <span className="muted">(opsional)</span></label><textarea id="story-description" className="text-input" rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Konteks pekerjaan, batasan, atau pendekatan yang diharapkan." /></div>
+        <div className="form-field"><label htmlFor="story-acceptance">Kriteria selesai <span className="muted">(opsional)</span></label><textarea id="story-acceptance" className="text-input" rows={4} value={form.acceptance_criteria} onChange={(event) => setForm((current) => ({ ...current, acceptance_criteria: event.target.value }))} placeholder="Contoh: perubahan tampil di mobile dan lulus pengujian." /></div>
+        <fieldset className="story-collaborators"><legend>Kolaborator <span className="muted">(opsional)</span></legend>{project.developers.length > 0 ? <div className="story-collaborator-grid">{project.developers.map((developer) => <label key={developer.id} className="collaborator-option"><input type="checkbox" checked={form.collaborator_ids.includes(developer.id)} onChange={() => toggleCollaborator(developer.id)} /><span>{developer.name}</span></label>)}</div> : <p className="story-empty-assignees">Belum ada developer di Project ini.</p>}</fieldset>
+        <div className="modal-actions"><button type="button" className="btn" onClick={requestClose} disabled={saving}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menyimpan…" : "Simpan User Story"}</button></div>
       </form>
     </div>
   </div>;
