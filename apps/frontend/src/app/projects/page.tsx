@@ -311,14 +311,14 @@ export default function ProjectsPage() {
       ) : null}
 
       {createOpen ? (
-        <div className="modal-backdrop project-create-backdrop" role="presentation" onClick={requestCreateClose}>
-          <div ref={createModalRef} className="modal project-create-drawer project-create-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
-            <div className="project-create-header">
+        <div className="modal-backdrop project-modal-backdrop project-create-backdrop" role="presentation" onClick={requestCreateClose}>
+          <div ref={createModalRef} className="modal project-form-modal project-create-dialog" role="dialog" aria-modal="true" aria-labelledby="new-project-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+            <div className="project-modal-header project-create-header">
               <div>
-                <div className="drawer-kicker">Project baru</div>
+                <div className="modal-kicker">Project baru</div>
                 <h2 id="new-project-title">Tambah Project</h2>
               </div>
-              <button type="button" className="icon-btn project-create-close" onClick={requestCreateClose} aria-label="Tutup form Tambah Project">×</button>
+              <button type="button" className="icon-btn project-modal-close project-create-close" onClick={requestCreateClose} aria-label="Tutup form Tambah Project">×</button>
             </div>
             {formError ? <ErrorBanner message={formError} /> : null}
             <form className="project-create-form" onSubmit={createProject}>

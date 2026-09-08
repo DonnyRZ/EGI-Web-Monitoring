@@ -344,10 +344,15 @@ function EditProjectModal({ project, onClose, onSaved }: { project: Project; onC
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={requestClose}>
-      <div ref={modalRef} className="modal project-create-drawer project-settings-modal" role="dialog" aria-modal="true" aria-labelledby="project-settings-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
-        <div className="drawer-kicker">Project settings</div>
-        <h2 id="project-settings-title">Pengaturan Project</h2>
+    <div className="modal-backdrop project-modal-backdrop" role="presentation" onClick={requestClose}>
+      <div ref={modalRef} className="modal project-form-modal project-settings-modal" role="dialog" aria-modal="true" aria-labelledby="project-settings-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+        <div className="project-modal-header">
+          <div>
+            <div className="modal-kicker">Project settings</div>
+            <h2 id="project-settings-title">Pengaturan Project</h2>
+          </div>
+          <button type="button" className="icon-btn project-modal-close" onClick={requestClose} aria-label="Tutup Pengaturan Project">×</button>
+        </div>
         {error ? <ErrorBanner message={error} /> : null}
         <form onSubmit={submit}>
           <fieldset className="project-settings-section">
@@ -413,15 +418,22 @@ function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; o
     if (!dirty || window.confirm("Perubahan belum disimpan. Tutup form?")) onClose();
   }
 
-  return <div className="modal-backdrop" role="presentation" onClick={requestClose}>
-    <div ref={modalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Tambah Website" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
-      <div className="drawer-kicker">Monitoring source</div>
-      <h2>Tambah Website</h2>
+  return <div className="modal-backdrop project-modal-backdrop" role="presentation" onClick={requestClose}>
+    <div ref={modalRef} className="modal project-form-modal website-form-modal" role="dialog" aria-modal="true" aria-labelledby="add-website-title" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
+      <div className="project-modal-header">
+        <div>
+          <div className="modal-kicker">Monitoring source</div>
+          <h2 id="add-website-title">Tambah Website</h2>
+        </div>
+        <button type="button" className="icon-btn project-modal-close" onClick={requestClose} aria-label="Tutup form Tambah Website">×</button>
+      </div>
       {error ? <ErrorBanner message={error} /> : null}
-      <form onSubmit={submit}>
-        <div className="form-field"><label htmlFor="website-name">Nama Website</label><input id="website-name" className="text-input" required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} /></div>
-        <div className="form-field"><label htmlFor="website-domain">Domain</label><input id="website-domain" className="text-input" required value={form.domain} onChange={(event) => setForm((current) => ({ ...current, domain: event.target.value }))} placeholder="example.com" /></div>
-        <div className="form-field"><label htmlFor="website-url">URL</label><input id="website-url" className="text-input" type="url" required value={form.url} onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://example.com" /></div>
+      <form className="website-form" onSubmit={submit}>
+        <div className="website-form-grid">
+          <div className="form-field full"><label htmlFor="website-name">Nama Website</label><input id="website-name" className="text-input" required autoFocus value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Contoh: Hadith Hotel" /></div>
+          <div className="form-field"><label htmlFor="website-domain">Domain</label><input id="website-domain" className="text-input" required value={form.domain} onChange={(event) => setForm((current) => ({ ...current, domain: event.target.value }))} placeholder="example.com" /></div>
+          <div className="form-field"><label htmlFor="website-url">URL</label><input id="website-url" className="text-input" type="url" required value={form.url} onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://example.com" /></div>
+        </div>
         <div className="modal-actions"><button type="button" className="btn" onClick={requestClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menambahkan…" : "Tambahkan Website"}</button></div>
       </form>
     </div>
@@ -474,7 +486,6 @@ function TicketComposer({ project, onClose, onSaved }: { project: Project; onClo
       <div ref={modalRef} className="modal project-create-drawer" role="dialog" aria-modal="true" aria-label="Buat Task" tabIndex={-1} onClick={(event) => event.stopPropagation()}>
         <div className="drawer-kicker">Permintaan pekerjaan</div>
         <h2>Buat Task</h2>
-        <p className="muted">Catat kebutuhan yang perlu ditindaklanjuti oleh penanggung jawab Project.</p>
         {error ? <ErrorBanner message={error} /> : null}
         <form onSubmit={submit}>
           <div className="form-field">
