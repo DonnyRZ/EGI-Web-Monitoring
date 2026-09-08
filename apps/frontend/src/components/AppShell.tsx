@@ -219,7 +219,7 @@ function AppShellFrame({ initialTitle, children }: { initialTitle?: string; chil
     {
       label: "Workspace",
       items: navigation.desktopNav.filter((item) =>
-        ["/dashboard", "/tasks", "/me/work", "/projects", "/projects/requests"].includes(item.href),
+        ["/dashboard", "/tasks", "/me/work", "/projects"].includes(item.href),
       ),
     },
     {

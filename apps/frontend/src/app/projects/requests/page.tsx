@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectRequestList } from "@/components/ProjectRequestUI";
+import { ProjectAreaTabs, ProjectRequestList } from "@/components/ProjectRequestUI";
 import { Select } from "@/components/Select";
 import { EmptyState, ErrorBanner, LoadingState, PaginationBar } from "@/components/ui";
 import { ApiError } from "@/lib/api";
@@ -92,6 +92,7 @@ export default function ProjectRequestsPage() {
 
   return (
     <AppShell title={title}>
+      <ProjectAreaTabs role={user.role} active="requests" />
       <div className="project-request-page-header">
         <div>
           <span className="eyebrow">{reviewer ? "Project workspace" : "Project workspace"}</span>

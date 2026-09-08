@@ -5291,6 +5291,37 @@ body,
   }
 }
 
+/* Project area navigation: requests are a sibling page, not a global menu item. */
+.project-area-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 0 0 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-area-tabs a {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 11px 14px 12px;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-size: .88rem;
+  font-weight: 750;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.project-area-tabs a:hover,
+.project-area-tabs a.active {
+  color: var(--egi-blue-dark);
+}
+
+.project-area-tabs a.active {
+  border-bottom-color: var(--egi-blue);
+}
+
 .project-page-actions,
 .project-request-page-actions {
   display: flex;
@@ -5730,6 +5761,22 @@ body,
 }
 
 @media (max-width: 767px) {
+  .project-area-tabs {
+    gap: 0;
+    margin-bottom: 16px;
+  }
+  .project-area-tabs a {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 8px 11px;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+  }
+
   .project-page-actions,
   .project-request-page-actions { justify-content: stretch; flex-direction: column; }
   .project-page-actions .btn,

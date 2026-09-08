@@ -18,7 +18,6 @@ const ICONS: Record<NavigationItem["icon"], IconComponent> = {
   tasks: IconTasks,
   "my-work": IconTasks,
   projects: IconGlobe,
-  "project-requests": IconTasks,
   "user-stories": IconTasks,
   incidents: IconAlert,
   users: IconUsers,
@@ -135,7 +134,6 @@ export function MobileMenuPage({
                 <strong>{item.label}</strong>
                 {item.key === "incidents" ? <span>Gangguan yang perlu diperhatikan</span> : null}
                 {item.key === "projects" ? <span>Project yang menjadi tanggung jawab Anda</span> : null}
-                {item.key === "project-requests" ? <span>{item.label === "Pengajuan Saya" ? "Pantau pengajuan Project Anda" : "Tinjau pengajuan Project baru"}</span> : null}
                 {item.key === "users" ? <span>Kelola akun dan akses platform</span> : null}
                 {item.key === "logout" ? <span>Keluar dari akun ini</span> : null}
               </span>
