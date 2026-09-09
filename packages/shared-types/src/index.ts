@@ -34,6 +34,24 @@ export type UserStoryStatus =
   | "done"
   | "blocked";
 
+/** Simplified lifecycle groups used when browsing User Stories. */
+const USER_STORY_STATUS_GROUP = {
+  not_started: "not_started",
+  active: "active",
+  done: "done",
+  blocked: "blocked",
+} as const;
+
+export const UserStoryStatusGroup = USER_STORY_STATUS_GROUP;
+export type UserStoryStatusGroup = (typeof UserStoryStatusGroup)[keyof typeof UserStoryStatusGroup];
+
+export const USER_STORY_STATUS_GROUP_STATUSES: Record<UserStoryStatusGroup, UserStoryStatus[]> = {
+  [USER_STORY_STATUS_GROUP.not_started]: ["backlog", "ready"],
+  [USER_STORY_STATUS_GROUP.active]: ["in_progress", "review"],
+  [USER_STORY_STATUS_GROUP.done]: ["done"],
+  [USER_STORY_STATUS_GROUP.blocked]: ["blocked"],
+};
+
 export type UserStoryPriority = "critical" | "high" | "medium" | "low";
 
 export interface TaskMonitoringSummary {

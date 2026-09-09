@@ -11,6 +11,7 @@ import {
   MaxLength,
 } from "class-validator";
 import { UserStoryPriority, UserStoryStatus } from "@egi/database";
+import { UserStoryStatusGroup } from "@egi/shared-types";
 import { PaginationQueryDto } from "../../common/pagination.dto";
 
 export class CreateUserStoryDto {
@@ -132,6 +133,11 @@ export class UserStoriesQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(UserStoryStatus)
   status?: UserStoryStatus;
+
+  @ApiPropertyOptional({ enum: UserStoryStatusGroup })
+  @IsOptional()
+  @IsEnum(UserStoryStatusGroup)
+  status_group?: UserStoryStatusGroup;
 
   @ApiPropertyOptional({ enum: UserStoryPriority })
   @IsOptional()

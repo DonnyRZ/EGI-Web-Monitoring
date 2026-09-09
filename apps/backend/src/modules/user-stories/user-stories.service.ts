@@ -12,6 +12,7 @@ import {
   UserRole,
   UserStoryStatus,
 } from "@egi/database";
+import { USER_STORY_STATUS_GROUP_STATUSES, UserStoryStatusGroup } from "@egi/shared-types";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { AuthUser } from "../../common/current-user.decorator";
 import { paginatedMeta, toTaskDto } from "../../common/mappers";
@@ -396,9 +397,16 @@ export class UserStoriesService {
 
   private buildFilters(filters: UserStoriesQueryDto): Prisma.UserStoryWhereInput {
     const where: Prisma.UserStoryWhereInput = {};
+    const statusFilters: Prisma.UserStoryWhereInput[] = [];
+    if (filters.status && filters.status_group) {
+      throw new BadRequestException("Use either status or status_group, not both");
+    }
     if (filters.project_id) where.projectId = filters.project_id;
     if (filters.website_id) where.websiteId = filters.website_id;
-    if (filters.status) where.status = filters.status;
+    if (filters.status) statusFilters.push({ status: filters.status });
+    if (filters.status_group) {
+      statusFilters.push({ status: { in: USER_STORY_STATUS_GROUP_STATUSES[filters.status_group as UserStoryStatusGroup] } });
+    }
     if (filters.priority) where.priority = filters.priority;
     if (filters.developer_id) {
       where.OR = [
@@ -413,8 +421,9 @@ export class UserStoriesService {
     if (filters.has_ticket) where.tickets = { some: {} };
     if (filters.overdue) {
       where.dueDate = { lt: new Date() };
-      where.status = { not: UserStoryStatus.done };
+      statusFilters.push({ status: { not: UserStoryStatus.done } });
     }
+    if (statusFilters.length) where.AND = statusFilters;
     return where;
   }
 

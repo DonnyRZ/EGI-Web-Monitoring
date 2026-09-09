@@ -11,6 +11,7 @@ import { taskMonitoringApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canViewTaskMonitoring, formatDateTime, initials } from "@/lib/format";
 import { loadProjectPicDeveloperScope } from "@/lib/project-scope";
+import { getUserStoryStatusGroup, USER_STORY_STATUS_GROUP_LABELS } from "@/lib/user-story-status";
 import type {
   Severity,
   TaskBusinessStatus,
@@ -18,7 +19,6 @@ import type {
   TaskMonitoringOverviewResponse,
   TaskMonitoringPeriod,
   TaskMonitoringRow,
-  UserStoryStatus,
 } from "@/lib/types";
 
 const STATUS_LABELS: Record<TaskBusinessStatus, string> = {
@@ -27,15 +27,6 @@ const STATUS_LABELS: Record<TaskBusinessStatus, string> = {
   waiting_pic: "Baru",
   blocked: "Terkendala",
   done: "Selesai",
-};
-
-const STORY_STATUS_LABELS: Record<UserStoryStatus, string> = {
-  backlog: "Belum dimulai",
-  ready: "Siap dikerjakan",
-  in_progress: "Sedang dikerjakan",
-  review: "Dalam peninjauan",
-  done: "Selesai",
-  blocked: "Terkendala",
 };
 
 const PRIORITY_LABELS: Record<Severity, string> = {
@@ -655,7 +646,7 @@ function TaskDetailView({ row, technicalView, canOverride, loading, error, onBac
       <dl className="task-detail-facts"><div><dt>Nomor Task</dt><dd>{row.ticket_number ?? "Belum tersedia"}</dd></div><div><dt>Dibuat oleh</dt><dd>{row.created_by?.name ?? "Tidak diketahui"}</dd></div><div><dt>Project</dt><dd>{row.project?.name ?? "Task Umum"}</dd></div><div><dt>Website</dt><dd>{row.website ? <Link href={`/websites/${row.website.id}`}>{row.website.name}</Link> : "Tidak ada Website khusus"}</dd></div><div><dt>Penanggung jawab</dt><dd>{row.pic_developer?.name ?? "Belum ditentukan"}</dd></div><div><dt>Deadline</dt><dd>{row.due_date ? formatDateTime(row.due_date) : "Belum ditentukan"}</dd></div></dl>
       <section className="task-detail-section"><span className="eyebrow">Masalah atau kebutuhan</span><p>{row.business?.problem || row.summary || "Tidak ada keterangan."}</p>{row.business?.expectation ? <><span className="eyebrow">Hasil yang diharapkan</span><p>{row.business.expectation}</p></> : null}</section>
       {row.business?.category === "new_website" ? <section className="task-detail-section"><span className="eyebrow">Permintaan website baru</span><dl className="task-detail-request-facts"><div><dt>Nama website</dt><dd>{row.business.requested_website_name || "Belum ditentukan"}</dd></div><div><dt>Domain</dt><dd>{row.business.requested_domain || "Belum tersedia"}</dd></div><div><dt>Project usulan</dt><dd>{row.business.requested_project_name || (row.project?.name ?? "Belum ditentukan")}</dd></div></dl><p className="muted">Website belum dibuat dan belum masuk monitoring. Project serta penanggung jawabnya ditentukan setelah permintaan ditinjau.</p></section> : null}
-      {technicalView ? <section className="task-detail-section"><div className="panel-heading-row"><div><span className="eyebrow">Pekerjaan teknis</span><h3 className="panel-title">Rincian pekerjaan</h3></div><span className="muted">{row.story_count} bagian</span></div>{row.stories.length === 0 ? <p className="muted">Pekerjaan teknis belum dibuat.</p> : <div className="task-detail-stories">{row.stories.map((story) => <div className="task-detail-story" key={story.id}><strong>{story.title}</strong><span className={`story-status-label ${story.status}`}>{STORY_STATUS_LABELS[story.status]}</span><span className="muted">{story.primary_developer?.name ?? "Belum ada Developer utama"}{story.collaborators.length ? ` · ${story.collaborators.length} Developer pendamping` : ""}</span></div>)}</div>}</section> : <section className="task-detail-section"><span className="eyebrow">Progress pekerjaan</span><p className="task-progress-message">{progress}</p></section>}
+      {technicalView ? <section className="task-detail-section"><div className="panel-heading-row"><div><span className="eyebrow">Pekerjaan teknis</span><h3 className="panel-title">Rincian pekerjaan</h3></div><span className="muted">{row.story_count} bagian</span></div>{row.stories.length === 0 ? <p className="muted">Pekerjaan teknis belum dibuat.</p> : <div className="task-detail-stories">{row.stories.map((story) => { const statusGroup = getUserStoryStatusGroup(story.status); return <div className="task-detail-story" key={story.id}><strong>{story.title}</strong><span className={`story-status-label story-status-group ${statusGroup}`}>{USER_STORY_STATUS_GROUP_LABELS[statusGroup]}</span><span className="muted">{story.primary_developer?.name ?? "Belum ada Developer utama"}{story.collaborators.length ? ` · ${story.collaborators.length} Developer pendamping` : ""}</span></div>; })}</div>}</section> : <section className="task-detail-section"><span className="eyebrow">Progress pekerjaan</span><p className="task-progress-message">{progress}</p></section>}
       {canOverride && row.source === "task" ? <section className="task-detail-actions"><span className="eyebrow">Status Task</span><p className="muted">Ubah status hanya jika kondisi pekerjaan belum tercermin dengan benar.</p><Select value={row.status === "waiting_pic" ? "new" : row.status} onChange={(value) => void updateStatus(value)} options={[{ value: "new", label: "Baru" }, { value: "in_progress", label: "Sedang dikerjakan" }, { value: "blocked", label: "Terkendala" }, { value: "done", label: "Selesai" }]} disabled={saving} aria-label="Status Task" /></section> : null}
     </>
   );

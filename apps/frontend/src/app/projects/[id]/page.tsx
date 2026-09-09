@@ -7,11 +7,15 @@ import { AppShell } from "@/components/AppShell";
 import { useBodyScrollLock, useDialogFocus } from "@/components/ResponsiveOverlay";
 import { AssignmentWorkspace } from "@/components/projects/AssignmentWorkspace";
 import { Select } from "@/components/Select";
+import { UserStoryCard } from "@/components/user-stories/UserStoryCard";
+import { UserStoryDetailModal } from "@/components/user-stories/UserStoryDetailModal";
+import { UserStoryStatusControls } from "@/components/user-stories/UserStoryStatusControls";
 import { EmptyState, ErrorBanner, LoadingState, SuccessBanner } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { projectsApi, taskIntakeApi, ticketsApi, userStoriesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
 import { canManageProjects, canViewProjectRegistry, formatDateTime, initials } from "@/lib/format";
+import { getUserStoryStatusGroup, isStoryInStatusFilter, statusGroupQueryValue, USER_STORY_STATUS_GROUP_LABELS, USER_STORY_STATUS_GROUP_ORDER, type StoryStatusFilter } from "@/lib/user-story-status";
 import { useUnsavedChanges } from "@/lib/unsaved-changes";
 import type {
   Project,
@@ -43,21 +47,12 @@ const TICKET_STATUS_LABELS: Record<Ticket["status"], string> = {
   resolved: "Selesai",
   closed: "Ditutup",
 };
-const STORY_STATUS_LABELS: Record<string, string> = {
-  backlog: "Backlog",
-  ready: "Ready",
-  in_progress: "In Progress",
-  review: "Review",
-  done: "Done",
-  blocked: "Blocked",
-};
 const STORY_PRIORITY_LABELS: Record<string, string> = {
   critical: "Kritis",
   high: "Tinggi",
   medium: "Sedang",
   low: "Rendah",
 };
-const STORY_COLUMNS = ["backlog", "ready", "in_progress", "review", "done", "blocked"];
 
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
@@ -75,6 +70,8 @@ export default function ProjectDetailPage() {
   const [storiesLoading, setStoriesLoading] = useState(false);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [storyView, setStoryView] = useState<StoryView>("list");
+  const [storyStatusGroup, setStoryStatusGroup] = useState<StoryStatusFilter>("all");
+  const [selectedStory, setSelectedStory] = useState<UserStory | null>(null);
   const [storyComposerOpen, setStoryComposerOpen] = useState(false);
   const [storyFromTicket, setStoryFromTicket] = useState<Ticket | null>(null);
   const [ticketComposerOpen, setTicketComposerOpen] = useState(false);
@@ -114,11 +111,11 @@ export default function ProjectDetailPage() {
     if (user) void loadProject();
   }, [user, loadProject]);
 
-  const loadStories = useCallback(async () => {
+  const loadStories = useCallback(async (filter: StoryStatusFilter = "all") => {
     if (!projectId) return;
     setStoriesLoading(true);
     try {
-      const response = await userStoriesApi.listForProject(projectId, { limit: 100 });
+      const response = await userStoriesApi.listForProject(projectId, { limit: 100, status_group: statusGroupQueryValue(filter) });
       setStories(response.data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat User Stories");
@@ -141,9 +138,10 @@ export default function ProjectDetailPage() {
   }, [projectId]);
 
   useEffect(() => {
-    if (tab === "stories" || tab === "work") void loadStories();
+    if (tab === "stories") void loadStories(storyStatusGroup);
+    if (tab === "work") void loadStories("all");
     if (tab === "tasks") void loadTickets();
-  }, [tab, loadStories, loadTickets]);
+  }, [tab, storyStatusGroup, loadStories, loadTickets]);
 
   if (authLoading || loading) return <AppShell title="Project"><LoadingState label="Memuat Project…" /></AppShell>;
   if (!user || !canViewProjectRegistry(user.role)) return <AppShell title="Project"><LoadingState /></AppShell>;
@@ -172,6 +170,11 @@ export default function ProjectDetailPage() {
   function refreshAfterMutation(nextProject: Project) {
     setProject(nextProject);
     setNotice("");
+  }
+
+  async function refreshAfterStoryUpdate(updated: UserStory) {
+    setSelectedStory(updated);
+    await loadStories(tab === "stories" ? storyStatusGroup : "all");
   }
 
   return (
@@ -210,9 +213,10 @@ export default function ProjectDetailPage() {
       {tab === "websites" ? <WebsitesTab project={project} canAdmin={canAdmin} onChange={refreshAfterMutation} onAdd={() => setWebsiteOpen(true)} /> : null}
       {tab === "assignments" && canAdmin ? <AssignmentWorkspace project={project} onSaved={(next, message) => { refreshAfterMutation(next); setNotice(message); }} /> : null}
       {tab === "tasks" ? <TicketsTab tickets={ticketList} loading={ticketsLoading} technicalView={technicalView} canManageStories={canManageStories} canCreateTicket={canCreateProjectTicket} onCreateTicket={() => setTicketComposerOpen(true)} onCreateStory={(ticket) => { setStoryFromTicket(ticket); setStoryComposerOpen(true); }} /> : null}
-      {tab === "stories" ? <StoriesTab project={project} stories={stories} loading={storiesLoading} canManage={canManageStories} view={storyView} onViewChange={setStoryView} onRefresh={loadStories} onCreate={() => { setStoryFromTicket(null); setStoryComposerOpen(true); }} /> : null}
+      {tab === "stories" ? <StoriesTab project={project} stories={stories} loading={storiesLoading} canManage={canManageStories} view={storyView} statusGroup={storyStatusGroup} onStatusGroupChange={setStoryStatusGroup} onViewChange={setStoryView} onOpenDetails={setSelectedStory} onCreate={() => { setStoryFromTicket(null); setStoryComposerOpen(true); }} /> : null}
       {tab === "work" ? <WorkTab project={project} stories={stories} loading={storiesLoading} canManage={canManageStories} onOpenStories={() => selectTab("stories")} /> : null}
 
+      <UserStoryDetailModal story={selectedStory} canEditStatus={canManageStories || user.role === "developer"} canManageStatus={canManageStories} onClose={() => setSelectedStory(null)} onSaved={refreshAfterStoryUpdate} />
       {editOpen ? <EditProjectModal project={project} onClose={() => setEditOpen(false)} onSaved={(next) => { refreshAfterMutation(next); setEditOpen(false); }} /> : null}
       {websiteOpen ? <AddWebsiteModal projectId={project.id} onClose={() => setWebsiteOpen(false)} onSaved={(next) => { refreshAfterMutation(next); setWebsiteOpen(false); }} /> : null}
       {storyComposerOpen ? <StoryComposer project={project} ticket={storyFromTicket} onClose={() => setStoryComposerOpen(false)} onSaved={() => { setStoryComposerOpen(false); setNotice("User Story berhasil dibuat."); void loadStories(); void loadProject(); }} /> : null}
@@ -286,19 +290,16 @@ function TicketsTab({ tickets, loading, technicalView, canManageStories, canCrea
   return <section className="panel"><div className="panel-heading-row"><div><h3 className="panel-title">Tasks Project</h3></div>{canCreateTicket ? <button type="button" className="btn btn-primary" onClick={onCreateTicket}>Buat Task</button> : null}</div>{tickets.length === 0 ? <EmptyState title="Belum ada Task" /> : <div className="ticket-project-list">{tickets.map((ticket) => <div key={ticket.id} className="ticket-project-row"><div><div className="ticket-title-line"><strong>{ticket.title}</strong><span className={`ticket-status-badge ${ticket.status}`}>{TICKET_STATUS_LABELS[ticket.status]}</span></div><div className="ticket-number-line">{ticket.ticket_number ?? "Nomor Task belum tersedia"}{ticket.category === "new_website" ? " · Website baru" : ""}</div><p>{ticket.description || "Tidak ada deskripsi."}</p>{ticket.category === "new_website" ? <p className="ticket-request-summary">Website yang diusulkan: {ticket.requested_website_name || "Belum ditentukan"}{ticket.requested_domain ? ` · ${ticket.requested_domain}` : ""}</p> : null}<span className="muted">Dibuat {formatDateTime(ticket.created_at)}{ticket.sla_deadline ? ` · Deadline ${formatDateTime(ticket.sla_deadline)}` : ""}</span></div><div className="row-actions">{technicalView && ticket.user_story_count > 0 ? <><span className="linked-story-label">{ticket.user_story_count} User Story</span>{canManageStories ? <button type="button" className="btn btn-sm btn-neutral" onClick={() => onCreateStory(ticket)}>Buat pekerjaan teknis</button> : null}</> : technicalView && canManageStories ? <button type="button" className="btn btn-sm btn-primary" onClick={() => onCreateStory(ticket)}>Buat pekerjaan teknis</button> : <span className="muted">{technicalView ? "Penanggung jawab teknis belum ditentukan" : ticket.user_story_count > 0 ? "Sedang ditangani tim teknis" : "Menunggu tindak lanjut"}</span>}</div></div>)}</div>}</section>;
 }
 
-function StoriesTab({ project, stories, loading, canManage, view, onViewChange, onRefresh, onCreate }: { project: Project; stories: UserStory[]; loading: boolean; canManage: boolean; view: StoryView; onViewChange: (view: StoryView) => void; onRefresh: () => Promise<void>; onCreate: () => void }) {
-  const [statusFilter, setStatusFilter] = useState("");
-  const filtered = statusFilter ? stories.filter((story) => story.status === statusFilter) : stories;
-  return <section className="panel"><div className="panel-heading-row"><div><span className="eyebrow">Unit kerja teknis</span><h3 className="panel-title">User Stories</h3><p className="muted">Story menggabungkan konteks Task, acceptance criteria, dan assignment developer.</p></div><div className="row-actions">{canManage ? <button type="button" className="btn btn-primary" onClick={onCreate}>Tambah User Story</button> : null}<div className="segmented-control"><button type="button" className={view === "board" ? "active" : ""} onClick={() => onViewChange("board")}>Board</button><button type="button" className={view === "list" ? "active" : ""} onClick={() => onViewChange("list")}>List</button></div></div></div><div className="story-filter-row"><Select value={statusFilter} onChange={setStatusFilter} options={[{ value: "", label: "Semua status" }, ...STORY_COLUMNS.map((status) => ({ value: status, label: STORY_STATUS_LABELS[status] }))]} aria-label="Filter status User Story" /></div>{loading ? <LoadingState label="Memuat User Stories…" /> : filtered.length === 0 ? <EmptyState title="Belum ada User Story" description={canManage ? "Buat story baru atau pecah Task yang membutuhkan pekerjaan teknis." : "Story yang ditugaskan kepada Anda akan muncul di sini."} /> : view === "board" ? <StoryBoard stories={filtered} canManage={canManage} onRefresh={onRefresh} /> : <StoryList stories={filtered} canManage={canManage} onRefresh={onRefresh} />}</section>;
+function StoriesTab({ project, stories, loading, canManage, view, statusGroup, onStatusGroupChange, onViewChange, onOpenDetails, onCreate }: { project: Project; stories: UserStory[]; loading: boolean; canManage: boolean; view: StoryView; statusGroup: StoryStatusFilter; onStatusGroupChange: (value: StoryStatusFilter) => void; onViewChange: (view: StoryView) => void; onOpenDetails: (story: UserStory) => void; onCreate: () => void }) {
+  const filtered = stories.filter((story) => isStoryInStatusFilter(story.status, statusGroup));
+  return <section className="panel"><div className="panel-heading-row"><div><span className="eyebrow">Unit kerja teknis</span><h3 className="panel-title">User Stories</h3><p className="muted">Story menggabungkan konteks Task, acceptance criteria, dan assignment developer.</p></div><div className="row-actions">{canManage ? <button type="button" className="btn btn-primary" onClick={onCreate}>Tambah User Story</button> : null}<div className="segmented-control"><button type="button" className={view === "board" ? "active" : ""} onClick={() => onViewChange("board")}>Board</button><button type="button" className={view === "list" ? "active" : ""} onClick={() => onViewChange("list")}>List</button></div></div></div><div className="story-status-filter-row"><UserStoryStatusControls value={statusGroup} onChange={onStatusGroupChange} /></div>{loading ? <LoadingState label="Memuat User Stories…" /> : filtered.length === 0 ? <EmptyState title="Belum ada User Story" description={statusGroup === "all" ? (canManage ? "Buat story baru atau pecah Task yang membutuhkan pekerjaan teknis." : "Story yang ditugaskan kepada Anda akan muncul di sini.") : "Belum ada story pada kelompok status ini."} /> : view === "board" ? <StoryBoard stories={filtered} onOpenDetails={onOpenDetails} /> : <StoryList stories={filtered} onOpenDetails={onOpenDetails} />}</section>;
 }
 
-function StoryBoard({ stories, canManage, onRefresh }: { stories: UserStory[]; canManage: boolean; onRefresh: () => Promise<void> }) { return <div className="story-board">{STORY_COLUMNS.map((status) => <div key={status} className="story-column"><div className="story-column-header"><span>{STORY_STATUS_LABELS[status]}</span><strong>{stories.filter((story) => story.status === status).length}</strong></div><div className="story-column-cards">{stories.filter((story) => story.status === status).map((story) => <StoryCard key={story.id} story={story} canManage={canManage} onRefresh={onRefresh} />)}</div></div>)}</div>; }
+function StoryBoard({ stories, onOpenDetails }: { stories: UserStory[]; onOpenDetails: (story: UserStory) => void }) { return <><div className="story-board desktop-story-board">{USER_STORY_STATUS_GROUP_ORDER.map((statusGroup) => { const groupStories = stories.filter((story) => isStoryInStatusFilter(story.status, statusGroup)); return <div key={statusGroup} className="story-column"><div className="story-column-header"><span>{USER_STORY_STATUS_GROUP_LABELS[statusGroup]}</span><strong>{groupStories.length}</strong></div><div className="story-column-cards">{groupStories.map((story) => <UserStoryCard key={story.id} story={story} onOpenDetails={onOpenDetails} />)}</div></div>; })}</div><div className="story-mobile-story-list">{stories.map((story) => <UserStoryCard key={story.id} story={story} onOpenDetails={onOpenDetails} />)}</div></>; }
 
-function StoryList({ stories, canManage, onRefresh }: { stories: UserStory[]; canManage: boolean; onRefresh: () => Promise<void> }) { return <div className="story-list">{stories.map((story) => <StoryCard key={story.id} story={story} canManage={canManage} onRefresh={onRefresh} compact />)}</div>; }
+function StoryList({ stories, onOpenDetails }: { stories: UserStory[]; onOpenDetails: (story: UserStory) => void }) { return <div className="story-list">{stories.map((story) => <UserStoryCard key={story.id} story={story} onOpenDetails={onOpenDetails} compact />)}</div>; }
 
-function StoryCard({ story, canManage, onRefresh, compact = false }: { story: UserStory; canManage: boolean; onRefresh: () => Promise<void>; compact?: boolean }) { const [saving, setSaving] = useState(false); const statusOptions = canManage ? STORY_COLUMNS : [...new Set([story.status, "in_progress", "review", "done", "blocked"])]; async function statusChange(status: string) { setSaving(true); try { await userStoriesApi.update(story.id, { status }); await onRefresh(); } catch { /* page refresh keeps the error surface simple */ } finally { setSaving(false); } } return <article className={`story-card ${compact ? "compact" : ""} ${story.is_overdue ? "overdue" : ""}`}><div className="story-card-top"><span className={`story-priority ${story.priority}`}>{story.priority}</span>{story.is_overdue ? <span className="overdue-label">Overdue</span> : null}</div><h4>{story.title}</h4><div className="story-card-context">{story.website ? <span>{story.website.name}</span> : null}{story.tickets.length ? <span>{story.tickets.length} tiket</span> : null}</div><div className="story-card-assignees">{story.primary_developer ? <span className="story-assignee"><span className="member-avatar">{initials(story.primary_developer.name)}</span>{story.primary_developer.name}</span> : <span className="muted">Belum ada developer utama</span>}</div>{compact ? <div className="story-status-select"><Select value={story.status} onChange={(value) => void statusChange(value)} options={statusOptions.map((status) => ({ value: status, label: STORY_STATUS_LABELS[status] }))} disabled={saving} aria-label={`Status ${story.title}`} /></div> : <div className="story-card-footer"><span className={`story-status-label ${story.status}`}>{STORY_STATUS_LABELS[story.status]}</span>{canManage ? <Select value={story.status} onChange={(value) => void statusChange(value)} options={STORY_COLUMNS.map((status) => ({ value: status, label: STORY_STATUS_LABELS[status] }))} disabled={saving} aria-label={`Status ${story.title}`} /> : null}</div>}</article>; }
-
-function WorkTab({ project, stories, loading, canManage, onOpenStories }: { project: Project; stories: UserStory[]; loading: boolean; canManage: boolean; onOpenStories: () => void }) { const open = stories.filter((story) => story.status !== "done"); return <section className="work-monitoring"><div className="work-monitoring-header"><div><h3>Work Monitoring Project</h3><p className="muted">{canManage ? "Detail pekerjaan, blocker, deadline, dan assignment developer." : "Ringkasan pekerjaan Project yang berkaitan dengan tanggung jawab Anda."}</p></div>{canManage ? <button type="button" className="btn btn-neutral" onClick={onOpenStories}>Buka User Stories</button> : null}</div><div className="work-summary-grid"><SummaryMetric label="Pending" value={String(open.filter((story) => story.status === "backlog" || story.status === "ready").length)} /><SummaryMetric label="In progress" value={String(open.filter((story) => story.status === "in_progress" || story.status === "review").length)} /><SummaryMetric label="Blocked" value={String(open.filter((story) => story.status === "blocked").length)} tone={open.some((story) => story.status === "blocked") ? "down" : undefined} /><SummaryMetric label="Overdue" value={String(open.filter((story) => story.is_overdue).length)} tone={open.some((story) => story.is_overdue) ? "down" : undefined} /></div>{loading ? <LoadingState /> : open.length === 0 ? <EmptyState title="Tidak ada pekerjaan aktif" /> : <div className="work-detail-list">{open.map((story) => <div key={story.id} className="work-detail-row"><div><strong>{story.title}</strong><span className="muted">{story.primary_developer?.name || "Belum ditugaskan"}{story.due_date ? ` · Deadline ${formatDateTime(story.due_date)}` : " · Tanpa deadline"}</span></div><div className="work-detail-right"><span className={`story-status-label ${story.status}`}>{STORY_STATUS_LABELS[story.status]}</span>{story.is_overdue ? <span className="overdue-label">Overdue</span> : null}</div></div>)}</div>}</section>; }
+function WorkTab({ project, stories, loading, canManage, onOpenStories }: { project: Project; stories: UserStory[]; loading: boolean; canManage: boolean; onOpenStories: () => void }) { const open = stories.filter((story) => story.status !== "done"); return <section className="work-monitoring"><div className="work-monitoring-header"><div><h3>Work Monitoring Project</h3><p className="muted">{canManage ? "Detail pekerjaan, blocker, deadline, dan assignment developer." : "Ringkasan pekerjaan Project yang berkaitan dengan tanggung jawab Anda."}</p></div>{canManage ? <button type="button" className="btn btn-neutral" onClick={onOpenStories}>Buka User Stories</button> : null}</div><div className="work-summary-grid"><SummaryMetric label="Belum mulai" value={String(open.filter((story) => story.status === "backlog" || story.status === "ready").length)} /><SummaryMetric label="Berjalan" value={String(open.filter((story) => story.status === "in_progress" || story.status === "review").length)} /><SummaryMetric label="Terhambat" value={String(open.filter((story) => story.status === "blocked").length)} tone={open.some((story) => story.status === "blocked") ? "down" : undefined} /><SummaryMetric label="Terlambat" value={String(open.filter((story) => story.is_overdue).length)} tone={open.some((story) => story.is_overdue) ? "down" : undefined} /></div>{loading ? <LoadingState /> : open.length === 0 ? <EmptyState title="Tidak ada pekerjaan aktif" /> : <div className="work-detail-list">{open.map((story) => <div key={story.id} className="work-detail-row"><div><strong>{story.title}</strong><span className="muted">{story.primary_developer?.name || "Belum ditugaskan"}{story.due_date ? ` · Deadline ${formatDateTime(story.due_date)}` : " · Tanpa deadline"}</span></div><div className="work-detail-right"><span className={`story-status-label story-status-group ${getUserStoryStatusGroup(story.status)}`}>{USER_STORY_STATUS_GROUP_LABELS[getUserStoryStatusGroup(story.status)]}</span>{story.is_overdue ? <span className="overdue-label">Terlambat</span> : null}</div></div>)}</div>}</section>; }
 
 function EditProjectModal({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: (project: Project) => void }) {
   const [name, setName] = useState(project.name);

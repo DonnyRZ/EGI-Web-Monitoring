@@ -26,6 +26,7 @@ import type {
   User,
   UserRole,
   UserStory,
+  UserStoryStatusGroup,
   Website,
   WebsiteDetailResponse,
 } from "./types";
@@ -247,6 +248,7 @@ type UserStoryListParams = {
   website_id?: string;
   developer_id?: string;
   status?: string;
+  status_group?: UserStoryStatusGroup;
   priority?: string;
   overdue?: boolean;
   has_ticket?: boolean;

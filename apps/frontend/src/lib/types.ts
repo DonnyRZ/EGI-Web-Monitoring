@@ -14,6 +14,7 @@ export type {
   ProjectRequestStatus,
   ProjectMemberType,
   UserStoryStatus,
+  UserStoryStatusGroup,
   UserStoryPriority,
   UserRole,
 } from "@egi/shared-types";
@@ -30,6 +31,7 @@ import type {
   ProjectRequestStatus,
   ProjectMemberType,
   UserStoryStatus,
+  UserStoryStatusGroup,
   UserStoryPriority,
   TicketStatus,
   TicketCategory,

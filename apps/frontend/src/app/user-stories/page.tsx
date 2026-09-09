@@ -1,20 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { FilterSheet } from "@/components/ResponsiveOverlay";
 import { Select } from "@/components/Select";
+import { UserStoryCard } from "@/components/user-stories/UserStoryCard";
+import { UserStoryDetailModal } from "@/components/user-stories/UserStoryDetailModal";
+import { UserStoryStatusControls } from "@/components/user-stories/UserStoryStatusControls";
 import { EmptyState, ErrorBanner, LoadingState } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { projectsApi, taskMonitoringApi, userStoriesApi } from "@/lib/api-services";
 import { useAuth } from "@/lib/auth-context";
-import { canViewUserStories, formatDateTime, initials } from "@/lib/format";
+import { canViewUserStories } from "@/lib/format";
+import { isStoryInStatusFilter, statusGroupQueryValue, USER_STORY_STATUS_GROUP_LABELS, USER_STORY_STATUS_GROUP_ORDER, type StoryStatusFilter } from "@/lib/user-story-status";
 import type { TaskMonitoringFilters, UserStory } from "@/lib/types";
-
-const COLUMNS = ["backlog", "ready", "in_progress", "review", "done", "blocked"];
-const LABELS: Record<string, string> = { backlog: "Backlog", ready: "Ready", in_progress: "In Progress", review: "Review", done: "Done", blocked: "Blocked" };
 
 export default function UserStoriesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -25,17 +25,18 @@ export default function UserStoriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState<"board" | "list">("list");
-  const [status, setStatus] = useState("");
+  const [statusGroup, setStatusGroup] = useState<StoryStatusFilter>("all");
   const [priority, setPriority] = useState("");
   const [projectId, setProjectId] = useState("");
   const [developerId, setDeveloperId] = useState("");
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [selectedStory, setSelectedStory] = useState<UserStory | null>(null);
 
   async function load() {
     setLoading(true); setError("");
     try {
-      const response = await userStoriesApi.list({ limit: 100, project_id: projectId || undefined, developer_id: developerId || undefined, status: status || undefined, priority: priority || undefined, search: search || undefined });
+      const response = await userStoriesApi.list({ limit: 100, project_id: projectId || undefined, developer_id: developerId || undefined, status_group: statusGroupQueryValue(statusGroup), priority: priority || undefined, search: search || undefined });
       setItems(response.data);
     } catch (err) { setError(err instanceof ApiError ? err.message : "Gagal memuat User Stories"); }
     finally { setLoading(false); }
@@ -53,20 +54,26 @@ export default function UserStoriesPage() {
     }
     projectsApi.list({ limit: 100 }).then((response) => setProjects(response.data.map((project) => ({ id: project.id, name: project.name })))).catch(() => undefined);
   }, [user?.id, user?.role]);
-  useEffect(() => { if (user && canViewUserStories(user.role)) void load(); }, [user?.id, user?.role, status, priority, projectId, developerId]);
+  useEffect(() => { if (user && canViewUserStories(user.role)) void load(); }, [user?.id, user?.role, statusGroup, priority, projectId, developerId]);
 
   const title = user?.role === "developer" ? "User Stories" : "User Stories";
   const filtered = useMemo(() => search.trim() ? items.filter((story) => `${story.title} ${story.project?.name || ""} ${story.website?.name || ""}`.toLowerCase().includes(search.trim().toLowerCase())) : items, [items, search]);
+  const visibleStories = useMemo(() => filtered.filter((story) => isStoryInStatusFilter(story.status, statusGroup)), [filtered, statusGroup]);
   const groups = useMemo(() => {
     const map = new Map<string, { name: string; stories: UserStory[] }>();
-    for (const story of filtered) {
+    for (const story of visibleStories) {
       const key = story.project_id;
       const group = map.get(key) ?? { name: story.project?.name || "Project", stories: [] };
       group.stories.push(story);
       map.set(key, group);
     }
     return [...map.values()];
-  }, [filtered]);
+  }, [visibleStories]);
+
+  async function refreshAfterStoryUpdate(updated: UserStory) {
+    setSelectedStory(updated);
+    await load();
+  }
 
   if (!user || !canViewUserStories(user.role)) return <AppShell title="User Stories"><LoadingState /></AppShell>;
 
@@ -92,23 +99,28 @@ export default function UserStoriesPage() {
         </div>
       </section>
 
+      <section className="story-status-filter-panel panel" aria-label="Filter status User Story">
+        <UserStoryStatusControls value={statusGroup} onChange={setStatusGroup} />
+      </section>
+
       <section className="story-filter-panel panel" aria-label="Filter User Story">
-        <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} status={status} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onStatusChange={setStatus} onPriorityChange={setPriority} />
+        <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onPriorityChange={setPriority} />
       </section>
       <FilterSheet
         open={filterOpen}
         title="Filter User Story"
-        activeCount={[Boolean(projectId), Boolean(developerId), Boolean(status), Boolean(priority)].filter(Boolean).length}
+        activeCount={[Boolean(projectId), Boolean(developerId), Boolean(priority)].filter(Boolean).length}
         onClose={() => setFilterOpen(false)}
         onApply={() => setFilterOpen(false)}
       >
-        <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} status={status} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onStatusChange={setStatus} onPriorityChange={setPriority} />
+        <StoryFilterFields userRole={user.role} projects={projects} developerFilters={developerFilters} projectId={projectId} developerId={developerId} priority={priority} onProjectChange={setProjectId} onDeveloperChange={setDeveloperId} onPriorityChange={setPriority} />
       </FilterSheet>
 
       {error ? <ErrorBanner message={error} /> : null}
       {loading ? <LoadingState label="Memuat User Stories…" /> : null}
-      {!loading && filtered.length === 0 ? <EmptyState title="Belum ada User Story" description={user.role === "developer" ? "Story yang ditugaskan kepada Anda akan muncul di sini." : "Buat story dari halaman detail Project."} /> : null}
-      {!loading && filtered.length > 0 ? <div className="story-project-groups">{groups.map((group) => <section className="story-project-group" key={group.name}><div className="panel-heading-row"><div><span className="eyebrow">Project</span><h3 className="panel-title">{group.name}</h3></div><span className="muted">{group.stories.length} story</span></div>{view === "board" ? <><div className="story-board standalone-story-board desktop-story-board">{COLUMNS.map((column) => <div key={column} className="story-column"><div className="story-column-header"><span>{LABELS[column]}</span><strong>{group.stories.filter((story) => story.status === column).length}</strong></div><div className="story-column-cards">{group.stories.filter((story) => story.status === column).map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={load} />)}</div></div>)}</div><MobileStoryBoard stories={group.stories} onUpdated={load} /></> : <div className="story-list standalone-story-list">{group.stories.map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={load} list />)}</div>}</section>)}</div> : null}
+      {!loading && visibleStories.length === 0 ? <EmptyState title="Belum ada User Story" description={statusGroup === "all" ? (user.role === "developer" ? "Story yang ditugaskan kepada Anda akan muncul di sini." : "Buat story dari halaman detail Project.") : "Belum ada story pada kelompok status ini."} /> : null}
+      {!loading && visibleStories.length > 0 ? <div className="story-project-groups">{groups.map((group) => <section className="story-project-group" key={group.name}><div className="panel-heading-row"><div><span className="eyebrow">Project</span><h3 className="panel-title">{group.name}</h3></div><span className="muted">{group.stories.length} story</span></div>{view === "board" ? <><div className="story-board standalone-story-board desktop-story-board">{USER_STORY_STATUS_GROUP_ORDER.map((groupStatus) => { const groupStories = group.stories.filter((story) => isStoryInStatusFilter(story.status, groupStatus)); return <div key={groupStatus} className="story-column"><div className="story-column-header"><span>{USER_STORY_STATUS_GROUP_LABELS[groupStatus]}</span><strong>{groupStories.length}</strong></div><div className="story-column-cards">{groupStories.map((story) => <UserStoryCard key={story.id} story={story} onOpenDetails={setSelectedStory} />)}</div></div>; })}</div><div className="story-mobile-story-list">{group.stories.map((story) => <UserStoryCard key={story.id} story={story} onOpenDetails={setSelectedStory} />)}</div></> : <div className="story-list standalone-story-list">{group.stories.map((story) => <UserStoryCard key={story.id} story={story} onOpenDetails={setSelectedStory} compact />)}</div>}</section>)}</div> : null}
+      <UserStoryDetailModal story={selectedStory} canEditStatus={user.role === "superadmin" || user.role === "bos_it" || user.role === "developer"} canManageStatus={user.role !== "developer"} onClose={() => setSelectedStory(null)} onSaved={refreshAfterStoryUpdate} />
     </AppShell>
   );
 }
@@ -119,11 +131,9 @@ function StoryFilterFields({
   developerFilters,
   projectId,
   developerId,
-  status,
   priority,
   onProjectChange,
   onDeveloperChange,
-  onStatusChange,
   onPriorityChange,
 }: {
   userRole: string;
@@ -131,11 +141,9 @@ function StoryFilterFields({
   developerFilters: TaskMonitoringFilters["developers"];
   projectId: string;
   developerId: string;
-  status: string;
   priority: string;
   onProjectChange: (value: string) => void;
   onDeveloperChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
   onPriorityChange: (value: string) => void;
 }) {
   return (
@@ -145,27 +153,7 @@ function StoryFilterFields({
         <Select value={projectId} onChange={onProjectChange} options={[{ value: "", label: userRole === "developer" ? "Semua Project Saya" : "Semua Project" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]} aria-label="Filter Project" />
       </div>
       {developerFilters.length > 0 ? <div className="filter-field"><span className="filter-field-label">Developer</span><Select value={developerId} onChange={onDeveloperChange} options={[{ value: "", label: "Semua developer" }, ...developerFilters.map((developer) => ({ value: developer.id, label: developer.name }))]} aria-label="Filter developer" /></div> : null}
-      <div className="filter-field"><span className="filter-field-label">Status</span><Select value={status} onChange={onStatusChange} options={[{ value: "", label: "Semua status" }, ...COLUMNS.map((value) => ({ value, label: LABELS[value] }))]} aria-label="Filter status" /></div>
       <div className="filter-field"><span className="filter-field-label">Priority</span><Select value={priority} onChange={onPriorityChange} options={[{ value: "", label: "Semua priority" }, ...["critical", "high", "medium", "low"].map((value) => ({ value, label: value }))]} aria-label="Filter priority" /></div>
     </div>
   );
-}
-
-function MobileStoryBoard({ stories, onUpdated }: { stories: UserStory[]; onUpdated: () => Promise<void> }) {
-  const firstStatus = COLUMNS.find((column) => stories.some((story) => story.status === column)) ?? COLUMNS[0];
-  const [status, setStatus] = useState(firstStatus);
-  const visible = stories.filter((story) => story.status === status);
-  return (
-    <div className="story-mobile-board">
-      <div className="filter-field"><span className="filter-field-label">Tampilkan status</span><Select value={status} onChange={setStatus} options={COLUMNS.map((value) => ({ value, label: `${LABELS[value]} (${stories.filter((story) => story.status === value).length})` }))} aria-label="Status Board mobile" /></div>
-      <div className="story-mobile-status-content">{visible.length ? visible.map((story) => <GlobalStoryCard key={story.id} story={story} onUpdated={onUpdated} />) : <p className="muted">Belum ada story pada status ini.</p>}</div>
-    </div>
-  );
-}
-
-function GlobalStoryCard({ story, onUpdated, list = false }: { story: UserStory; onUpdated: () => Promise<void>; list?: boolean }) {
-  const [saving, setSaving] = useState(false);
-  const statusOptions = [...new Set([story.status, "in_progress", "review", "done", "blocked"])]
-  async function update(status: string) { setSaving(true); try { await userStoriesApi.update(story.id, { status }); await onUpdated(); } catch { /* preserve the list if a scoped update is rejected */ } finally { setSaving(false); } }
-  return <article className={`story-card ${list ? "compact" : ""} ${story.is_overdue ? "overdue" : ""}`}><div className="story-card-top"><span className={`story-priority ${story.priority}`}>{story.priority}</span>{story.is_overdue ? <span className="overdue-label">Overdue</span> : null}</div><Link href={`/projects/${story.project_id}`}><h4>{story.title}</h4></Link><div className="story-card-context"><span>{story.project?.name || "Project"}</span>{story.website ? <span>{story.website.name}</span> : null}{story.tickets.length ? <span>{story.tickets.length} Task</span> : null}</div><div className="story-card-assignees">{story.primary_developer ? <span className="story-assignee"><span className="member-avatar">{initials(story.primary_developer.name)}</span>{story.primary_developer.name}</span> : <span className="muted">Belum ada developer utama</span>}</div>{list ? <div className="story-list-meta"><span className={`story-status-label ${story.status}`}>{LABELS[story.status]}</span><span className="muted">{story.due_date ? `Deadline ${formatDateTime(story.due_date)}` : "Tanpa deadline"}</span></div> : null}<Select value={story.status} onChange={(value) => void update(value)} options={statusOptions.map((value) => ({ value, label: LABELS[value] }))} disabled={saving} aria-label={`Status ${story.title}`} /></article>;
 }
