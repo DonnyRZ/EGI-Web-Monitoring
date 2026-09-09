@@ -25,6 +25,7 @@ interface SelectProps {
   "aria-label"?: string;
   disabled?: boolean;
   className?: string;
+  menuMinWidth?: number;
   style?: CSSProperties;
   placeholder?: string;
 }
@@ -44,6 +45,7 @@ export function Select({
   "aria-label": ariaLabel,
   disabled = false,
   className = "",
+  menuMinWidth = 0,
   style,
   placeholder = "Pilih…",
 }: SelectProps) {
@@ -70,10 +72,18 @@ export function Select({
     const menuMax = 260;
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < menuMax + 12 && rect.top > spaceBelow;
+    const width = Math.min(
+      Math.max(rect.width, menuMinWidth),
+      Math.max(0, window.innerWidth - 16),
+    );
+    const left = Math.min(
+      Math.max(rect.left, 8),
+      Math.max(8, window.innerWidth - width - 8),
+    );
     setPos({
       top: openUp ? rect.top - 6 : rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
+      left,
+      width,
       openUp,
     });
   }

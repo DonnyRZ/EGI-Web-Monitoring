@@ -1723,48 +1723,7 @@ h3,
 }
 
 .story-status-controls {
-  display: flex;
   min-width: 0;
-  align-items: center;
-  gap: 14px;
-}
-
-.story-status-control-list {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.story-status-control {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: .78rem;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.story-status-control:hover,
-.story-status-control:focus-visible {
-  border-color: var(--egi-blue-mid);
-  color: var(--egi-blue-dark);
-}
-
-.story-status-control.active {
-  border-color: var(--egi-blue);
-  background: var(--egi-blue-soft);
-  color: var(--egi-blue-dark);
-  box-shadow: 0 0 0 2px rgba(47, 116, 183, .08);
 }
 
 .story-board {
@@ -2093,21 +2052,6 @@ h3,
     display: grid;
     align-items: stretch;
     gap: 8px;
-  }
-
-  .story-status-control-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-  }
-
-  .story-status-control:first-child {
-    grid-column: 1 / -1;
-  }
-
-  .story-status-control {
-    min-width: 0;
-    padding: 8px 7px;
-    font-size: .73rem;
   }
 
   .story-status-filter-row {
@@ -7255,16 +7199,6 @@ body,
     display: grid;
     gap: 8px;
   }
-  .story-status-control-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    backdrop-filter: none;
-  }
-  .story-status-control:first-child { grid-column: 1 / -1; }
   .story-list .story-card {
     display: flex;
     grid-template-columns: none;
@@ -7323,4 +7257,95 @@ body,
     gap: 8px;
   }
   .my-work-story-meta .btn { width: 100%; grid-column: 1 / -1; min-height: 44px; }
+}
+
+/* Unified User Story filters: the browsing scope lives in one compact surface. */
+.story-filter-panel {
+  display: block;
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.story-filter-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.story-filter-grid > *,
+.story-filter-grid .filter-field,
+.story-filter-grid .select {
+  min-width: 0;
+}
+
+.story-filter-grid .select,
+.story-filter-grid .select-trigger {
+  width: 100%;
+  min-width: 0;
+}
+
+.story-filter-grid .select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.story-status-controls {
+  display: grid;
+  gap: 6px;
+}
+
+@media (min-width: 768px) {
+  .story-filter-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .story-filter-panel {
+    margin-bottom: 16px;
+    padding: 12px;
+  }
+
+  .story-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .story-filter-grid .filter-field {
+    gap: 5px;
+  }
+
+  .story-filter-grid .filter-field > label,
+  .story-filter-grid .filter-field > .filter-field-label {
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: .67rem;
+    font-weight: 750;
+    letter-spacing: .01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .story-filter-grid .select-trigger {
+    height: 44px;
+    padding: 0 6px 0 8px;
+    border-radius: 9px;
+    gap: 4px;
+  }
+
+  .story-filter-grid .select-value {
+    font-size: .72rem;
+  }
+
+  .story-filter-grid .select-chevron {
+    width: 14px;
+    height: 14px;
+  }
+
+  .story-filter-field-developer {
+    grid-column: 1 / -1;
+  }
 }
