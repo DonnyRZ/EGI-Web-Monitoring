@@ -1,0 +1,5 @@
+FROM redis:7-alpine
+
+# Railway injects REDIS_PASSWORD at runtime. Keep Redis private and require
+# authentication for every application connection.
+CMD ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$REDIS_PASSWORD\""]

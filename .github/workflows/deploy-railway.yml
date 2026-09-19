@@ -1,0 +1,58 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RAILWAY_PROJECT_ID: 0611f1d7-c6d0-41bc-910b-49f59e3d58a0
+  RAILWAY_ENVIRONMENT: production
+  RAILWAY_CLI_VERSION: 5.38.0
+
+jobs:
+  deploy:
+    name: Deploy production services
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli@${RAILWAY_CLI_VERSION}
+
+      # The migration image exits successfully after applying pending Prisma
+      # migrations. Application services also run the idempotent seed before
+      # starting the backend, so a first deploy is safe if builds overlap.
+      - name: Run database migrations
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service 96ad71d9-9e2a-4e84-89c3-ba3564263f3d
+
+      - name: Deploy Redis
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service e58a14f9-7f21-4ebc-97b7-5931fcce98cd
+
+      - name: Deploy MinIO
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service 89d8354f-f4ee-45e4-a93b-b86b8695b6a7
+
+      - name: Deploy Backend API
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service 5fea0c15-8995-46a4-bc1f-3b48c62423b9
+
+      - name: Deploy Worker
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service 025cf15e-0771-4c98-83b8-a156e7f2b1f0
+
+      - name: Deploy Scheduler
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service 8e4f0414-0d35-45bc-b9d3-2bc9cf9b7cd0
+
+      - name: Deploy Frontend
+        run: railway up --detach --yes --ci --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_ENVIRONMENT" --service bf66aea1-89c5-415a-b375-b81a6dd3e8a8
