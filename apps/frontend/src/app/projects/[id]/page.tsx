@@ -405,6 +405,9 @@ function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; o
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const domainInputRef = useRef<HTMLInputElement | null>(null);
+  const urlInputRef = useRef<HTMLInputElement | null>(null);
   const dirty = Boolean(form.name || form.domain || form.url);
   useUnsavedChanges(`projects:${projectId}:website`, dirty);
   useBodyScrollLock(true);
@@ -414,10 +417,39 @@ function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; o
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const name = form.name.trim();
+    const domain = form.domain.trim();
+    const url = form.url.trim();
+    if (!name) {
+      setError("Nama Website wajib diisi.");
+      nameInputRef.current?.focus();
+      return;
+    }
+    if (!domain) {
+      setError("Domain wajib diisi.");
+      domainInputRef.current?.focus();
+      return;
+    }
+    if (!url) {
+      setError("URL wajib diisi.");
+      urlInputRef.current?.focus();
+      return;
+    }
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        throw new Error("protocol");
+      }
+    } catch {
+      setError("URL harus menggunakan alamat HTTP atau HTTPS yang valid.");
+      urlInputRef.current?.focus();
+      return;
+    }
     setSaving(true);
     setError("");
     try {
-      onSaved(await projectsApi.addWebsite(projectId, form));
+      onSaved(await projectsApi.addWebsite(projectId, { name, domain, url }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal menambahkan Website");
     } finally {
@@ -439,13 +471,13 @@ function AddWebsiteModal({ projectId, onClose, onSaved }: { projectId: string; o
         <button type="button" className="icon-btn project-modal-close" onClick={requestClose} aria-label="Tutup form Tambah Website">×</button>
       </div>
       {error ? <ErrorBanner message={error} /> : null}
-      <form className="website-form" onSubmit={submit}>
+      <form className="website-form" noValidate onSubmit={submit}>
         <div className="website-form-grid">
-          <div className="form-field full"><label htmlFor="website-name">Nama Website</label><input id="website-name" className="text-input" required autoFocus value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Contoh: Hadith Hotel" /></div>
-          <div className="form-field"><label htmlFor="website-domain">Domain</label><input id="website-domain" className="text-input" required value={form.domain} onChange={(event) => setForm((current) => ({ ...current, domain: event.target.value }))} placeholder="example.com" /></div>
-          <div className="form-field"><label htmlFor="website-url">URL</label><input id="website-url" className="text-input" type="url" required value={form.url} onChange={(event) => setForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://example.com" /></div>
+          <div className="form-field full"><label htmlFor="website-name">Nama Website <span className="required-mark">*</span></label><input ref={nameInputRef} id="website-name" className="text-input" aria-required="true" autoFocus maxLength={150} value={form.name} onChange={(event) => { setForm((current) => ({ ...current, name: event.target.value })); setError(""); }} placeholder="Contoh: Hadith Hotel" /></div>
+          <div className="form-field"><label htmlFor="website-domain">Domain <span className="required-mark">*</span></label><input ref={domainInputRef} id="website-domain" className="text-input" aria-required="true" maxLength={255} autoCapitalize="none" autoCorrect="off" spellCheck={false} value={form.domain} onChange={(event) => { setForm((current) => ({ ...current, domain: event.target.value })); setError(""); }} placeholder="example.com" /></div>
+          <div className="form-field"><label htmlFor="website-url">URL <span className="required-mark">*</span></label><input ref={urlInputRef} id="website-url" className="text-input" type="url" aria-required="true" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={form.url} onChange={(event) => { setForm((current) => ({ ...current, url: event.target.value })); setError(""); }} placeholder="https://example.com" /></div>
         </div>
-        <div className="modal-actions"><button type="button" className="btn" onClick={requestClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Menambahkan…" : "Tambahkan Website"}</button></div>
+        <div className="modal-actions"><button type="button" className="btn" onClick={requestClose}>Batal</button><button type="submit" className="btn btn-primary">{saving ? "Menambahkan…" : "Tambahkan Website"}</button></div>
       </form>
     </div>
   </div>;

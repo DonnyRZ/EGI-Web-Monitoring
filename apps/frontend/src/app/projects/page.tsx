@@ -64,6 +64,7 @@ export default function ProjectsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const createModalRef = useRef<HTMLDivElement | null>(null);
+  const createNameInputRef = useRef<HTMLInputElement | null>(null);
   const createQueryHandled = useRef(false);
   useUnsavedChanges("projects:create", createOpen && Boolean(createName || createDescription));
   useBodyScrollLock(createOpen);
@@ -127,11 +128,18 @@ export default function ProjectsPage() {
 
   async function createProject(event: FormEvent) {
     event.preventDefault();
+    if (saving) return;
+    const name = createName.trim();
+    if (!name) {
+      setFormError("Nama Project wajib diisi.");
+      createNameInputRef.current?.focus();
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
       const project = await projectsApi.create({
-        name: createName.trim(),
+        name,
         description: createDescription.trim() || undefined,
         status: "draft",
       });
@@ -321,17 +329,17 @@ export default function ProjectsPage() {
               <button type="button" className="icon-btn project-modal-close project-create-close" onClick={requestCreateClose} aria-label="Tutup form Tambah Project">×</button>
             </div>
             {formError ? <ErrorBanner message={formError} /> : null}
-            <form className="project-create-form" onSubmit={createProject}>
+            <form className="project-create-form" noValidate onSubmit={createProject}>
               <div className="form-field">
                 <label htmlFor="new-project-name">Nama Project <span className="required-mark">*</span></label>
-                <input id="new-project-name" className="text-input" required autoFocus maxLength={150} value={createName} onChange={(event) => setCreateName(event.target.value)} placeholder="Contoh: Web IT" />
+                <input ref={createNameInputRef} id="new-project-name" className="text-input" aria-required="true" autoFocus maxLength={150} value={createName} onChange={(event) => { setCreateName(event.target.value); setFormError(""); }} placeholder="Contoh: Web IT" />
               </div>
               <div className="form-field">
                 <label htmlFor="new-project-description">Deskripsi <span className="muted">(opsional)</span></label>
-                <textarea id="new-project-description" className="text-input" rows={5} value={createDescription} onChange={(event) => setCreateDescription(event.target.value)} placeholder="Tujuan, batasan, atau konteks Project…" />
+                <textarea id="new-project-description" className="text-input" rows={5} value={createDescription} onChange={(event) => { setCreateDescription(event.target.value); setFormError(""); }} placeholder="Tujuan, batasan, atau konteks Project…" />
               </div>
               <div className="draft-note"><span className="project-status-pill draft">Draft</span><span>Project dibuat sebagai Draft dan boleh belum memiliki Website.</span></div>
-              <div className="modal-actions"><button type="button" className="btn" onClick={requestCreateClose}>Batal</button><button type="submit" className="btn btn-primary" disabled={saving || !createName.trim()}>{saving ? "Membuat…" : "Buat Project"}</button></div>
+              <div className="modal-actions"><button type="button" className="btn" onClick={requestCreateClose}>Batal</button><button type="submit" className="btn btn-primary">{saving ? "Membuat…" : "Buat Project"}</button></div>
             </form>
           </div>
         </div>

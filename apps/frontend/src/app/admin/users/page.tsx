@@ -36,6 +36,9 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const formDirty = modalOpen && (editing
     ? form.name !== editing.name || form.role !== editing.role || form.is_active !== editing.is_active || Boolean(form.password)
     : form.name !== emptyForm.name || form.email !== emptyForm.email || Boolean(form.password) || form.role !== emptyForm.role);
@@ -92,20 +95,43 @@ export default function AdminUsersPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;
+    const name = form.name.trim();
+    const email = form.email.trim();
+    if (!name) {
+      setFormError("Nama wajib diisi.");
+      nameInputRef.current?.focus();
+      return;
+    }
+    if (!editing && (!email || !/^\S+@\S+\.\S+$/.test(email))) {
+      setFormError("Masukkan alamat email yang valid.");
+      emailInputRef.current?.focus();
+      return;
+    }
+    if (!editing && form.password.length < 8) {
+      setFormError("Password minimal 8 karakter.");
+      passwordInputRef.current?.focus();
+      return;
+    }
+    if (editing && form.password && form.password.length < 8) {
+      setFormError("Password baru minimal 8 karakter.");
+      passwordInputRef.current?.focus();
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
       if (editing) {
         await usersApi.update(editing.id, {
-          name: form.name,
+          name,
           role: form.role,
           is_active: form.is_active,
           ...(form.password ? { password: form.password } : {}),
         });
       } else {
         await usersApi.create({
-          name: form.name,
-          email: form.email,
+          name,
+          email,
           password: form.password,
           role: form.role,
         });
@@ -207,36 +233,42 @@ export default function AdminUsersPage() {
             className="modal"
             role="dialog"
             aria-modal="true"
-            aria-label={editing ? "Edit User" : "Tambah User"}
+            aria-labelledby="user-form-title"
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2>{editing ? "Edit User" : "Tambah User"}</h2>
+            <h2 id="user-form-title">{editing ? "Edit User" : "Tambah User"}</h2>
             {formError ? <ErrorBanner message={formError} /> : null}
-            <form onSubmit={onSubmit}>
+            <form noValidate onSubmit={onSubmit}>
               <div className="form-grid">
                 <div className="form-field full">
-                  <label htmlFor="name">Nama</label>
+                  <label htmlFor="name">Nama <span className="required-mark">*</span></label>
                   <input
+                    ref={nameInputRef}
                     id="name"
                     className="text-input"
                     style={{ width: "100%", borderRadius: 10 }}
-                    required
+                    aria-required="true"
                     value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    maxLength={150}
+                    onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setFormError(""); }}
                   />
                 </div>
                 <div className="form-field full">
-                  <label htmlFor="email">Email</label>
+                  <label htmlFor="email">Email {!editing ? <span className="required-mark">*</span> : null}</label>
                   <input
+                    ref={emailInputRef}
                     id="email"
                     className="text-input"
                     style={{ width: "100%", borderRadius: 10 }}
                     type="email"
-                    required
+                    aria-required={!editing ? "true" : undefined}
                     disabled={Boolean(editing)}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={form.email}
-                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); setFormError(""); }}
                   />
                 </div>
                 <div className="form-field">
@@ -245,7 +277,7 @@ export default function AdminUsersPage() {
                     id="role"
                     className="block"
                     value={form.role}
-                    onChange={(v) => setForm((f) => ({ ...f, role: v as UserRole }))}
+                    onChange={(v) => { setForm((f) => ({ ...f, role: v as UserRole })); setFormError(""); }}
                     options={roles.map((r) => ({ value: r, label: roleLabel(r) }))}
                   />
                 </div>
@@ -257,7 +289,7 @@ export default function AdminUsersPage() {
                       className="block"
                       value={form.is_active ? "true" : "false"}
                       onChange={(v) =>
-                        setForm((f) => ({ ...f, is_active: v === "true" }))
+                        { setForm((f) => ({ ...f, is_active: v === "true" })); setFormError(""); }
                       }
                       options={[
                         { value: "true", label: "Aktif" },
@@ -268,17 +300,19 @@ export default function AdminUsersPage() {
                 ) : null}
                 <div className="form-field full">
                   <label htmlFor="password">
-                    Password {editing ? "(opsional)" : ""}
+                    Password {editing ? "(opsional)" : <span className="required-mark">*</span>}
                   </label>
                   <input
+                    ref={passwordInputRef}
                     id="password"
                     className="text-input"
                     style={{ width: "100%", borderRadius: 10 }}
                     type="password"
-                    required={!editing}
+                    aria-required={!editing ? "true" : undefined}
                     minLength={8}
                     value={form.password}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    autoComplete={editing ? "new-password" : "new-password"}
+                    onChange={(e) => { setForm((f) => ({ ...f, password: e.target.value })); setFormError(""); }}
                   />
                 </div>
               </div>
@@ -286,7 +320,7 @@ export default function AdminUsersPage() {
                   <button type="button" className="btn" onClick={requestClose}>
                   Batal
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+                <button type="submit" className="btn btn-primary">
                   {saving ? "Menyimpan…" : "Simpan"}
                 </button>
               </div>

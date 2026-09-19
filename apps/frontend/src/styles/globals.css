@@ -7126,46 +7126,74 @@ body,
   }
 }
 
-/* Final User Story workspace overrides. These remain last so the grouped
-   status layout wins over the older generic story rules above. */
+/* Final User Story workspace overrides. Keep the card's information and
+   action areas aligned as a single, predictable row on larger screens. */
 .story-board {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   overflow: visible;
 }
 
+.story-card-content,
+.story-card-progress,
+.story-card-actions {
+  min-width: 0;
+}
+
+.story-card-content .story-card-context {
+  margin-bottom: 0;
+}
+
+.story-card-progress {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.story-card-progress .story-card-deadline {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.story-card-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.story-card-actions .story-card-detail-action {
+  width: 100%;
+  min-height: 40px;
+  margin-left: 0;
+}
+
 .story-list .story-card {
   display: grid;
-  grid-template-columns: minmax(108px, .55fr) minmax(0, 1.35fr) minmax(130px, .8fr) minmax(140px, .8fr) minmax(190px, 1fr);
-  grid-template-areas: "top title context assignees footer";
+  grid-template-columns: minmax(92px, .55fr) minmax(220px, 1.7fr) minmax(160px, .9fr) minmax(175px, .95fr) minmax(132px, .7fr);
+  grid-template-areas: "top content assignees progress actions";
   align-items: center;
-  gap: 14px;
+  min-height: 96px;
+  gap: 18px;
+  padding: 16px 18px;
 }
 
 .story-list .story-card > .story-card-top { grid-area: top; margin: 0; }
-.story-list .story-card > .story-card-title-link { grid-area: title; }
-.story-list .story-card > .story-card-context { grid-area: context; margin: 0; }
+.story-list .story-card > .story-card-content { grid-area: content; }
 .story-list .story-card > .story-card-assignees { grid-area: assignees; margin: 0; }
-.story-list .story-card > .story-card-footer { grid-area: footer; margin: 0; padding: 0; border-top: 0; }
-.story-list .story-card > .story-card-assignees { align-self: start; }
-
-.story-list .story-card > .story-card-footer {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  align-items: center;
-  gap: 6px 8px;
+.story-list .story-card > .story-card-progress {
+  grid-area: progress;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
 }
-
-.story-list .story-card .story-card-deadline {
-  grid-column: 1 / -1;
-  grid-row: 2;
-}
-
-.story-list .story-card .story-card-detail-action {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  width: 100%;
-  margin-left: 0;
-}
+.story-list .story-card > .story-card-actions { grid-area: actions; }
+.story-list .story-card > .story-card-assignees { align-self: center; }
 
 .story-mobile-story-list {
   display: none;
@@ -7174,10 +7202,37 @@ body,
 @media (max-width: 1199px) {
   .story-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .story-list .story-card {
-    grid-template-columns: minmax(0, 1fr) minmax(210px, .8fr);
-    grid-template-areas: "top top" "title footer" "context footer" "assignees footer";
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+    grid-template-areas: "top progress" "content content" "assignees deadline" "actions actions";
+    align-items: start;
+    gap: 10px 16px;
+    min-height: 0;
+    padding: 14px;
   }
-  .story-list .story-card > .story-card-assignees { grid-area: assignees; }
+  .story-list .story-card > .story-card-top { grid-area: top; margin: 0; }
+  .story-list .story-card > .story-card-content { grid-area: content; }
+  .story-list .story-card > .story-card-assignees { grid-area: assignees; align-self: center; margin: 0; }
+  .story-list .story-card > .story-card-progress {
+    display: contents;
+  }
+  .story-list .story-card > .story-card-progress .story-status-label {
+    grid-area: progress;
+    justify-self: end;
+    align-self: start;
+  }
+  .story-list .story-card > .story-card-progress .story-card-deadline {
+    grid-area: deadline;
+    align-self: center;
+    text-align: right;
+  }
+  .story-list .story-card > .story-card-actions {
+    grid-area: actions;
+    width: 100%;
+    margin-top: 2px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
 }
 
 @media (min-width: 768px) and (max-width: 1099px) {
@@ -7200,31 +7255,8 @@ body,
     gap: 8px;
   }
   .story-list .story-card {
-    display: flex;
-    grid-template-columns: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .story-list .story-card > .story-card-top,
-  .story-list .story-card > .story-card-context,
-  .story-list .story-card > .story-card-assignees,
-  .story-list .story-card > .story-card-footer { width: 100%; }
-  .story-list .story-card > .story-card-footer {
-    display: grid;
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-    gap: 8px;
-    margin-top: 4px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-  }
-  .story-list .story-card .story-card-deadline {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-  .story-list .story-card .story-card-detail-action {
-    grid-column: 1 / -1;
-    grid-row: 3;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
+    gap: 8px 10px;
   }
   .story-detail-backdrop {
     align-items: flex-end;

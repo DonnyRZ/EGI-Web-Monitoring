@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, UserRole } from "@egi/database";
 import { PrismaService } from "../../prisma/prisma.service";
 import { hashPassword } from "../../common/crypto";
@@ -32,11 +32,15 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
+    const name = dto.name.trim();
+    const email = dto.email.trim().toLowerCase();
+    if (!name) throw new BadRequestException("Name is required");
+    if (!email) throw new BadRequestException("Email is required");
     try {
       const user = await this.prisma.user.create({
         data: {
-          name: dto.name,
-          email: dto.email,
+          name,
+          email,
           passwordHash: hashPassword(dto.password),
           role: dto.role,
           telegramChatId: dto.telegram_chat_id,

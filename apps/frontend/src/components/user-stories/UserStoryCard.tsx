@@ -22,13 +22,15 @@ export function UserStoryCard({
         <span className={`story-priority ${story.priority}`}>{story.priority}</span>
         {story.is_overdue ? <span className="overdue-label">Terlambat</span> : null}
       </div>
-      <Link href={`/projects/${story.project_id}`} className="story-card-title-link">
-        <h4>{story.title}</h4>
-      </Link>
-      <div className="story-card-context">
-        {story.project?.name ? <span>{story.project.name}</span> : null}
-        {story.website ? <span>{story.website.name}</span> : null}
-        {story.tickets.length ? <span>{story.tickets.length} Task</span> : null}
+      <div className="story-card-content">
+        <Link href={`/projects/${story.project_id}`} className="story-card-title-link">
+          <h4>{story.title}</h4>
+        </Link>
+        <div className="story-card-context">
+          {story.project?.name ? <span>{story.project.name}</span> : null}
+          {story.website ? <span>{story.website.name}</span> : null}
+          {story.tickets.length ? <span>{story.tickets.length} Task</span> : null}
+        </div>
       </div>
       <div className="story-card-assignees">
         {story.primary_developer ? (
@@ -38,13 +40,15 @@ export function UserStoryCard({
           </span>
         ) : <span className="muted">Belum ada developer utama</span>}
       </div>
-      <div className="story-card-footer">
+      <div className="story-card-progress">
         <span className={`story-status-label story-status-group ${statusGroup}`}>
           {USER_STORY_STATUS_GROUP_LABELS[statusGroup]}
         </span>
         <span className="muted story-card-deadline">
           {story.due_date ? `Deadline ${formatDateTime(story.due_date)}` : "Tanpa deadline"}
         </span>
+      </div>
+      <div className="story-card-actions">
         <button
           type="button"
           className="btn btn-sm btn-neutral story-card-detail-action"

@@ -314,15 +314,18 @@ export class ProjectsService {
       return this.get(id, user);
     }
 
-    if (!dto.name?.trim() || !dto.domain?.trim() || !dto.url?.trim()) {
+    const name = dto.name?.trim();
+    const domain = dto.domain?.trim();
+    const url = dto.url?.trim();
+    if (!name || !domain || !url) {
       throw new BadRequestException("name, domain, and url are required when creating a website");
     }
-    await assertSafeMonitoringUrl(dto.url);
+    await assertSafeMonitoringUrl(url);
     await this.prisma.website.create({
       data: {
-        name: dto.name.trim(),
-        domain: dto.domain.trim(),
-        url: dto.url.trim(),
+        name,
+        domain,
+        url,
         projectId: project.id,
         monitoringIntervalMinutes: dto.monitoring_interval_minutes ?? 5,
         isActive: true,
