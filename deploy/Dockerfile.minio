@@ -1,4 +1,4 @@
-FROM minio/minio:latest
+FROM quay.io/minio/minio:latest
 
 # The bucket service stays private on Railway; the application connects over
 # Railway's private network using the injected MINIO_ROOT_* credentials.
