@@ -258,10 +258,19 @@ export default function ProjectRequestDetailPage() {
     if (!request?.attachment_url) return;
     setBusyAction("attachment");
     setActionError("");
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
     try {
-      const result = await projectRequestsApi.attachment(request.id);
-      window.open(result.url, "_blank", "noopener,noreferrer");
+      const blob = await projectRequestsApi.attachmentFile(request.id);
+      const url = URL.createObjectURL(blob);
+      if (popup) {
+        popup.location.href = url;
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } else {
+        URL.revokeObjectURL(url);
+        throw new Error("Popup lampiran diblokir browser");
+      }
     } catch (err) {
+      popup?.close();
       setActionError(err instanceof ApiError ? err.message : "Gagal membuka lampiran");
     } finally {
       setBusyAction("");

@@ -10,7 +10,7 @@ import { canCreateProjectRequest, canReviewProjectRequests } from "@egi/shared-t
 import type { AuthUser } from "../../common/current-user.decorator";
 import { paginatedMeta } from "../../common/mappers";
 import { PrismaService } from "../../prisma/prisma.service";
-import { createSignedObjectUrl } from "../../common/s3";
+import { createSignedObjectUrl, getObject } from "../../common/s3";
 import {
   ApproveProjectRequestDto,
   CreateProjectRequestDto,
@@ -71,6 +71,13 @@ export class ProjectRequestsService {
     if (!request.attachmentUrl) throw new NotFoundException("Lampiran tidak tersedia");
     const signed = await createSignedObjectUrl(request.attachmentUrl);
     return { url: signed.url, expires_at: signed.expiresAt };
+  }
+
+  async getAttachmentFile(id: string, user: AuthUser) {
+    this.assertCanRead(user);
+    const request = await this.getRecord(id, user);
+    if (!request.attachmentUrl) throw new NotFoundException("Lampiran tidak tersedia");
+    return getObject(request.attachmentUrl);
   }
 
   async create(dto: CreateProjectRequestDto, user: AuthUser) {

@@ -7,9 +7,11 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  StreamableFile,
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { Readable } from "node:stream";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { CurrentUser, type AuthUser } from "../../common/current-user.decorator";
@@ -55,6 +57,12 @@ export class ProjectRequestsController {
   @Get(":id/attachment")
   getAttachment(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.projectRequestsService.getAttachmentSignedUrl(id, user);
+  }
+
+  @Get(":id/attachment/file")
+  async getAttachmentFile(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    const file = await this.projectRequestsService.getAttachmentFile(id, user);
+    return new StreamableFile(file.body as Readable, { type: file.contentType });
   }
 
   @Patch(":id")

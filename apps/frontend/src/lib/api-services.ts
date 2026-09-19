@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, apiFetchBlob } from "./api";
 import type {
   DashboardWebsiteCard,
   DeveloperWorkload,
@@ -129,6 +129,7 @@ export const ticketsApi = {
   },
   attachment: (id: string) =>
     apiFetch<{ url: string; expires_at: string }>(`/tickets/${id}/attachment`),
+  attachmentFile: (id: string) => apiFetchBlob(`/tickets/${id}/attachment/file`),
   create: (body: {
     website_id?: string;
     project_id?: string;
@@ -217,6 +218,7 @@ export const projectRequestsApi = {
   get: (id: string) => apiFetch<ProjectRequest>(`/project-requests/${id}`),
   attachment: (id: string) =>
     apiFetch<{ url: string; expires_at: string }>(`/project-requests/${id}/attachment`),
+  attachmentFile: (id: string) => apiFetchBlob(`/project-requests/${id}/attachment/file`),
   create: (body: {
     requested_name: string;
     briefing: string;

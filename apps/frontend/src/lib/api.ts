@@ -39,6 +39,7 @@ type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   auth?: boolean;
   skipRefresh?: boolean;
+  responseType?: "json" | "blob";
 };
 
 type RefreshOutcome =
@@ -490,7 +491,7 @@ async function apiFetchUncached<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { body, auth = true, skipRefresh = false, headers, ...rest } = options;
+  const { body, auth = true, skipRefresh = false, responseType = "json", headers, ...rest } = options;
   const reqHeaders = new Headers(headers);
 
   if (body !== undefined && !(body instanceof FormData)) {
@@ -539,6 +540,10 @@ async function apiFetchUncached<T>(
     return undefined as T;
   }
 
+  if (responseType === "blob") {
+    return (await res.blob()) as T;
+  }
+
   const text = await res.text();
   let parsed: unknown = null;
   if (text) {
@@ -563,4 +568,8 @@ async function apiFetchUncached<T>(
 
 export function getApiBaseUrl() {
   return API_URL;
+}
+
+export function apiFetchBlob(path: string, options: Omit<RequestOptions, "responseType"> = {}) {
+  return apiFetch<Blob>(path, { ...options, responseType: "blob" });
 }
